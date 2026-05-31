@@ -1,0 +1,4 @@
+Erste Veröffentlichung.
+- Punkteerfassung für 2-6 Spieler
+- Sandbox-Modus
+- Statistiken

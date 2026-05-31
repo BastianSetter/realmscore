@@ -1,0 +1,4 @@
+First release.
+- Score tracking for 2-6 players
+- Sandbox mode
+- Statistics

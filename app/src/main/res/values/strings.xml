@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RealmScore</string>
+    <string name="onboarding_headline">Willkommen!</string>
+    <string name="onboarding_body">Diese App hilft dir beim Punkte-Zaehlen fuer Fantastische Reiche. Erzaehl mir kurz, wie du heisst.</string>
+    <string name="onboarding_name_label">Dein Name</string>
+    <string name="onboarding_continue">Weiter</string>
+    <string name="onboarding_error_empty">Bitte gib einen Namen ein.</string>
+
+    <string name="home_greeting">Hallo %1$s!</string>
+    <string name="home_new_game">Neues Spiel</string>
+    <string name="home_sandbox_title">Sandbox</string>
+    <string name="home_sandbox_body">Karten frei kombinieren und ausprobieren</string>
+    <string name="home_games_to_continue">Laufende Spiele</string>
+    <string name="home_open_game_fallback_name">Spiel vom %1$s</string>
+    <string name="home_open_game_top_stand">Aktuell führend: %1$s mit %2$d Punkten</string>
+    <string name="home_avatar_overflow">+%1$d</string>
+    <string name="home_did_you_know">Wusstest du …</string>
+    <string name="home_stats_not_enough_title">Noch keine Insights</string>
+    <string name="home_stats_not_enough_body">Spiele ein paar Runden, dann gibt\'s hier interessante Statistiken.</string>
+
+    <string name="random_stat_owner_avg">Du hast im Schnitt %1$d Punkte pro Hand</string>
+    <string name="random_stat_owner_best">Deine beste Hand brachte %1$d Punkte</string>
+    <string name="random_stat_most_popular_card">%1$s ist die beliebteste Karte aller Spieler</string>
+    <string name="random_stat_rarest_played_card">%1$s ist die am seltensten gespielte Karte</string>
+    <string name="random_stat_highest_winrate_player">%1$s hat die höchste Siegquote: %2$d %%</string>
+    <string name="random_stat_closest_round_ever">Engste Runde aller Zeiten: %1$s vs %2$s mit nur %3$d Punkten Unterschied</string>
+    <string name="random_stat_most_played_together">%1$s und %2$s spielen am häufigsten zusammen (%3$d Spiele)</string>
+
+    <string name="tab_home">Start</string>
+    <string name="tab_history">Historie</string>
+    <string name="tab_stats">Statistik</string>
+    <string name="tab_sandbox">Sandbox</string>
+    <string name="tab_settings">Einstellungen</string>
+
+    <string name="placeholder_new_game">Neues Spiel kommt hier hin</string>
+    <string name="placeholder_stats">Statistik kommt hier hin</string>
+    <string name="placeholder_settings">Einstellungen kommen hier hin</string>
+
+    <string name="history_title">Historie</string>
+    <string name="history_search">Suchen</string>
+    <string name="history_search_clear">Suche zurücksetzen</string>
+    <string name="history_status_open">Läuft</string>
+    <string name="history_status_completed">Abgeschlossen</string>
+    <string name="history_status_abandoned">Abgebrochen</string>
+    <string name="history_fallback_name">Spiel vom %1$s</string>
+    <string name="history_winner_label">Gewinner: %1$s mit %2$d Punkten</string>
+    <string name="history_top_stand_label">Aktuell führend: %1$s mit %2$d Punkten</string>
+    <string name="history_empty">Noch keine Spiele gespielt</string>
+    <string name="history_empty_filtered">Keine Spiele entsprechen den Filtern</string>
+    <string name="history_player_filter">Spieler-Filter</string>
+    <string name="history_player_filter_count">Spieler · %1$d</string>
+    <string name="history_player_filter_clear">Alle</string>
+    <string name="history_player_filter_selected_mark">✓</string>
+    <string name="history_avatar_overflow">+%1$d</string>
+
+    <string name="date_today">heute</string>
+    <string name="date_yesterday">gestern</string>
+    <string name="date_days_ago">vor %1$d Tagen</string>
+    <string name="date_weeks_ago">vor %1$d Wochen</string>
+
+    <string name="game_in_progress_title">Spiel</string>
+    <string name="game_back">Zurück</string>
+    <string name="game_start_round">Nächste Runde starten</string>
+    <string name="game_continue_round">Runde fortsetzen</string>
+    <string name="game_no_rounds_yet">Noch keine Runden gespielt</string>
+    <string name="game_total">Gesamt</string>
+    <string name="game_progress">Fortschritt</string>
+    <string name="game_table_player">Spieler</string>
+    <string name="game_progress_to_limit">%1$d / %2$d</string>
+    <string name="game_header_mode_fixed_rounds">Feste Runden · %1$d</string>
+    <string name="game_header_mode_point_limit">Punktelimit · %1$d</string>
+
+    <string name="round_entry_title">Runde %1$d</string>
+    <string name="round_entry_title_loading">Runde wird geladen…</string>
+    <string name="round_entry_subtitle">Tippe auf einen Spieler, um seine Karten einzugeben.</string>
+    <string name="round_entry_status_not_started">Noch nicht erfasst</string>
+    <string name="round_entry_status_completed">Erfasst</string>
+    <string name="round_entry_reveal_button">Punkte enthüllen</string>
+
+    <string name="player_hand_title">Spieler: %1$s</string>
+    <string name="player_hand_count">%1$d / 7 Karten</string>
+    <string name="player_hand_submit">Erfasst – an nächsten Spieler weitergeben</string>
+    <string name="player_hand_joker_section">Joker auflösen</string>
+    <string name="player_hand_optimal">Optimal setzen</string>
+
+    <string name="round_summary_title">Runde %1$d</string>
+    <string name="round_summary_next_round">Nächste Runde starten</string>
+    <string name="round_summary_complete_game">Spiel abschließen</string>
+    <string name="round_summary_edit_round">Diese Runde bearbeiten</string>
+    <string name="round_summary_reveal_again">Reveal erneut zeigen</string>
+    <string name="round_summary_skip">Überspringen</string>
+    <string name="round_summary_continue_to_summary">Weiter zur Rundenübersicht</string>
+    <string name="round_summary_discard_hint">Mittelfeld wurde nicht erfasst</string>
+    <string name="round_summary_winner_badge">Sieger</string>
+    <string name="round_summary_points">%1$d Punkte</string>
+    <string name="reveal_points">%1$d</string>
+    <string name="reveal_winner_label">Sieger der Runde</string>
+
+    <string name="game_summary_title">Spielende</string>
+    <string name="podium_score">%1$d Punkte</string>
+    <string name="game_stats_section_title">Spiel-Statistik</string>
+    <string name="game_stats_rounds">Anzahl Runden: %1$d</string>
+    <string name="game_stats_highest_hand">Höchste Hand: %1$s mit %2$d Punkten in Runde %3$d</string>
+    <string name="game_stats_closest_round">Engste Runde: Runde %1$d (%2$d Punkte Unterschied)</string>
+    <string name="game_summary_rounds_table_title">Rundentabelle</string>
+    <string name="game_summary_round_label">Runde</string>
+    <string name="game_summary_total_label">Gesamt</string>
+    <string name="game_summary_close_game">Spiel abschließen</string>
+    <string name="game_summary_back_to_game">Zurück zum Spiel</string>
+    <string name="game_summary_back_home">Zurück zum Hauptmenü</string>
+    <string name="game_summary_show_stats">Statistiken ansehen</string>
+
+    <string name="new_game_title">Neues Spiel</string>
+    <string name="new_game_mode_section">Spielmodus</string>
+    <string name="new_game_mode_fixed_rounds">Feste Rundenanzahl</string>
+    <string name="new_game_mode_point_limit">Punktelimit</string>
+    <string name="new_game_target_rounds">Anzahl Runden</string>
+    <string name="new_game_target_points">Zielpunkte</string>
+    <string name="new_game_players_section">Spieler</string>
+    <string name="new_game_add_player_label">Spieler hinzufügen</string>
+    <string name="new_game_add_button">Hinzufügen</string>
+    <string name="new_game_remove_button">Entfernen</string>
+    <string name="new_game_owner_badge">(Du)</string>
+    <string name="new_game_start">Spiel starten</string>
+    <string name="new_game_back">Zurück</string>
+    <string name="new_game_error_min_players">Mindestens 2 Spieler erforderlich</string>
+    <string name="new_game_error_max_players">Maximal 6 Spieler erlaubt</string>
+    <string name="new_game_error_name_exists">Ein Profil mit diesem Namen existiert bereits</string>
+    <string name="new_game_error_name_empty">Bitte einen Namen eingeben</string>
+
+    <string name="sandbox_title">Sandbox</string>
+    <string name="sandbox_reset">Zurücksetzen</string>
+    <string name="sandbox_score">%1$d Punkte</string>
+    <string name="sandbox_empty_slot">Karte wählen</string>
+    <string name="sandbox_remove_card">Entfernen</string>
+    <string name="sandbox_picker_title">Karte wählen</string>
+    <string name="move_to_sandbox">In Sandbox übernehmen</string>
+    <string name="sandbox_origin_banner">Aus %1$s, Runde %2$d, gespielt von %3$s</string>
+    <string name="sandbox_origin_no_game_name">Spiel vom %1$s</string>
+    <string name="sandbox_origin_dismiss">Sandbox leeren</string>
+
+    <string name="card_picker_title">Karte wählen</string>
+    <string name="card_picker_search">Karte suchen</string>
+    <string name="card_picker_no_results">Keine Karte gefunden</string>
+
+    <string name="suit_army">Armee</string>
+    <string name="suit_artifact">Artefakt</string>
+    <string name="suit_beast">Bestien</string>
+    <string name="suit_flame">Flamme</string>
+    <string name="suit_flood">Flut</string>
+    <string name="suit_land">Land</string>
+    <string name="suit_leader">Heerführer</string>
+    <string name="suit_weapon">Waffe</string>
+    <string name="suit_weather">Wetter</string>
+    <string name="suit_wizard">Magier</string>
+    <string name="suit_wild">Joker</string>
+    <string name="suit_all">Alle</string>
+
+    <!-- Sandbox: Engine/Joker/Choice/Breakdown -->
+    <string name="sandbox_optimal">Optimal</string>
+    <string name="sandbox_breakdown">Aufschlüsselung</string>
+    <string name="sandbox_breakdown_title">Punkte: %1$d</string>
+    <string name="sandbox_breakdown_blanked">Blockiert</string>
+    <string name="sandbox_joker_section_title">Joker-Auflösung</string>
+    <string name="sandbox_joker_target">Spiegelt</string>
+    <string name="sandbox_joker_unset">— nicht gesetzt —</string>
+    <string name="sandbox_book_new_suit">Neue Farbe</string>
+    <string name="sandbox_choice_section_title">Karten-Auswahl</string>
+    <string name="sandbox_choice_island">Insel hebt Strafe auf</string>
+    <string name="sandbox_choice_fountain">Quelle kopiert</string>
+
+    <!-- Effect descriptions (Breakdown sheet). %1$s and %2$s are dynamic args. -->
+    <string name="effect_base_strength">Basisstärke %1$s</string>
+
+    <string name="effect_rangers_per_land">+10 pro Land (× %1$s)</string>
+    <string name="effect_elven_archers_no_weather">+5 ohne Wetter</string>
+    <string name="effect_dwarvish_infantry_per_army">−2 pro andere Armee (× %1$s)</string>
+    <string name="effect_light_cavalry_per_land">−2 pro Land (× %1$s)</string>
+    <string name="effect_knights_no_leader">−8 ohne Anführer</string>
+
+    <string name="effect_shield_of_keth_leader">+15 mit Anführer</string>
+    <string name="effect_shield_of_keth_combo">+40 mit Anführer und Schwert von Keth</string>
+    <string name="effect_keth_leader_only">+15 mit Anführer</string>
+    <string name="effect_keth_combo">+40 mit Anführer und passendem Keth</string>
+    <string name="effect_gem_of_order">Straße aus %1$s Karten</string>
+    <string name="effect_world_tree">Alle Farben unterschiedlich</string>
+
+    <string name="effect_warhorse_leader_or_wizard">+14 mit Anführer oder Zauberer</string>
+    <string name="effect_unicorn_princess">+30 mit Prinzessin</string>
+    <string name="effect_unicorn_royal">+15 mit Kaiserin/Königin/Magierin</string>
+    <string name="effect_hydra_swamp">+28 mit Sumpf</string>
+    <string name="effect_dragon_no_wizard">−40 ohne Zauberer</string>
+
+    <string name="effect_candle_combo">+100 mit Buch + Glockenturm + Zauberer</string>
+    <string name="effect_fire_elemental_per_flame">+15 pro andere Flamme (× %1$s)</string>
+    <string name="effect_forge_per_weapon_or_artifact">+9 pro Waffe/Artefakt (× %1$s)</string>
+    <string name="effect_lightning_rainstorm">+30 mit Regensturm</string>
+
+    <string name="effect_fountain_of_life">Kopiert Stärke von %1$s (+%2$s)</string>
+    <string name="effect_water_elemental_per_flood">+15 pro andere Flut (× %1$s)</string>
+    <string name="effect_swamp_per_army_or_flame">−3 pro Armee/Flamme (× %1$s)</string>
+
+    <string name="effect_earth_elemental_per_land">+15 pro anderes Land (× %1$s)</string>
+    <string name="effect_cavern_dwarves_or_dragon">+25 mit Zwerge oder Drache</string>
+    <string name="effect_forest_per_beast_or_archers">+12 pro Bestie/Elbenschützen (× %1$s)</string>
+    <string name="effect_bell_tower_wizard">+15 mit Zauberer</string>
+    <string name="effect_mountain_smoke_wildfire">+50 mit Rauch und Buschfeuer</string>
+
+    <string name="effect_princess_per_target">+8 pro Armee/Zauberer/anderem Anführer (× %1$s)</string>
+    <string name="effect_warlord">Summe Armee-Stärken (%1$s)</string>
+    <string name="effect_king_armies">+%1$s pro Armee (× %2$s)</string>
+    <string name="effect_queen_armies">+%1$s pro Armee (× %2$s)</string>
+    <string name="effect_empress_per_army">+10 pro Armee (× %1$s)</string>
+    <string name="effect_empress_per_other_leader">−5 pro anderen Anführer (× %1$s)</string>
+
+    <string name="effect_magic_wand_wizard">+25 mit Zauberer</string>
+    <string name="effect_elven_longbow_target">+30 mit Elbenschützen/Kriegsherr/Beastmaster</string>
+
+    <string name="effect_air_elemental_per_weather">+15 pro anderes Wetter (× %1$s)</string>
+    <string name="effect_rainstorm_per_flood">+10 pro Flut (× %1$s)</string>
+    <string name="effect_whirlwind_combo">+40 mit Regensturm und Blizzard/Große Flut</string>
+    <string name="effect_blizzard_per_target">−5 pro Armee/Anführer/Bestie/Flamme (× %1$s)</string>
+
+    <string name="effect_collector">Sammlung: %1$s Karten von %2$s</string>
+    <string name="effect_enchantress_per_target">+5 pro Land/Wetter/Flut/Flamme (× %1$s)</string>
+    <string name="effect_beastmaster_per_beast">+9 pro Bestie (× %1$s)</string>
+    <string name="effect_warlock_per_target">−10 pro Anführer/anderen Zauberer (× %1$s)</string>
+
+    <!-- Statistik (Phase 12) -->
+    <string name="stats_overview_title">Statistiken</string>
+    <string name="stats_overview_global">Globale Übersicht</string>
+    <string name="stats_overview_player_ranking">Spieler-Rangliste</string>
+    <string name="stats_overview_card_hits">Karten-Hits</string>
+    <string name="stats_overview_all_cards">Alle Karten ansehen</string>
+    <string name="stats_global_games">Gespielte Spiele</string>
+    <string name="stats_global_rounds">Gespielte Runden</string>
+    <string name="stats_global_players">Unterschiedliche Spieler</string>
+    <string name="stats_card_hits_most_played">Beliebteste Karte</string>
+    <string name="stats_card_hits_rarest">Verschmähteste Karte</string>
+    <string name="stats_card_hits_most_valuable">Wertvollste Karte</string>
+    <string name="stats_card_hits_count">%1$d × gespielt</string>
+    <string name="stats_card_hits_avg">Ø %1$.1f Punkte</string>
+    <string name="stats_player_ranking_winrate">%1$d %% Siegquote · %2$d Spiele</string>
+    <string name="stats_player_ranking_no_games">Noch keine Spiele</string>
+
+    <string name="stats_player_title">%1$s</string>
+    <string name="stats_player_games_played">Spiele</string>
+    <string name="stats_player_win_rate">Siegquote</string>
+    <string name="stats_player_avg_score">Ø Punkte</string>
+    <string name="stats_player_best_score">Beste Hand</string>
+    <string name="stats_player_winrate_value">%1$d %%</string>
+    <string name="stats_player_section_trend">Punkte-Trend</string>
+    <string name="stats_player_section_histogram">Hand-Werte</string>
+    <string name="stats_player_section_favorites">Lieblingskarten</string>
+    <string name="stats_player_section_opponents">Wer-gegen-wen</string>
+    <string name="stats_player_section_recent">Letzte Spiele</string>
+    <string name="stats_player_opponent_record">%1$d Siege / %2$d Niederlagen</string>
+    <string name="stats_player_opponent_games">%1$d gemeinsame Spiele</string>
+    <string name="stats_player_favorite_count">%1$d ×</string>
+    <string name="stats_player_recent_won">Gewonnen</string>
+    <string name="stats_player_recent_won_by">Sieger: %1$s</string>
+    <string name="stats_player_no_trend">Noch zu wenige Daten für einen Trend</string>
+    <string name="stats_player_no_histogram">Noch keine erfassten Hände</string>
+
+    <string name="stats_cards_title">Karten-Statistik</string>
+    <string name="stats_cards_sort_label">Sortieren nach</string>
+    <string name="stats_cards_sort_popularity">Beliebtheit</string>
+    <string name="stats_cards_sort_avg">Ø Punkte</string>
+    <string name="stats_cards_sort_name">Name</string>
+    <string name="stats_card_in_hand">In Hand: %1$d</string>
+    <string name="stats_card_in_discard">Im Mittelfeld: %1$d</string>
+    <string name="stats_card_avg_contribution">Ø Beitrag: %1$.1f</string>
+    <string name="stats_card_hand_share">Hand-Anteil: %1$d %%</string>
+    <string name="stats_card_data_warning">Basierend auf %1$d Runden, davon %2$d mit Mittelfeld-Scan</string>
+    <string name="stats_card_low_data_hint">Stats werden zuverlässiger mit Mittelfeld-Erfassung</string>
+    <string name="stats_card_section_basics">Kernzahlen</string>
+    <string name="stats_card_section_players">Beliebtheit pro Spieler</string>
+    <string name="stats_card_section_partners">Häufigste Kombi-Partner</string>
+    <string name="stats_card_section_histogram">Punkte-Beitrag-Verteilung</string>
+    <string name="stats_card_highest_single">Bester Einzel-Beitrag: %1$d</string>
+    <string name="stats_card_highest_context">Runde %1$d · %2$s</string>
+    <string name="stats_card_no_contributions">Bisher noch nicht gespielt</string>
+    <string name="stats_card_player_count">%1$d ×</string>
+    <string name="stats_card_partner_count">%1$d ×</string>
+
+    <string name="stats_h2h_title">Direktvergleich</string>
+    <string name="stats_h2h_games_together">%1$d Spiele gemeinsam gespielt</string>
+    <string name="stats_h2h_wins_a">%1$d Siege</string>
+    <string name="stats_h2h_wins_b">%1$d Siege</string>
+    <string name="stats_h2h_avg_a">Ø %1$.0f Punkte</string>
+    <string name="stats_h2h_avg_b">Ø %1$.0f Punkte</string>
+    <string name="stats_h2h_section_games">Gemeinsame Spiele</string>
+    <string name="stats_h2h_section_cards">Karten-Vergleich</string>
+    <string name="stats_h2h_card_diff_label">%1$s vs. %2$s</string>
+    <string name="stats_h2h_no_games">Diese beiden haben noch nie zusammen gespielt</string>
+    <string name="stats_h2h_select_opponent">Gegner auswählen</string>
+
+    <string name="stats_empty_title">Noch keine Statistiken</string>
+    <string name="stats_empty_body">Spiele ein paar Runden, dann gibt\'s hier Insights.</string>
+    <string name="stats_back">Zurück</string>
+
+    <!-- Settings (Phase 15) -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_profile">Profil</string>
+    <string name="settings_profile_owner_label">Lokaler Owner</string>
+    <string name="settings_profile_none">Kein Owner angelegt</string>
+    <string name="settings_game">Spiel-Einstellungen</string>
+    <string name="settings_appearance">Darstellung</string>
+    <string name="settings_data">Daten</string>
+    <string name="settings_about">Über die App</string>
+
+    <string name="settings_change_username">Username ändern</string>
+    <string name="settings_default_point_limit">Standard-Punktelimit</string>
+    <string name="settings_default_round_count">Standard-Rundenanzahl</string>
+    <string name="settings_suggest_discard_scan">Mittelfeld-Hinweis am Rundenende</string>
+
+    <string name="settings_theme_mode">Farbschema</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Hell</string>
+    <string name="settings_theme_dark">Dunkel</string>
+    <string name="settings_dynamic_colors">Dynamische Farben (Android 12+)</string>
+
+    <string name="settings_data_open_games">Laufende Spiele: %1$d</string>
+    <string name="settings_data_closed_games">Abgeschlossene Spiele: %1$d</string>
+    <string name="settings_data_rounds">Gespielte Runden: %1$d</string>
+    <string name="settings_data_profiles">Profile: %1$d</string>
+
+    <string name="settings_clear_game_data">Alle Spieldaten löschen</string>
+    <string name="settings_reset_app">App zurücksetzen</string>
+    <string name="settings_confirm_clear_data_title">Wirklich alle Spieldaten löschen?</string>
+    <string name="settings_confirm_clear_data_body">Profile bleiben erhalten, aber alle Spiele, Runden und Karten werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="settings_confirm_reset_app_title">App wirklich zurücksetzen?</string>
+    <string name="settings_confirm_reset_app_body">Alle Daten, Profile und Einstellungen werden gelöscht. Du landest danach wieder im Onboarding.</string>
+    <string name="settings_confirm_keyword">LÖSCHEN</string>
+    <string name="settings_confirm_type_keyword">Tippe %1$s um zu bestätigen</string>
+    <string name="settings_confirm_delete">Löschen</string>
+    <string name="settings_cancel">Abbrechen</string>
+
+    <string name="about_version">Version %1$s</string>
+    <string name="about_license">Lizenz: GPL-3.0</string>
+    <string name="about_disclaimer">Diese App ist eine Fan-Implementierung und nicht mit WizKids/Strohmann Games assoziiert.</string>
+
+    <!-- Username change (Phase 15) -->
+    <string name="username_change_title">Username ändern</string>
+    <string name="username_change_body">Wähle einen neuen Namen für dein Owner-Profil. Dein Spielverlauf bleibt erhalten.</string>
+    <string name="username_change_label">Neuer Name</string>
+    <string name="username_change_submit">Speichern</string>
+    <string name="username_change_cancel">Abbrechen</string>
+    <string name="username_change_error_empty">Bitte einen Namen eingeben</string>
+    <string name="username_change_error_exists">Profil mit diesem Namen existiert bereits</string>
+
+    <!-- Common empty/error states (Phase 15) -->
+    <string name="state_empty_default_title">Noch nichts hier</string>
+    <string name="state_error_default_title">Etwas ist schiefgelaufen</string>
+    <string name="state_retry">Erneut versuchen</string>
+</resources>

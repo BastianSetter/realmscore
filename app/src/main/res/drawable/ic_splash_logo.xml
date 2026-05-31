@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Three stylized fanned cards -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="-12">
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#6750A4"
+            android:strokeWidth="1"
+            android:pathData="M30,38 L46,38 L46,72 L30,72 Z" />
+    </group>
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="0">
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#6750A4"
+            android:strokeWidth="1"
+            android:pathData="M46,34 L62,34 L62,72 L46,72 Z" />
+    </group>
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="12">
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#6750A4"
+            android:strokeWidth="1"
+            android:pathData="M62,38 L78,38 L78,72 L62,72 Z" />
+    </group>
+</vector>

@@ -1,0 +1,11 @@
+RealmScore ist ein einfacher, schneller Punktezähler für das Kartenspiel Fantasy Realms (im deutschen Handel als "Fantastische Reiche" erschienen).
+
+Funktionen:
+- Punkte für 2 bis 6 Spieler erfassen
+- Automatische Berechnung aller Boni, Strafen und Joker-Effekte
+- Spannungs-Modus: Punkte werden erst am Rundenende gemeinsam aufgelöst
+- Sandbox zum freien Ausprobieren von Kartenkombinationen
+- Ausführliche Statistiken über Spieler und Karten
+- Komplett offline, keine Werbung, keine Tracker
+
+RealmScore ist eine inoffizielle Fan-App und steht in keiner Verbindung zu den Herausgebern des Spiels.

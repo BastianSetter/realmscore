@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Three stylized fanned cards. Centered in 108x108 viewport.
+         Safe-zone for adaptive icon is ~66x66 around center. -->
+    <group
+        android:pivotX="54"
+        android:pivotY="62"
+        android:rotation="-18">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M40,40 L52,40 L52,76 L40,76 Z" />
+    </group>
+    <group
+        android:pivotX="54"
+        android:pivotY="62"
+        android:rotation="0">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M48,36 L60,36 L60,72 L48,72 Z" />
+    </group>
+    <group
+        android:pivotX="54"
+        android:pivotY="62"
+        android:rotation="18">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M56,40 L68,40 L68,76 L56,76 Z" />
+    </group>
+</vector>

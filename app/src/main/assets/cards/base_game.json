@@ -1,0 +1,482 @@
+{
+  "version": 1,
+  "cards": [
+    {
+      "key": "rangers",
+      "nameDe": "Waldläufer",
+      "suit": "ARMY",
+      "baseStrength": 5,
+      "ruleTextDe": "Bonus: +10 für jedes Land; hebt das Wort Armee von allen Strafen AUF",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "elven_archers",
+      "nameDe": "Elbenschützen",
+      "suit": "ARMY",
+      "baseStrength": 10,
+      "ruleTextDe": "Bonus: +5 wenn ohne Wetter",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "dwarvish_infantry",
+      "nameDe": "Zwergeninfanterie",
+      "suit": "ARMY",
+      "baseStrength": 15,
+      "ruleTextDe": "Strafe: -2 für jede andere Armee",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "light_cavalry",
+      "nameDe": "Leichte Kavallerie",
+      "suit": "ARMY",
+      "baseStrength": 17,
+      "ruleTextDe": "Strafe: -2 für jedes Land",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "knights",
+      "nameDe": "Ritter",
+      "suit": "ARMY",
+      "baseStrength": 20,
+      "ruleTextDe": "Strafe: -8 wenn ohne Anführer",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "protection_rune",
+      "nameDe": "Rune des Schutzes",
+      "suit": "ARTIFACT",
+      "baseStrength": 1,
+      "ruleTextDe": "Bonus: hebt die Strafen auf allen Karten auf",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "world_tree",
+      "nameDe": "Weltenbaum",
+      "suit": "ARTIFACT",
+      "baseStrength": 2,
+      "ruleTextDe": "Bonus: +50 wenn jede nicht-blockierte Karte eine unterschiedliche Farbe hat",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "book_of_changes",
+      "nameDe": "Buch der Veränderung",
+      "suit": "ARTIFACT",
+      "baseStrength": 3,
+      "ruleTextDe": "Bonus: du darfst die Farbe einer anderen Karte verändern. Name, Bonus, Strafe und Basisstärke bleiben unverändert",
+      "isJoker": true,
+      "jokerType": "BOOK_OF_CHANGES"
+    },
+    {
+      "key": "shield_of_keth",
+      "nameDe": "Schild von Keth",
+      "suit": "ARTIFACT",
+      "baseStrength": 4,
+      "ruleTextDe": "Bonus: +15 mit mindestens einem Anführer, +40 mit Anführer und Schwert von Keth",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "gem_of_order",
+      "nameDe": "Juwel der Ordnung",
+      "suit": "ARTIFACT",
+      "baseStrength": 5,
+      "ruleTextDe": "Bonus: +10 für eine \"Straße\" mit 3 Karten, +30 für eine \"Straße\" mit 4 Karten, +60 für eine \"Straße\" mit 5 Karten, +100 für eine \"Straße\" mit 6 Karten, +150 für eine \"Straße\" mit 7 Karten",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "warhorse",
+      "nameDe": "Schlachtross",
+      "suit": "BEAST",
+      "baseStrength": 6,
+      "ruleTextDe": "Bonus: +14 mit mindestens einem Anführer oder Zauberer",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "unicorn",
+      "nameDe": "Einhorn",
+      "suit": "BEAST",
+      "baseStrength": 9,
+      "ruleTextDe": "Bonus: +30 mit Prinzessin oder +15 mit Kaiserin, Königin oder Magierin",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "hydra",
+      "nameDe": "Hydra",
+      "suit": "BEAST",
+      "baseStrength": 12,
+      "ruleTextDe": "Bonus: +28 mit Sumpf",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "dragon",
+      "nameDe": "Drache",
+      "suit": "BEAST",
+      "baseStrength": 30,
+      "ruleTextDe": "Strafe: -40 wenn ohne Zauberer",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "basilisk",
+      "nameDe": "Basilisk",
+      "suit": "BEAST",
+      "baseStrength": 35,
+      "ruleTextDe": "Strafe: blockiert alle Armeen, Anführer und andere Bestien",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "candle",
+      "nameDe": "Kerze",
+      "suit": "FLAME",
+      "baseStrength": 2,
+      "ruleTextDe": "Bonus: +100 mit Buch der Veränderung und Glockenturm sowie mindestens einem Zauberer",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "fire_elemental",
+      "nameDe": "Feuerwesen",
+      "suit": "FLAME",
+      "baseStrength": 4,
+      "ruleTextDe": "Bonus: +15 für jede andere Flamme",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "forge",
+      "nameDe": "Schmiede",
+      "suit": "FLAME",
+      "baseStrength": 9,
+      "ruleTextDe": "Bonus: +9 für jede Waffe und/oder jedes Artefakt",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "lightning",
+      "nameDe": "Blitz",
+      "suit": "FLAME",
+      "baseStrength": 11,
+      "ruleTextDe": "Bonus: +30 mit Regensturm",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "wildfire",
+      "nameDe": "Buschfeuer",
+      "suit": "FLAME",
+      "baseStrength": 40,
+      "ruleTextDe": "Strafe: blockiert alle Karten außer Flammen, Zauberer, Wetter, Waffen, Artefakte, Gebirge, Große Flut, Insel, Einhorn und Drachen",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "fountain_of_life",
+      "nameDe": "Quelle des Lebens",
+      "suit": "FLOOD",
+      "baseStrength": 1,
+      "ruleTextDe": "Bonus: Addiere die Basisstärke einer beliebigen Waffe, Flut, Flamme, Land oder Wetter",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "water_elemental",
+      "nameDe": "Wasserwesen",
+      "suit": "FLOOD",
+      "baseStrength": 4,
+      "ruleTextDe": "Bonus: +15 für jede andere Flut",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "island",
+      "nameDe": "Insel",
+      "suit": "FLOOD",
+      "baseStrength": 14,
+      "ruleTextDe": "Bonus: hebt die Strafe einer beliebigen Flut oder Flamme auf",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "swamp",
+      "nameDe": "Sumpf",
+      "suit": "FLOOD",
+      "baseStrength": 18,
+      "ruleTextDe": "Strafe: -3 für jede Armee und/oder Flamme",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "great_flood",
+      "nameDe": "Große Flut",
+      "suit": "FLOOD",
+      "baseStrength": 32,
+      "ruleTextDe": "Strafe: blockiert alle Armeen, alle Länder, außer Gebirge und alle Flammen, außer Blitz",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "earth_elemental",
+      "nameDe": "Erdwesen",
+      "suit": "LAND",
+      "baseStrength": 4,
+      "ruleTextDe": "Bonus: +15 für jedes andere Land",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "cavern",
+      "nameDe": "Höhle",
+      "suit": "LAND",
+      "baseStrength": 6,
+      "ruleTextDe": "Bonus: +25 mit Zwergeninfanterie oder Drache, hebt die Strafen auf allen Wettern auf",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "forest",
+      "nameDe": "Wald",
+      "suit": "LAND",
+      "baseStrength": 7,
+      "ruleTextDe": "Bonus: +12 für jede Bestie und /oder Elbenschützen",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "bell_tower",
+      "nameDe": "Glockenturm",
+      "suit": "LAND",
+      "baseStrength": 8,
+      "ruleTextDe": "Bonus: +15 mit mindestens einem Zauberer",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "mountain",
+      "nameDe": "Gebirge",
+      "suit": "LAND",
+      "baseStrength": 9,
+      "ruleTextDe": "Bonus: +50 mit Rauch und Buschfeuer, hebt die Strafen auf allen Fluten auf",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "princess",
+      "nameDe": "Prinzessin",
+      "suit": "LEADER",
+      "baseStrength": 2,
+      "ruleTextDe": "Bonus: +8 für jede Armee, Zauberer und/oder andere Anführer",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "warlord",
+      "nameDe": "Kriegsherr",
+      "suit": "LEADER",
+      "baseStrength": 4,
+      "ruleTextDe": "Bonus: Die Summe der Basisstärke aller Armeen",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "king",
+      "nameDe": "König",
+      "suit": "LEADER",
+      "baseStrength": 6,
+      "ruleTextDe": "Bonus: +5 für jede Armee oder +20 für jede Armee wenn zusammen mit dem König",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "queen",
+      "nameDe": "Königin",
+      "suit": "LEADER",
+      "baseStrength": 8,
+      "ruleTextDe": "Bonus: +5 für jede Armee oder+20 für jede Armee wenn zusammen mit der Königin",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "empress",
+      "nameDe": "Kaiserin",
+      "suit": "LEADER",
+      "baseStrength": 15,
+      "ruleTextDe": "Bonus: +10 für jede Armee; Strafe: -5 für jeden anderen Anführer",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "magic_wand",
+      "nameDe": "Zauberstab",
+      "suit": "WEAPON",
+      "baseStrength": 1,
+      "ruleTextDe": "Bonus: +25 mit mindestens einem Zauberer",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "elven_longbow",
+      "nameDe": "Elbischer Bogen",
+      "suit": "WEAPON",
+      "baseStrength": 3,
+      "ruleTextDe": "Bonus: +30 mit Elbenschützen, Kriegsherr oder Herr der Bestien",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "sword_of_keth",
+      "nameDe": "Schwert von Keth",
+      "suit": "WEAPON",
+      "baseStrength": 7,
+      "ruleTextDe": "Bonus: +10 mit mindestens einem Anführer, +40 mit Anführer und Schild von Keth",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "warship",
+      "nameDe": "Kriegsschiff",
+      "suit": "WEAPON",
+      "baseStrength": 23,
+      "ruleTextDe": "Strafe: ist blockiert, wenn ohne Flut; hebt das Wort Armee von allen Strafen auf allen Fluten auf",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "war_dirigible",
+      "nameDe": "Kampfzeppelin",
+      "suit": "WEAPON",
+      "baseStrength": 35,
+      "ruleTextDe": "Strafe: ist blockiert, wenn ohne Armee. Ist blockiert wenn zusammen mit Wetter.",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "air_elemental",
+      "nameDe": "Luftwesen",
+      "suit": "WEATHER",
+      "baseStrength": 4,
+      "ruleTextDe": "Bonus: +15 für jedes andere Wetter",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "rainstorm",
+      "nameDe": "Regensturm",
+      "suit": "WEATHER",
+      "baseStrength": 8,
+      "ruleTextDe": "Bonus: +10 für jede Flut; Strafe: blockiert alle Flammen außer Blitz",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "whirlwind",
+      "nameDe": "Wirbelsturm",
+      "suit": "WEATHER",
+      "baseStrength": 13,
+      "ruleTextDe": "Bonus: +40 mit Regensturm und entweder Blizzard oder Große Flut",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "smoke",
+      "nameDe": "Rauch",
+      "suit": "WEATHER",
+      "baseStrength": 27,
+      "ruleTextDe": "Strafe: ist blockiert wenn ohne Flamme",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "blizzard",
+      "nameDe": "Blizzard",
+      "suit": "WEATHER",
+      "baseStrength": 30,
+      "ruleTextDe": "Strafe: -5 für jede Armee, Anführer, Bestie und/oder Flamme, blockiert alle Fluten",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "shapeshifter",
+      "nameDe": "Gestaltwandler",
+      "suit": "WILD",
+      "baseStrength": 0,
+      "ruleTextDe": "Kann Namen und Farbe eine beliebigen Artefakts, Anführers, Zauberers, Waffe oder Bestie des Spiels kopieren. Übernimmt nicht Bonus, Strafen oder Basisstärke der entsprechenden Karte.",
+      "isJoker": true,
+      "jokerType": "SHAPESHIFTER"
+    },
+    {
+      "key": "mirage",
+      "nameDe": "Spiegelung",
+      "suit": "WILD",
+      "baseStrength": 0,
+      "ruleTextDe": "Kann Namen und Farbe einer beliebigen Armee, Land, Wetter, Flut oder Flamme im Spiel kopieren. Übernimmt nicht Bonus, Strafen oder Basisstärke der entsprechenden Karte.",
+      "isJoker": true,
+      "jokerType": "MIRAGE"
+    },
+    {
+      "key": "doppelganger",
+      "nameDe": "Doppelgänger",
+      "suit": "WILD",
+      "baseStrength": 0,
+      "ruleTextDe": "Kann Namen, Basisstärke, Farbe und Strafe ABER NICHT DEN BONUS einer anderen Karte in deiner Hand kopieren",
+      "isJoker": true,
+      "jokerType": "DOPPELGANGER"
+    },
+    {
+      "key": "necromancer",
+      "nameDe": "Totenbeschwörer",
+      "suit": "WIZARD",
+      "baseStrength": 3,
+      "ruleTextDe": "Bonus: Du darfst am Spielende eine Armee, Anführer, Zauberer oder Bestie aus dem Ablagebereich nehmen und sie als deine 8. Karte werten.",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "enchantress",
+      "nameDe": "Magierin",
+      "suit": "WIZARD",
+      "baseStrength": 5,
+      "ruleTextDe": "Bonus: +5 für jedes Land, Wetter, Flut und/oder Flamme",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "collector",
+      "nameDe": "Sammler",
+      "suit": "WIZARD",
+      "baseStrength": 7,
+      "ruleTextDe": "Bonus: +10 für 3 unterschiedliche Karten der gleichen Farbe, +40 für 4 unterschiedliche Karten der gleichen Farbe, +100 für 5 unterschiedliche Karten der gleichen Farbe",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "beastmaster",
+      "nameDe": "Herr der Bestien",
+      "suit": "WIZARD",
+      "baseStrength": 9,
+      "ruleTextDe": "Bonus: +9 für jede Bestie; hebt die Strafe auf allen Bestien auf",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "warlock",
+      "nameDe": "Hexenmeister",
+      "suit": "WIZARD",
+      "baseStrength": 25,
+      "ruleTextDe": "Strafe: -10 für jede Anführer und/oder anderen Zauberer",
+      "isJoker": false,
+      "jokerType": null
+    }
+  ]
+}
