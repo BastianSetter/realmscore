@@ -39,4 +39,4 @@ Kotlin, Jetpack Compose, Room, DataStore. F-Droid-konform.
 
 ## Quellcode
 
-<https://github.com/<USER>/realmscore>  <!-- Platzhalter: vom Maintainer ersetzen -->
+https://github.com/BastianSetter/realmscore
