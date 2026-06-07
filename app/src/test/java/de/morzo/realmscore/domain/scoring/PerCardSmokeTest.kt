@@ -1,6 +1,7 @@
 package de.morzo.realmscore.domain.scoring
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -207,13 +208,17 @@ class PerCardSmokeTest {
         assertEquals(29, r.totalScore)
     }
 
-    @Test fun `great_flood blanks armies and most lands`() {
-        // flood(32) + rangers(5,army→blanked) + forest(7,land→blanked) + mountain(9,land→KEPT)
-        // rangers blanked. forest blanked. mountain ok (+10 from rangers? rangers blanked → 0)
-        // mountain: smoke AND wildfire (no) → 0 bonus
-        // total = 32 + 9 = 41
-        val r = TestFixture.score("great_flood", "rangers", "forest", "mountain")
-        assertEquals(41, r.totalScore)
+    @Test fun `great_flood blanks armies and lands but spares lightning`() {
+        // flood(32) + rangers(5,army→blanked) + forest(7,land→blanked) + lightning(11,flame→spared)
+        // No Gebirge here, so the Flood's penalty is NOT cleared and its blanking applies.
+        // rangers blanked, forest blanked, lightning spared (named flame exception).
+        // lightning: rainstorm? no → 0
+        // total = 32 + 11 = 43
+        val r = TestFixture.score("great_flood", "rangers", "forest", "lightning")
+        assertTrue("rangers" in r.blankedKeys)
+        assertTrue("forest" in r.blankedKeys)
+        assertTrue("lightning" !in r.blankedKeys)
+        assertEquals(43, r.totalScore)
     }
 
     // ── LAND ────────────────────────────────────────────────────────────────

@@ -9,14 +9,15 @@ import de.morzo.realmscore.domain.scoring.rules.CardRuleRegistry
 /**
  * Pure-Kotlin scoring pipeline. No Android imports.
  *
- * Order of operations:
+ * Order of operations (mirrors the rulebook: jokers → Book of Changes → clearing → penalties):
  *  1) Joker substitution (Doppelganger/Mirage/Shapeshifter → name+suit; Book of Changes → suit)
- *  2) Collect penalty cancellations from all rules (pre-blanking snapshot)
- *  3) Blanking fixpoint (incl. self-blanks); blanked sources lose their effects
- *  4) Drop cancellations whose source is now blanked → final PenaltyContext
- *  5) Bonuses for non-blanked cards (bonusEnabled gate)
- *  6) Penalties for non-blanked cards (penaltyEnabled gate, PenaltyContext applied)
- *  7) Per-card totals = (base strength if not blanked) + bonus deltas + penalty deltas
+ *  2) Collect penalty cancellations from all rules (full pre-blanking hand). Clearing is
+ *     permanent, so this is the final PenaltyContext — a blanked canceller still cleared.
+ *  3) Blanking fixpoint (incl. self-blanks); a card whose penalty is cleared blanks nothing,
+ *     and blanked sources lose their remaining effects
+ *  4) Bonuses for non-blanked cards (bonusEnabled gate)
+ *  5) Penalties for non-blanked cards (penaltyEnabled gate, PenaltyContext applied)
+ *  6) Per-card totals = (base strength if not blanked) + bonus deltas + penalty deltas
  */
 class ScoringEngine(
     private val registry: CardRuleRegistry,
@@ -48,13 +49,18 @@ class ScoringEngine(
 
         // 3) Blanking-Fixpunkt
         // Blanking is a Strafe → only fire if penaltyEnabled (Doppelganger copies penalties,
-        // including blanking; Mirage/Shapeshifter inherit nothing of either kind).
+        // including blanking; Mirage/Shapeshifter inherit nothing of either kind). The resolver
+        // also consumes the cancellations: a card whose penalty is fully cancelled (e.g. Herr
+        // der Bestien → Basilisk, Gebirge → Große Flut) blanks nothing.
         val blanker = BlankingResolver { key -> registry.get(key) }
-        val blankedKeys = blanker.resolve(workingCtx)
+        val blankedKeys = blanker.resolve(workingCtx, rawCancellations)
 
-        // 4) Cancellations finalisieren (Source-blanked → drop)
-        val activeCancellations = rawCancellations.filter { it.sourceKey !in blankedKeys }
-        val penaltyContext = PenaltyContext(activeCancellations)
+        // 4) PenaltyContext: clearing is permanent.
+        // Per the rulebook order of operations, clearing happens *before* penalties are applied,
+        // so a canceller that is itself later blanked has still cleared its target's penalty
+        // (e.g. Höhle clears Blizzard, then Große Flut drowns the Höhle — Blizzard stays cleared).
+        // We therefore keep every collected cancellation; we do NOT drop blanked sources.
+        val penaltyContext = PenaltyContext(rawCancellations)
 
         val finalCtx = workingCtx.copy(
             blankedKeys = blankedKeys,

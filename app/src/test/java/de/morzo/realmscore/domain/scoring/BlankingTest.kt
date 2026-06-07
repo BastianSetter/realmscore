@@ -14,6 +14,20 @@ class BlankingTest {
         assertEquals(35, r.totalScore)
     }
 
+    @Test fun `beastmaster clears basilisk penalty so no beasts are blanked`() {
+        // Reported bug: beastmaster(9,wizard) + basilisk(35,beast) + dragon(30,beast)
+        // Herr der Bestien "hebt die Strafe auf allen Bestien auf". Basilisk's penalty IS its
+        // blanking, so once cleared the Basilisk blanks nothing — beasts (and armies/leaders)
+        // all survive.
+        // beastmaster: +9 per Beast → basilisk + dragon = 2 → +18 → 27
+        // basilisk: penalty cleared → 35
+        // dragon: wizard present (beastmaster) → no penalty → 30
+        // total = 27 + 35 + 30 = 92
+        val r = TestFixture.score("beastmaster", "basilisk", "dragon")
+        assertTrue(r.blankedKeys.isEmpty())
+        assertEquals(92, r.totalScore)
+    }
+
     @Test fun `wildfire blanks most cards but spares allowed`() {
         // wildfire(40) + dragon(30 beast, allowed-key) + king(6 leader, NOT allowed → blanked)
         //              + magic_wand(1 weapon, allowed by suit)
@@ -26,18 +40,17 @@ class BlankingTest {
         assertEquals(31, r.totalScore)
     }
 
-    @Test fun `great_flood spares mountain and lightning`() {
-        // flood(32) + mountain(9) + lightning(11) + rangers(5,army→blanked)
-        // mountain spared (named exception). lightning spared (named exception).
-        // rangers blanked.
-        // mountain: smoke+wildfire? no → 0
+    @Test fun `mountain clears great_flood penalty so it blanks nothing`() {
+        // flood(32) + mountain(9) + lightning(11) + rangers(5,army)
+        // Gebirge "hebt die Strafen auf allen Fluten auf" → Große Flut (Flood) penalty cleared.
+        // Blanking IS that penalty, so the Flood blanks nobody — not just the named exceptions.
+        // mountain: smoke+wildfire? no → 0 bonus
         // lightning: rainstorm? no → 0
-        // total = 32+9+11 = 52
+        // rangers: +10 per Land → mountain is the only Land → +10
+        // total = 32+9+11+(5+10) = 67
         val r = TestFixture.score("great_flood", "mountain", "lightning", "rangers")
-        assertTrue("mountain" !in r.blankedKeys)
-        assertTrue("lightning" !in r.blankedKeys)
-        assertTrue("rangers" in r.blankedKeys)
-        assertEquals(52, r.totalScore)
+        assertTrue(r.blankedKeys.isEmpty())
+        assertEquals(67, r.totalScore)
     }
 
     @Test fun `self-blank warship without flood`() {
@@ -65,12 +78,23 @@ class BlankingTest {
         assertEquals(29, r.totalScore)
     }
 
-    @Test fun `blanking removes cancellation source effect`() {
-        // rune(1) + basilisk(35) + knights(20)
-        // basilisk blanks knights AND rune? rune is ARTIFACT, basilisk blanks army+leader+beast → rune spared.
-        // rune cancels knights → but knights blanked anyway.
-        val r = TestFixture.score("protection_rune", "basilisk", "knights")
-        assertTrue("knights" in r.blankedKeys)
-        assertEquals(36, r.totalScore)
+    @Test fun `clearing is permanent even when the clearer is blanked`() {
+        // Official rulebook example: cavern(6,land) + blizzard(30,weather) + great_flood(32,flood)
+        // + wildfire(40,flame).
+        // Clearing first: Höhle clears all Weather penalties → Blizzard's penalty (incl. its
+        // flood-blanking) is cleared. THEN penalties: Große Flut (not cleared) blanks all Flames
+        // (wildfire) and all Land except Gebirge (cavern). Wildfire would blank Land too, but it
+        // gets drowned first; great_flood is a named exception for wildfire anyway.
+        // Even though the Höhle is now blanked, it has still cleared the Blizzard.
+        // Active cards: blizzard + great_flood. Blanked: cavern + wildfire.
+        val r = TestFixture.score("cavern", "blizzard", "great_flood", "wildfire")
+        assertTrue("cavern" in r.blankedKeys)
+        assertTrue("wildfire" in r.blankedKeys)
+        assertTrue("blizzard" !in r.blankedKeys)
+        assertTrue("great_flood" !in r.blankedKeys)
+        // blizzard: penalty cleared by cavern → 0; no floods left active anyway. base 30.
+        // great_flood: base 32, its penalty is the (now spent) blanking.
+        // total = 30 + 32 = 62
+        assertEquals(62, r.totalScore)
     }
 }

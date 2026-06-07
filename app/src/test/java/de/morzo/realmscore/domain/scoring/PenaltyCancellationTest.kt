@@ -1,6 +1,7 @@
 package de.morzo.realmscore.domain.scoring
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PenaltyCancellationTest {
@@ -49,15 +50,18 @@ class PenaltyCancellationTest {
         assertEquals(94, r.totalScore)
     }
 
-    @Test fun `mountain cancels great_flood blanking does not apply to mountain itself`() {
-        // mountain(9) + great_flood(32) + rangers(5,army→blanked) + forest(7,land→blanked)
-        // great_flood blanks: all army, all land except mountain, all flame except lightning
-        // rangers blanked, forest blanked. Mountain itself spared.
-        // Mountain: smoke+wildfire? no → +0 bonus
-        // Mountain cancellation: cancels FLOOD penalties (no floods → no effect)
-        // total = 9+32 = 41
+    @Test fun `mountain clears great_flood penalty so nothing is blanked`() {
+        // mountain(9) + great_flood(32) + rangers(5,army) + forest(7,land)
+        // Gebirge cancels every FLOOD penalty. Große Flut is a Flood and its penalty IS the
+        // blanking, so it blanks nobody — rangers and forest both survive.
+        // mountain: smoke+wildfire? no → +0 bonus
+        // great_flood: penalty cleared → just base 32
+        // rangers: +10 per Land → mountain + forest = 2 Lands → +20
+        // forest: +12 per Beast/archer → none → 0
+        // total = 9 + 32 + (5+20) + 7 = 73
         val r = TestFixture.score("mountain", "great_flood", "rangers", "forest")
-        assertEquals(41, r.totalScore)
+        assertTrue(r.blankedKeys.isEmpty())
+        assertEquals(73, r.totalScore)
     }
 
     @Test fun `island cancels chosen flood penalty`() {
@@ -96,14 +100,15 @@ class PenaltyCancellationTest {
         assertEquals(57, r.totalScore)
     }
 
-    @Test fun `blanked rune does not cancel`() {
+    @Test fun `rune clears basilisk penalty so nothing is blanked`() {
         // rune(1) + basilisk(35) + knights(20) + king(6,leader)
-        // basilisk blanks army+leader+beast: knights blanked, king blanked.
-        // rune (artifact) NOT blanked → still cancels penalties.
-        // knights/king blanked anyway → no contribution.
-        // basilisk: 35.
-        // total = 1+35 = 36
+        // Rune des Schutzes clears every penalty. Basilisk's penalty IS its blanking, so it
+        // blanks nothing → knights and king both survive (and their own penalties are cleared too).
+        // knights: no-leader penalty cleared (and king is a leader anyway) → 20
+        // king: +5 per Army → knights is the only Army → +5
+        // total = 1 + 35 + 20 + (6+5) = 67
         val r = TestFixture.score("protection_rune", "basilisk", "knights", "king")
-        assertEquals(36, r.totalScore)
+        assertTrue(r.blankedKeys.isEmpty())
+        assertEquals(67, r.totalScore)
     }
 }
