@@ -1,16 +1,9 @@
 package de.morzo.realmscore.data.repository
 
+import de.morzo.realmscore.domain.model.ProfileColors
+
 internal object ProfilePalette {
-    val COLORS: List<Int> = listOf(
-        0xFF6750A4.toInt(),
-        0xFF006E1C.toInt(),
-        0xFFB3261E.toInt(),
-        0xFF1A73E8.toInt(),
-        0xFFEF6C00.toInt(),
-        0xFF00838F.toInt(),
-        0xFF8E24AA.toInt(),
-        0xFF558B2F.toInt(),
-    )
+    val COLORS: List<Int> = ProfileColors.PALETTE
 
     fun pickNextColor(usedColors: List<Int>): Int {
         if (COLORS.isEmpty()) return 0xFF6750A4.toInt()

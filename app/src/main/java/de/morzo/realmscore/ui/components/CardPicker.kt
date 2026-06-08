@@ -64,12 +64,20 @@ fun CardPicker(
     // future option to toggle back to multi-select behaviour.
     var selectedSuit by rememberSaveable { mutableStateOf<Suit?>(null) }
 
-    val filtered = remember(query, selectedSuit, allCards, excludedKeys) {
+    // Only offer suit filters that actually have selectable cards (e.g. the Necromancer picker
+    // receives a pre-filtered Army/Wizard/Leader/Beast list, so the other suits are hidden).
+    val availableSuits = remember(allCards, excludedKeys) {
+        Suit.entries.filter { suit -> allCards.any { it.suit == suit && it.key !in excludedKeys } }
+    }
+    // A previously selected suit may no longer be offered after the card set changes → treat as "Alle".
+    val effectiveSuit = selectedSuit?.takeIf { it in availableSuits }
+
+    val filtered = remember(query, effectiveSuit, allCards, excludedKeys) {
         val normalizedQuery = query.trim().lowercase()
         allCards
             .asSequence()
             .filter { it.key !in excludedKeys }
-            .filter { selectedSuit == null || it.suit == selectedSuit }
+            .filter { effectiveSuit == null || it.suit == effectiveSuit }
             .filter { normalizedQuery.isEmpty() || it.nameDe.lowercase().contains(normalizedQuery) }
             .toList()
     }
@@ -119,7 +127,8 @@ fun CardPicker(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SuitColumn(
-                    selected = selectedSuit,
+                    suits = availableSuits,
+                    selected = effectiveSuit,
                     onSelect = { selectedSuit = it },
                     modifier = Modifier
                         .width(128.dp)
@@ -139,6 +148,7 @@ fun CardPicker(
 
 @Composable
 private fun SuitColumn(
+    suits: List<Suit>,
     selected: Suit?,
     onSelect: (Suit?) -> Unit,
     modifier: Modifier = Modifier,
@@ -155,7 +165,7 @@ private fun SuitColumn(
                 onClick = { onSelect(null) },
             )
         }
-        items(Suit.entries.toList(), key = { it.name }) { suit ->
+        items(suits, key = { it.name }) { suit ->
             SuitListItem(
                 label = stringResource(suitLabelRes(suit)),
                 accentColor = suitColor(suit),

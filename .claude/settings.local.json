@@ -40,7 +40,14 @@
       "WebSearch",
       "WebFetch(domain:boardgamegeek.com)",
       "WebFetch(domain:www.boardgameswizard.com)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:testDebugUnitTest --console=plain 2>&1 | Select-Object -Last 25)"
+      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:testDebugUnitTest --console=plain 2>&1 | Select-Object -Last 25)",
+      "Bash(git checkout *)",
+      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:compileDebugAndroidTestKotlin --console=plain 2>&1 | Select-Object -Last 40)",
+      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:assembleDebug --console=plain 2>&1 | Select-Object -Last 15)",
+      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:testDebugUnitTest --console=plain 2>&1 | Select-Object -Last 50)",
+      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:assembleDebug --console=plain 2>&1 | Select-Object -Last 20)",
+      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 12)",
+      "Bash(git add *)"
     ]
   }
 }

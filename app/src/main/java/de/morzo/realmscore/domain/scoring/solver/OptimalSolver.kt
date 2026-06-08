@@ -19,7 +19,13 @@ data class OptimalResult(
 /**
  * Brute-force search over joker assignments × player choices.
  *
- * Necromancer pick is intentionally NOT searched (out of scope for phase-05 sandbox).
+ * Necromancer pick is intentionally NOT optimized in this phase: without a scanned discard pile
+ * the candidate set is every non-Wizard card, far too large to brute-force meaningfully. The
+ * user's manual pick is therefore carried through unchanged (see the playerChoices copy below).
+ *
+ * PHASE 20: when the discard pile is scanned, brute-force the Necromancer pick over the captured
+ * non-Wizard cards (CardLookup.getNecromancerCandidates(discardScanned = true, ...)) the same way
+ * Island/Fountain options are enumerated here.
  */
 class OptimalSolver(
     private val engine: ScoringEngine,

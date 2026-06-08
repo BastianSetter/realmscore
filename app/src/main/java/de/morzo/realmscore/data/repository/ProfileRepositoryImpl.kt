@@ -1,6 +1,8 @@
 package de.morzo.realmscore.data.repository
 
+import androidx.room.withTransaction
 import de.morzo.realmscore.data.datastore.DeviceUuidProvider
+import de.morzo.realmscore.data.db.AppDatabase
 import de.morzo.realmscore.data.db.dao.ProfileDao
 import de.morzo.realmscore.data.db.entity.ProfileEntity
 import de.morzo.realmscore.domain.model.Profile
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.map
 import java.security.MessageDigest
 
 class ProfileRepositoryImpl(
+    private val database: AppDatabase,
     private val dao: ProfileDao,
     private val deviceUuidProvider: DeviceUuidProvider,
     private val clock: Clock,
@@ -102,6 +105,55 @@ class ProfileRepositoryImpl(
 
     override fun observeAll(): Flow<List<Profile>> =
         dao.observeAll().map { list -> list.map { it.toDomain() } }
+
+    override fun observeActiveProfiles(): Flow<List<Profile>> =
+        dao.observeActive().map { list -> list.map { it.toDomain() } }
+
+    override fun observeArchivedProfiles(): Flow<List<Profile>> =
+        dao.observeArchived().map { list -> list.map { it.toDomain() } }
+
+    override suspend fun countGamesForProfile(id: String): Int =
+        dao.countGamesForProfile(id)
+
+    override suspend fun countCombinedGames(keepId: String, discardId: String): Int =
+        dao.countCombinedGames(keepId, discardId)
+
+    override suspend fun updateName(id: String, newName: String) {
+        val trimmed = newName.trim()
+        require(trimmed.isNotEmpty()) { "Profile name must not be blank." }
+        val current = dao.getById(id)
+            ?: throw IllegalStateException("Profile '$id' not found – cannot rename.")
+        if (current.name == trimmed) return
+        require(dao.countByName(trimmed) == 0) {
+            "A profile with name '$trimmed' already exists."
+        }
+        dao.updateName(id, trimmed, clock.nowEpochMillis())
+    }
+
+    override suspend fun updateColor(id: String, colorArgb: Int) {
+        dao.updateColor(id, colorArgb, clock.nowEpochMillis())
+    }
+
+    override suspend fun archiveProfile(id: String) {
+        dao.archive(id, clock.nowEpochMillis())
+    }
+
+    override suspend fun unarchiveProfile(id: String) {
+        dao.unarchive(id, clock.nowEpochMillis())
+    }
+
+    override suspend fun mergeProfiles(keepId: String, discardId: String) {
+        require(keepId != discardId) { "Cannot merge a profile into itself." }
+        database.withTransaction {
+            val now = clock.nowEpochMillis()
+            // Reihenfolge wichtig: erst Kollisionen entfernen, dann umschreiben.
+            dao.deleteConflictingParticipants(keepId, discardId)
+            dao.reassignParticipants(keepId, discardId)
+            dao.reassignRoundResults(keepId, discardId)
+            dao.archive(discardId, now)
+            dao.touch(keepId, now)
+        }
+    }
 
     private fun generateProfileId(deviceUuid: String, name: String): String {
         val input = "$deviceUuid|${name.lowercase()}"

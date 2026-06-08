@@ -42,6 +42,8 @@ import de.morzo.realmscore.ui.summary.GameSummaryScreen
 import de.morzo.realmscore.ui.tabs.history.HistoryScreen
 import de.morzo.realmscore.ui.tabs.home.HomeScreen
 import de.morzo.realmscore.ui.tabs.home.HomeViewModel
+import de.morzo.realmscore.ui.tabs.settings.ProfileManagementScreen
+import de.morzo.realmscore.ui.tabs.settings.ProfileManagementViewModel
 import de.morzo.realmscore.ui.tabs.settings.SettingsScreen
 import de.morzo.realmscore.ui.tabs.settings.SettingsViewModel
 import de.morzo.realmscore.ui.tabs.settings.UsernameChangeScreen
@@ -383,7 +385,21 @@ fun MainScaffold(container: AppContainer) {
                     onChangeUsername = {
                         tabNavController.navigate(Routes.USERNAME_CHANGE)
                     },
+                    onManageProfiles = {
+                        tabNavController.navigate(Routes.PROFILE_MANAGEMENT)
+                    },
                     onAppReset = { activity?.recreate() },
+                )
+            }
+            composable(Routes.PROFILE_MANAGEMENT) {
+                val vm: ProfileManagementViewModel = viewModel(
+                    factory = ProfileManagementViewModel.Factory(
+                        repo = container.profileRepository,
+                    ),
+                )
+                ProfileManagementScreen(
+                    viewModel = vm,
+                    onBack = { tabNavController.popBackStack() },
                 )
             }
             composable(Routes.USERNAME_CHANGE) {

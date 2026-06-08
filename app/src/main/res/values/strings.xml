@@ -170,6 +170,14 @@
     <string name="sandbox_choice_island">Insel hebt Strafe auf</string>
     <string name="sandbox_choice_fountain">Quelle kopiert</string>
 
+    <!-- Necromancer (Phase 17.1): joker-like pull of a non-Wizard card from the discard pile -->
+    <string name="necromancer_section_title">Totenbeschwörer holt</string>
+    <string name="necromancer_pick_hint">Karte aus dem Mittelfeld wählen</string>
+    <string name="necromancer_picked_label">Geholt: %1$s</string>
+    <string name="necromancer_suit_hint">Nur Armeen, Magier, Heerführer oder Bestien</string>
+    <string name="necromancer_clear">Auswahl entfernen</string>
+    <string name="necromancer_breakdown_tag">Vom Totenbeschwörer geholt</string>
+
     <!-- Effect descriptions (Breakdown sheet). %1$s and %2$s are dynamic args. -->
     <string name="effect_base_strength">Basisstärke %1$s</string>
 
@@ -336,6 +344,38 @@
     <string name="settings_confirm_type_keyword">Tippe %1$s um zu bestätigen</string>
     <string name="settings_confirm_delete">Löschen</string>
     <string name="settings_cancel">Abbrechen</string>
+
+    <!-- Profilverwaltung (Phase 17) -->
+    <string name="settings_manage_profiles">Profile verwalten</string>
+    <string name="profile_management_title">Profile</string>
+    <string name="profile_management_empty">Noch keine Profile angelegt.</string>
+    <string name="profile_management_archived_section">Archivierte Profile</string>
+    <string name="profile_owner_label">Owner</string>
+    <string name="profile_games_count">%1$d Spiele</string>
+    <string name="profile_actions_menu">Aktionen</string>
+    <string name="profile_action_rename">Umbenennen</string>
+    <string name="profile_action_change_color">Farbe ändern</string>
+    <string name="profile_action_archive">Archivieren</string>
+    <string name="profile_action_merge">Mit anderem Profil zusammenführen</string>
+    <string name="profile_action_unarchive">Reaktivieren</string>
+    <string name="profile_rename_title">Profil umbenennen</string>
+    <string name="profile_rename_label">Name</string>
+    <string name="profile_rename_error_empty">Name darf nicht leer sein.</string>
+    <string name="profile_rename_error_exists">Es gibt bereits ein Profil mit diesem Namen.</string>
+    <string name="profile_rename_save">Speichern</string>
+    <string name="profile_archive_confirm_title">Profil archivieren?</string>
+    <string name="profile_archive_confirm_body">Das Profil wird ausgeblendet. Alle Spiele bleiben erhalten.</string>
+    <string name="profile_archive_confirm_owner_body">Du archivierst dein Owner-Profil. Du bist danach ohne Owner-Profil. Alle Spiele bleiben erhalten.</string>
+    <string name="profile_archive_confirm">Archivieren</string>
+    <string name="profile_merge_title">Profile zusammenführen</string>
+    <string name="profile_merge_pick_other">Wähle das Profil, das in „%1$s“ aufgehen soll:</string>
+    <string name="profile_merge_no_candidates">Keine weiteren aktiven Profile zum Zusammenführen vorhanden.</string>
+    <string name="profile_merge_preview">%1$s (%2$d Spiele) + %3$s (%4$d Spiele) → %1$s (%5$d Spiele)</string>
+    <string name="profile_merge_preview_note">Name und Farbe von „%1$s“ bleiben erhalten. „%2$s“ wird danach archiviert.</string>
+    <string name="profile_merge_confirm">Zusammenführen</string>
+    <string name="profile_color_picker_title">Farbe wählen</string>
+    <string name="profile_dialog_cancel">Abbrechen</string>
+    <string name="action_close">Schließen</string>
 
     <string name="about_version">Version %1$s</string>
     <string name="about_license">Lizenz: GPL-3.0</string>

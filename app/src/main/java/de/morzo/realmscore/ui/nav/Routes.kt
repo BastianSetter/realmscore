@@ -12,6 +12,7 @@ object Routes {
 
     const val NEW_GAME = "new_game"
     const val USERNAME_CHANGE = "settings/username_change"
+    const val PROFILE_MANAGEMENT = "settings/profiles"
     const val SANDBOX =
         "sandbox?launchType={launchType}&gameId={gameId}&roundId={roundId}&profileId={profileId}"
     const val ARG_LAUNCH_TYPE = "launchType"

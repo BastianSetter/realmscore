@@ -25,6 +25,8 @@ import kotlinx.coroutines.withContext
 
 const val PLAYER_HAND_SLOT_COUNT = 7
 
+private const val NECROMANCER_KEY = "necromancer"
+
 data class PlayerHandEntryUiState(
     val isLoading: Boolean = true,
     val playerName: String = "",
@@ -42,6 +44,9 @@ data class PlayerHandEntryUiState(
 
     val jokersInHand: List<CardDefinition>
         get() = filledCards.filter { it.isJoker }
+
+    val necromancerInHand: Boolean
+        get() = filledCards.any { it.key == NECROMANCER_KEY }
 
     val allJokersResolved: Boolean
         get() = jokersInHand.all { joker ->
@@ -83,7 +88,10 @@ class PlayerHandEntryViewModel(
                         }
                     }
                 }
+            // The Necromancer is not a joker; we persist its pull on the Necromancer HandCard via
+            // the reused jokerTargetCardKey field. Exclude it from joker assignments on load.
             val jokerAssignments = existing?.cards
+                ?.filter { it.cardKey != NECROMANCER_KEY }
                 ?.mapNotNull { entry ->
                     val target = entry.jokerTargetCardKey ?: return@mapNotNull null
                     val suit = entry.jokerTargetSuit?.let { runCatching { Suit.valueOf(it) }.getOrNull() }
@@ -95,12 +103,17 @@ class PlayerHandEntryViewModel(
                 }?.toMap()
                 ?: emptyMap()
 
+            val necromancerPickKey = existing?.cards
+                ?.firstOrNull { it.cardKey == NECROMANCER_KEY }
+                ?.jokerTargetCardKey
+
             _uiState.update {
                 it.copy(
                     isLoading = false,
                     playerName = profile.name,
                     slots = slots,
                     jokerAssignments = jokerAssignments,
+                    playerChoices = PlayerChoices(necromancerPickKey = necromancerPickKey),
                 )
             }
 
@@ -134,6 +147,18 @@ class PlayerHandEntryViewModel(
             val newAssignments = state.jokerAssignments.toMutableMap()
             if (assignment == null) newAssignments.remove(jokerKey) else newAssignments[jokerKey] = assignment
             state.copy(jokerAssignments = newAssignments)
+        }
+    }
+
+    fun setNecromancerPick(cardKey: String) {
+        _uiState.update { state ->
+            state.copy(playerChoices = state.playerChoices.copy(necromancerPickKey = cardKey))
+        }
+    }
+
+    fun clearNecromancerPick() {
+        _uiState.update { state ->
+            state.copy(playerChoices = state.playerChoices.copy(necromancerPickKey = null))
         }
     }
 
@@ -172,10 +197,16 @@ class PlayerHandEntryViewModel(
             val entries = current.slots.mapIndexedNotNull { idx, slot ->
                 val card = (slot as? CardSlot.Filled)?.card ?: return@mapIndexedNotNull null
                 val assignment = current.jokerAssignments[card.key]
+                // Necromancer reuses jokerTargetCardKey to persist its pulled card (the "target").
+                val targetCardKey = if (card.key == NECROMANCER_KEY) {
+                    current.playerChoices.necromancerPickKey
+                } else {
+                    assignment?.targetCardKey
+                }
                 HandCardEntry(
                     cardKey = card.key,
                     position = idx,
-                    jokerTargetCardKey = assignment?.targetCardKey,
+                    jokerTargetCardKey = targetCardKey,
                     jokerTargetSuit = assignment?.targetSuit?.name,
                 )
             }
@@ -193,10 +224,13 @@ class PlayerHandEntryViewModel(
     private fun PlayerHandEntryUiState.pruneStaleSelections(): PlayerHandEntryUiState {
         val handKeys = filledCards.map { it.key }.toSet()
         val newAssignments = jokerAssignments.filterKeys { it in handKeys }
+        // The Necromancer pick is a discard-pile card (never in hand): keep it as long as a
+        // Necromancer is still in the hand, unlike Island/Fountain targets which must be hand cards.
+        val necromancerStillInHand = NECROMANCER_KEY in handKeys
         val newChoices = playerChoices.copy(
             islandTargetKey = playerChoices.islandTargetKey?.takeIf { it in handKeys },
             fountainSourceKey = playerChoices.fountainSourceKey?.takeIf { it in handKeys },
-            necromancerPickKey = playerChoices.necromancerPickKey?.takeIf { it in handKeys },
+            necromancerPickKey = playerChoices.necromancerPickKey?.takeIf { necromancerStillInHand },
         )
         return copy(jokerAssignments = newAssignments, playerChoices = newChoices)
     }

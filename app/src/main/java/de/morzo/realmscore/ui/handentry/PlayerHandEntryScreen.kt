@@ -39,6 +39,7 @@ import de.morzo.realmscore.ui.components.CardPicker
 import de.morzo.realmscore.ui.sandbox.CardSlot
 import de.morzo.realmscore.ui.sandbox.components.HandSlotsRow
 import de.morzo.realmscore.ui.sandbox.components.JokerSection
+import de.morzo.realmscore.ui.sandbox.components.NecromancerSection
 
 private sealed interface PickerMode {
     data class SingleEdit(val slotIndex: Int) : PickerMode
@@ -67,6 +68,7 @@ fun PlayerHandEntryScreen(
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
     var pickerMode by remember { mutableStateOf<PickerMode?>(null) }
+    var necromancerPickerOpen by rememberSaveable { mutableStateOf(false) }
     var autoOpenedOnce by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(state.isLoading, state.cardsCount) {
@@ -148,6 +150,16 @@ fun PlayerHandEntryScreen(
                 )
             }
 
+            if (state.necromancerInHand) {
+                Spacer(Modifier.height(24.dp))
+                NecromancerSection(
+                    pickedCard = state.playerChoices.necromancerPickKey
+                        ?.let { key -> vm.allCards.firstOrNull { it.key == key } },
+                    onPickCard = { necromancerPickerOpen = true },
+                    onClearPick = vm::clearNecromancerPick,
+                )
+            }
+
             Spacer(Modifier.height(24.dp))
 
             Button(
@@ -209,5 +221,20 @@ fun PlayerHandEntryScreen(
             )
         }
         null -> Unit
+    }
+
+    if (necromancerPickerOpen) {
+        // PHASE 20: bei gescanntem Mittelfeld auf discardKeys filtern (getNecromancerCandidates).
+        val candidates = remember(placedKeys) {
+            container.cardLookup.getNecromancerCandidates(handKeys = placedKeys)
+        }
+        CardPicker(
+            allCards = candidates,
+            onCardChosen = { card ->
+                vm.setNecromancerPick(card.key)
+                necromancerPickerOpen = false
+            },
+            onDismiss = { necromancerPickerOpen = false },
+        )
     }
 }

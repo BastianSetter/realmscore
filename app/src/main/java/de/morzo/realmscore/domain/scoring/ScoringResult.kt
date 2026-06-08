@@ -12,4 +12,6 @@ data class CardScoreResult(
     val contributedScore: Int,
     val isBlanked: Boolean,
     val effects: List<EffectApplication>,
+    /** True for the extra card the Necromancer pulled from the discard pile (8th scored card). */
+    val isNecromancerPick: Boolean = false,
 )

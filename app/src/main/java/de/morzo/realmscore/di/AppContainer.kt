@@ -57,6 +57,7 @@ class AppContainer(private val applicationContext: Context) {
 
     val profileRepository: ProfileRepository by lazy {
         ProfileRepositoryImpl(
+            database = database,
             dao = database.profileDao(),
             deviceUuidProvider = deviceUuidProvider,
             clock = clock,

@@ -79,6 +79,13 @@ private fun CardBreakdownItem(result: CardScoreResult) {
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
+                    if (result.isNecromancerPick) {
+                        Text(
+                            text = stringResource(R.string.necromancer_breakdown_tag),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     if (result.isBlanked) {
                         Text(
                             text = stringResource(R.string.sandbox_breakdown_blanked),

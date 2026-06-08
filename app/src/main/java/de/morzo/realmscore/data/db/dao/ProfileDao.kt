@@ -45,6 +45,52 @@ interface ProfileDao {
     @Query("UPDATE profile SET name = :name, updatedAt = :ts WHERE id = :id")
     suspend fun updateName(id: String, name: String, ts: Long)
 
+    // --- Phase 17: Profilverwaltung ---
+
+    @Query("SELECT * FROM profile WHERE isArchived = 0 ORDER BY isLocalOwner DESC, name COLLATE NOCASE")
+    fun observeActive(): Flow<List<ProfileEntity>>
+
+    @Query("SELECT * FROM profile WHERE isArchived = 1 ORDER BY name COLLATE NOCASE")
+    fun observeArchived(): Flow<List<ProfileEntity>>
+
+    @Query("UPDATE profile SET colorArgb = :color, updatedAt = :ts WHERE id = :id")
+    suspend fun updateColor(id: String, color: Int, ts: Long)
+
+    @Query("UPDATE profile SET updatedAt = :ts WHERE id = :id")
+    suspend fun touch(id: String, ts: Long)
+
+    @Query("UPDATE profile SET isArchived = 1, archivedAt = :ts, updatedAt = :ts WHERE id = :id")
+    suspend fun archive(id: String, ts: Long)
+
+    @Query("UPDATE profile SET isArchived = 0, archivedAt = NULL, updatedAt = :ts WHERE id = :id")
+    suspend fun unarchive(id: String, ts: Long)
+
+    @Query("SELECT COUNT(*) FROM game_participants WHERE profileId = :profileId")
+    suspend fun countGamesForProfile(profileId: String): Int
+
+    @Query(
+        "SELECT COUNT(DISTINCT gameId) FROM game_participants " +
+            "WHERE profileId IN (:keepId, :discardId)"
+    )
+    suspend fun countCombinedGames(keepId: String, discardId: String): Int
+
+    /**
+     * Entfernt die Teilnehmer-Zeilen des zu verwerfenden Profils für Spiele, in denen
+     * das Behalten-Profil bereits Teilnehmer ist. Verhindert eine Primary-Key-Kollision
+     * auf (gameId, profileId) beim anschließenden Umschreiben.
+     */
+    @Query(
+        "DELETE FROM game_participants WHERE profileId = :discardId AND gameId IN (" +
+            "SELECT gameId FROM game_participants WHERE profileId = :keepId)"
+    )
+    suspend fun deleteConflictingParticipants(keepId: String, discardId: String)
+
+    @Query("UPDATE game_participants SET profileId = :keepId WHERE profileId = :discardId")
+    suspend fun reassignParticipants(keepId: String, discardId: String)
+
+    @Query("UPDATE round_results SET profileId = :keepId WHERE profileId = :discardId")
+    suspend fun reassignRoundResults(keepId: String, discardId: String)
+
     @Query("DELETE FROM profile")
     suspend fun deleteAll()
 }

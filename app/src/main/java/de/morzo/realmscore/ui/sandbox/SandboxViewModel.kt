@@ -64,6 +64,9 @@ data class SandboxUiState(
 
     val fountainInHand: Boolean
         get() = filledCards.any { it.key == "fountain_of_life" }
+
+    val necromancerInHand: Boolean
+        get() = filledCards.any { it.key == "necromancer" }
 }
 
 class SandboxViewModel(
@@ -113,8 +116,10 @@ class SandboxViewModel(
             if (idx < SANDBOX_SLOT_COUNT) slots[idx] = CardSlot.Filled(card)
         }
 
+        // The Necromancer is not a joker; it persists its pulled card on its own HandCard via the
+        // reused jokerTargetCardKey field. Exclude it here and restore it as the necromancer pick.
         val jokerAssignments: Map<String, JokerAssignment> = orderedEntries
-            .filter { it.jokerTargetCardKey != null }
+            .filter { it.jokerTargetCardKey != null && it.cardKey != "necromancer" }
             .associate { entry ->
                 entry.cardKey to JokerAssignment(
                     jokerKey = entry.cardKey,
@@ -123,6 +128,10 @@ class SandboxViewModel(
                         ?.let { runCatching { Suit.valueOf(it) }.getOrNull() },
                 )
             }
+
+        val necromancerPickKey = orderedEntries
+            .firstOrNull { it.cardKey == "necromancer" }
+            ?.jokerTargetCardKey
 
         val banner = OriginBanner(
             gameId = data.gameId,
@@ -136,7 +145,7 @@ class SandboxViewModel(
             state.copy(
                 slots = slots,
                 jokerAssignments = jokerAssignments,
-                playerChoices = PlayerChoices(),
+                playerChoices = PlayerChoices(necromancerPickKey = necromancerPickKey),
                 discardCards = discardCards,
                 originBanner = banner,
                 isLoadingLaunchData = false,
@@ -181,6 +190,18 @@ class SandboxViewModel(
     fun setFountainSource(key: String?) {
         _uiState.update { state ->
             state.copy(playerChoices = state.playerChoices.copy(fountainSourceKey = key)).recomputeScore()
+        }
+    }
+
+    fun setNecromancerPick(cardKey: String) {
+        _uiState.update { state ->
+            state.copy(playerChoices = state.playerChoices.copy(necromancerPickKey = cardKey)).recomputeScore()
+        }
+    }
+
+    fun clearNecromancerPick() {
+        _uiState.update { state ->
+            state.copy(playerChoices = state.playerChoices.copy(necromancerPickKey = null)).recomputeScore()
         }
     }
 
@@ -232,9 +253,13 @@ class SandboxViewModel(
     private fun SandboxUiState.pruneStaleSelections(): SandboxUiState {
         val handKeys = filledCards.map { it.key }.toSet()
         val newJokerAssignments = jokerAssignments.filterKeys { it in handKeys }
+        // The Necromancer pick is a discard-pile card (never in hand), so it is kept as long as a
+        // Necromancer remains in the hand — not gated on handKeys like Island/Fountain targets.
+        val necromancerStillInHand = "necromancer" in handKeys
         val newChoices = playerChoices.copy(
             islandTargetKey = playerChoices.islandTargetKey?.takeIf { it in handKeys },
             fountainSourceKey = playerChoices.fountainSourceKey?.takeIf { it in handKeys },
+            necromancerPickKey = playerChoices.necromancerPickKey?.takeIf { necromancerStillInHand },
         )
         return copy(jokerAssignments = newJokerAssignments, playerChoices = newChoices)
     }

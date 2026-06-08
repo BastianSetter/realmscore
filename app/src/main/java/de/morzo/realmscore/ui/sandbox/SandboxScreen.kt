@@ -46,6 +46,7 @@ import de.morzo.realmscore.ui.components.CardPicker
 import de.morzo.realmscore.ui.sandbox.components.ChoiceSection
 import de.morzo.realmscore.ui.sandbox.components.HandSlotsRow
 import de.morzo.realmscore.ui.sandbox.components.JokerSection
+import de.morzo.realmscore.ui.sandbox.components.NecromancerSection
 import de.morzo.realmscore.ui.sandbox.components.ScoreBreakdownSheet
 import de.morzo.realmscore.ui.sandbox.components.ScoreFooter
 import de.morzo.realmscore.ui.util.formatShortDate
@@ -71,6 +72,7 @@ fun SandboxScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var pickerForSlot by rememberSaveable { mutableStateOf<Int?>(null) }
+    var necromancerPickerOpen by rememberSaveable { mutableStateOf(false) }
 
     val placedKeys = remember(state.slots) {
         state.filledCards.map { it.key }.toSet()
@@ -131,6 +133,15 @@ fun SandboxScreen(
                 onFountainChange = viewModel::setFountainSource,
             )
 
+            if (state.necromancerInHand) {
+                NecromancerSection(
+                    pickedCard = state.playerChoices.necromancerPickKey
+                        ?.let { key -> viewModel.allCards.firstOrNull { it.key == key } },
+                    onPickCard = { necromancerPickerOpen = true },
+                    onClearPick = viewModel::clearNecromancerPick,
+                )
+            }
+
             Spacer(Modifier.height(8.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -173,6 +184,21 @@ fun SandboxScreen(
                     pickerForSlot = null
                 }
             } else null,
+        )
+    }
+
+    if (necromancerPickerOpen) {
+        // PHASE 20: bei gescanntem Mittelfeld auf discardKeys filtern (getNecromancerCandidates).
+        val candidates = remember(placedKeys) {
+            container.cardLookup.getNecromancerCandidates(handKeys = placedKeys)
+        }
+        CardPicker(
+            allCards = candidates,
+            onCardChosen = { card ->
+                viewModel.setNecromancerPick(card.key)
+                necromancerPickerOpen = false
+            },
+            onDismiss = { necromancerPickerOpen = false },
         )
     }
 

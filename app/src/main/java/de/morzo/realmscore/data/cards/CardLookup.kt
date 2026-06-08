@@ -26,6 +26,32 @@ class CardLookup(private val context: Context) {
         return cards.filter { it.suit in suits }
     }
 
+    /**
+     * Cards the Necromancer is allowed to pull from the discard pile: only Armies, Wizards,
+     * Leaders, or Beasts (official rule), minus the given keys.
+     */
+    fun getNecromancerEligibleCards(excludeKeys: Set<String> = emptySet()): List<CardDefinition> =
+        cards.filter { it.suit in NECROMANCER_SUITS && it.key !in excludeKeys }
+
+    /**
+     * Candidate cards the Necromancer may pull, given the current hand.
+     *
+     * Phase 17.1: the discard pile is not scanned, so we offer the full eligible set (Army/Wizard/
+     * Leader/Beast, minus the cards already in hand). The [discardScanned]/[discardKeys] parameters
+     * are the Phase-20 hook: when the middle is scanned, the list narrows to the captured cards.
+     */
+    fun getNecromancerCandidates(
+        handKeys: Set<String>,
+        discardScanned: Boolean = false,
+        discardKeys: Set<String> = emptySet(),
+    ): List<CardDefinition> {
+        // PHASE 20: bei gescanntem Mittelfeld auf discardKeys filtern.
+        if (discardScanned) {
+            return getNecromancerEligibleCards(excludeKeys = handKeys).filter { it.key in discardKeys }
+        }
+        return getNecromancerEligibleCards(excludeKeys = handKeys)
+    }
+
     private fun loadFromAssets(): List<CardDefinition> {
         val raw = context.assets.open(ASSET_PATH).bufferedReader(Charsets.UTF_8).use { it.readText() }
         val file = json.decodeFromString<CardDataFile>(raw)
@@ -35,6 +61,9 @@ class CardLookup(private val context: Context) {
     companion object {
         private const val ASSET_PATH = "cards/base_game.json"
         private val json = Json { ignoreUnknownKeys = true }
+
+        /** Suits the Necromancer may pull from the discard pile (official rule). */
+        val NECROMANCER_SUITS = setOf(Suit.ARMY, Suit.WIZARD, Suit.LEADER, Suit.BEAST)
     }
 }
 

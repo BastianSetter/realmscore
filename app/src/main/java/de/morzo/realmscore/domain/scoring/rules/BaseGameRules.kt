@@ -270,7 +270,8 @@ object BaseGameRules {
         // shapeshifter / mirage / doppelganger — handled entirely by JokerResolver; no own rule
 
         // ───────────── WIZARD ─────────────
-        // necromancer — phase-05 sandbox stub (no discard); produces no bonus, contributes only base strength 3
+        // necromancer — the card itself has no scoring rule (base strength 3 only). Its effect is
+        // handled in ScoringEngine: the chosen non-Wizard pick is injected as an extra 8th card.
         "enchantress" to PerOtherCountRule(
             matcher = BySuit(Suit.LAND, Suit.WEATHER, Suit.FLOOD, Suit.FLAME),
             amountPer = 5,

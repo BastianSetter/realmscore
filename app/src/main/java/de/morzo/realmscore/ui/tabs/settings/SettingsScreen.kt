@@ -48,6 +48,7 @@ import de.morzo.realmscore.domain.model.ThemeMode
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onChangeUsername: () -> Unit,
+    onManageProfiles: () -> Unit,
     onAppReset: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -67,6 +68,7 @@ fun SettingsScreen(
             ProfileSection(
                 owner = state.ownerProfile,
                 onChangeUsername = onChangeUsername,
+                onManageProfiles = onManageProfiles,
             )
         }
 
@@ -159,6 +161,7 @@ private fun SectionHeader(title: String) {
 private fun ProfileSection(
     owner: Profile?,
     onChangeUsername: () -> Unit,
+    onManageProfiles: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -199,6 +202,13 @@ private fun ProfileSection(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.settings_change_username))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onManageProfiles,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.settings_manage_profiles))
             }
         }
     }
