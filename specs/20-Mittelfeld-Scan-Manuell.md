@@ -160,7 +160,14 @@ interface RoundRepository {
 
 ## Totenbeschwörer-Integration (baut auf Phase 17.1 auf)
 
-> **Wichtig:** Der Totenbeschwörer wurde bereits in **Phase 17.1** als Joker-artige Karte umgesetzt – er funktioniert dort **immer**, auch ohne Mittelfeld-Scan, über die volle Nicht-Magier-Kartenauswahl. Diese Phase ergänzt nur den **gefilterten Fall** und aktiviert die **Optimal-Berechnung**.
+> **Regel-Korrektur (Stand Implementierung):** Der Totenbeschwörer darf in dieser App Karten der
+> Suits **Armee, Magier, Heerführer oder Bestie** holen (`CardLookup.NECROMANCER_SUITS =
+> {ARMY, WIZARD, LEADER, BEAST}`). Die früher in diesem Dokument verwendete Formulierung
+> „Nicht-Magier" ist damit hinfällig – Magier sind ausdrücklich **erlaubt**, andere Suits (Land,
+> Wetter, Flut, Flamme, Waffe, Artefakt, WILD-Joker) sind ausgeschlossen. Überall unten, wo
+> „Nicht-Magier" steht, gilt stattdessen „eine Karte aus `NECROMANCER_SUITS`".
+
+> **Wichtig:** Der Totenbeschwörer wurde bereits in **Phase 17.1** als Joker-artige Karte umgesetzt – er funktioniert dort **immer**, auch ohne Mittelfeld-Scan, über die volle Auswahl der erfassbaren Suits. Diese Phase ergänzt nur den **gefilterten Fall** und aktiviert die **Optimal-Berechnung**.
 
 Phase 17.1 hat einen Hook hinterlassen, der hier aktiviert wird: die Methode `getNecromancerCandidates(...)` bzw. die markierte Stelle `// PHASE 20: bei gescanntem Mittelfeld auf discardKeys filtern`.
 

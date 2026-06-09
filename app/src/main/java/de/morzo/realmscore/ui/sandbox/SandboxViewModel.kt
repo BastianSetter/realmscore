@@ -49,6 +49,7 @@ data class SandboxUiState(
     val breakdownOpen: Boolean = false,
     val originBanner: OriginBanner? = null,
     val discardCards: List<CardDefinition> = emptyList(),
+    val discardScanned: Boolean = false,
     val isLoadingLaunchData: Boolean = false,
 ) {
     val score: Int get() = scoringResult?.totalScore ?: 0
@@ -147,6 +148,7 @@ class SandboxViewModel(
                 jokerAssignments = jokerAssignments,
                 playerChoices = PlayerChoices(necromancerPickKey = necromancerPickKey),
                 discardCards = discardCards,
+                discardScanned = round.discardScanned,
                 originBanner = banner,
                 isLoadingLaunchData = false,
             ).recomputeScore()
@@ -238,6 +240,8 @@ class SandboxViewModel(
         hand = filledCards,
         jokerAssignments = jokerAssignments,
         playerChoices = playerChoices,
+        discardPile = discardCards,
+        discardScanned = discardScanned,
     )
 
     private fun SandboxUiState.recomputeScore(): SandboxUiState {

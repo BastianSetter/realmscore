@@ -74,8 +74,10 @@ class AppContainer(private val applicationContext: Context) {
 
     val roundRepository: RoundRepository by lazy {
         RoundRepositoryImpl(
+            database = database,
             roundDao = database.roundDao(),
             roundResultDao = database.roundResultDao(),
+            discardCardDao = database.discardCardDao(),
             gameDao = database.gameDao(),
             deviceUuidProvider = deviceUuidProvider,
             clock = clock,

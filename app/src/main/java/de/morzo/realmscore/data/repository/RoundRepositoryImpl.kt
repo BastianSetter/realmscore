@@ -1,9 +1,13 @@
 package de.morzo.realmscore.data.repository
 
+import androidx.room.withTransaction
 import de.morzo.realmscore.data.datastore.DeviceUuidProvider
+import de.morzo.realmscore.data.db.AppDatabase
+import de.morzo.realmscore.data.db.dao.DiscardCardDao
 import de.morzo.realmscore.data.db.dao.GameDao
 import de.morzo.realmscore.data.db.dao.RoundDao
 import de.morzo.realmscore.data.db.dao.RoundResultDao
+import de.morzo.realmscore.data.db.entity.DiscardCardEntity
 import de.morzo.realmscore.data.db.entity.RoundEntity
 import de.morzo.realmscore.domain.model.Round
 import de.morzo.realmscore.domain.model.RoundResult
@@ -14,8 +18,10 @@ import kotlinx.coroutines.flow.map
 import java.util.UUID
 
 class RoundRepositoryImpl(
+    private val database: AppDatabase,
     private val roundDao: RoundDao,
     private val roundResultDao: RoundResultDao,
+    private val discardCardDao: DiscardCardDao,
     private val gameDao: GameDao,
     private val deviceUuidProvider: DeviceUuidProvider,
     private val clock: Clock,
@@ -57,7 +63,37 @@ class RoundRepositoryImpl(
     override suspend fun getRoundById(id: String): Round? =
         roundDao.getById(id)?.toDomain()
 
-    override suspend fun getDiscardCards(roundId: String): List<String> = emptyList()
+    override fun observeRoundById(id: String): Flow<Round?> =
+        roundDao.observeById(id).map { it?.toDomain() }
+
+    override suspend fun getDiscardCards(roundId: String): List<String> =
+        discardCardDao.getCardKeysForRound(roundId)
+
+    override fun observeDiscardCards(roundId: String): Flow<List<String>> =
+        discardCardDao.observeCardKeysForRound(roundId)
+
+    override suspend fun saveDiscardCards(roundId: String, cardKeys: List<String>) {
+        val now = clock.nowEpochMillis()
+        val deviceId = deviceUuidProvider.get()
+        database.withTransaction {
+            val round = roundDao.getById(roundId) ?: error("Round not found: $roundId")
+            discardCardDao.deleteAllForRound(roundId)
+            val entities = cardKeys.mapIndexed { index, key ->
+                DiscardCardEntity(
+                    id = UUID.randomUUID().toString(),
+                    roundId = roundId,
+                    cardKey = key,
+                    position = index,
+                    createdAt = now,
+                    updatedAt = now,
+                    originDeviceId = deviceId,
+                )
+            }
+            discardCardDao.insertAll(entities)
+            roundDao.setDiscardScanned(roundId, scanned = true, ts = now)
+            gameDao.touch(round.gameId, now)
+        }
+    }
 
     override suspend fun markRoundCompleted(roundId: String) {
         val now = clock.nowEpochMillis()

@@ -83,6 +83,10 @@
     <string name="round_capture_switch_player">Spieler wechseln</string>
     <string name="round_capture_all_done">Alle Spieler erfasst</string>
 
+    <!-- Phase 20: Mittelfeld (discard pile) captured as a pseudo-player in the round rotation -->
+    <string name="discard_capture_count">Mittelfeld: %1$d / %2$d Karten</string>
+    <string name="discard_capture_submit">Mittelfeld erfasst</string>
+
     <string name="player_hand_title">Spieler: %1$s</string>
     <string name="player_hand_count">%1$d / 7 Karten</string>
     <string name="player_hand_submit">Erfasst – an nächsten Spieler weitergeben</string>
@@ -96,7 +100,8 @@
     <string name="round_summary_reveal_again">Reveal erneut zeigen</string>
     <string name="round_summary_skip">Überspringen</string>
     <string name="round_summary_continue_to_summary">Weiter zur Rundenübersicht</string>
-    <string name="round_summary_discard_hint">Mittelfeld wurde nicht erfasst</string>
+    <string name="round_summary_discard_title">Mittelfeld</string>
+    <string name="round_summary_discard_count">%1$d Karten erfasst</string>
     <string name="round_summary_winner_badge">Sieger</string>
     <string name="round_summary_points">%1$d Punkte</string>
     <string name="reveal_points">%1$d</string>
@@ -155,10 +160,10 @@
     <string name="suit_flame">Flamme</string>
     <string name="suit_flood">Flut</string>
     <string name="suit_land">Land</string>
-    <string name="suit_leader">Heerführer</string>
+    <string name="suit_leader">Anführer</string>
     <string name="suit_weapon">Waffe</string>
     <string name="suit_weather">Wetter</string>
-    <string name="suit_wizard">Magier</string>
+    <string name="suit_wizard">Zauberer</string>
     <string name="suit_wild">Joker</string>
     <string name="suit_all">Alle</string>
 
@@ -333,7 +338,8 @@
     <string name="settings_change_username">Username ändern</string>
     <string name="settings_default_point_limit">Standard-Punktelimit</string>
     <string name="settings_default_round_count">Standard-Rundenanzahl</string>
-    <string name="settings_suggest_discard_scan">Mittelfeld-Hinweis am Rundenende</string>
+    <string name="settings_discard_capture_enabled">Mittelfeld erfassen</string>
+    <string name="settings_discard_capture_enabled_desc">Wenn aktiv, wird das Mittelfeld wie ein Spieler erfasst (Pflicht vor dem Reveal).</string>
 
     <string name="settings_theme_mode">Farbschema</string>
     <string name="settings_theme_system">System</string>

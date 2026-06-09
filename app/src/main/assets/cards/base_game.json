@@ -293,7 +293,7 @@
       "key": "king",
       "nameDe": "König",
       "suit": "LEADER",
-      "baseStrength": 6,
+      "baseStrength": 8,
       "ruleTextDe": "Bonus: +5 für jede Armee oder +20 für jede Armee wenn zusammen mit dem König",
       "isJoker": false,
       "jokerType": null
@@ -302,7 +302,7 @@
       "key": "queen",
       "nameDe": "Königin",
       "suit": "LEADER",
-      "baseStrength": 8,
+      "baseStrength": 6,
       "ruleTextDe": "Bonus: +5 für jede Armee oder+20 für jede Armee wenn zusammen mit der Königin",
       "isJoker": false,
       "jokerType": null

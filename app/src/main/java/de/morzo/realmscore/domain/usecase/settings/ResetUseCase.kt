@@ -14,6 +14,7 @@ class ResetUseCase(
         db.withTransaction {
             db.handCardDao().deleteAll()
             db.roundResultDao().deleteAll()
+            db.discardCardDao().deleteAll()
             db.roundDao().deleteAll()
             db.gameDao().deleteAll()
         }

@@ -89,9 +89,9 @@ fun SettingsScreen(
         }
         item {
             ToggleRow(
-                label = stringResource(R.string.settings_suggest_discard_scan),
-                checked = state.suggestDiscardScan,
-                onCheckedChange = viewModel::setSuggestDiscardScan,
+                label = stringResource(R.string.settings_discard_capture_enabled),
+                checked = state.discardCaptureEnabled,
+                onCheckedChange = viewModel::setDiscardCaptureEnabled,
             )
         }
 

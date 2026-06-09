@@ -15,6 +15,12 @@ interface RoundDao {
     @Query("SELECT * FROM rounds WHERE id = :id")
     suspend fun getById(id: String): RoundEntity?
 
+    @Query("SELECT * FROM rounds WHERE id = :id")
+    fun observeById(id: String): Flow<RoundEntity?>
+
+    @Query("UPDATE rounds SET discardScanned = :scanned, updatedAt = :ts WHERE id = :id")
+    suspend fun setDiscardScanned(id: String, scanned: Boolean, ts: Long)
+
     @Query("SELECT * FROM rounds WHERE gameId = :gameId AND completedAt IS NULL LIMIT 1")
     suspend fun getOpenRound(gameId: String): RoundEntity?
 

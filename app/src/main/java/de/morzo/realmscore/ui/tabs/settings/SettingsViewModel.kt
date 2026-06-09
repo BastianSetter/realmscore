@@ -28,7 +28,7 @@ data class SettingsUiState(
     val useDynamicColors: Boolean = true,
     val defaultPointLimit: Int = SettingsRepository.DEFAULT_POINT_LIMIT,
     val defaultRoundCount: Int = SettingsRepository.DEFAULT_ROUND_COUNT,
-    val suggestDiscardScan: Boolean = true,
+    val discardCaptureEnabled: Boolean = false,
     val dataInfo: DataInfo = DataInfo(),
 )
 
@@ -44,9 +44,9 @@ class SettingsViewModel(
         settings.useDynamicColors,
         settings.defaultPointLimit,
         settings.defaultRoundCount,
-        settings.suggestDiscardScan,
-    ) { mode, dyn, pts, rounds, scan ->
-        PrefsSnapshot(mode, dyn, pts, rounds, scan)
+        settings.discardCaptureEnabled,
+    ) { mode, dyn, pts, rounds, discard ->
+        PrefsSnapshot(mode, dyn, pts, rounds, discard)
     }
 
     private val dataInfoFlow = combine(
@@ -69,7 +69,7 @@ class SettingsViewModel(
             useDynamicColors = prefs.useDynamicColors,
             defaultPointLimit = prefs.defaultPointLimit,
             defaultRoundCount = prefs.defaultRoundCount,
-            suggestDiscardScan = prefs.suggestDiscardScan,
+            discardCaptureEnabled = prefs.discardCaptureEnabled,
             dataInfo = dataInfo,
         )
     }.stateIn(
@@ -94,8 +94,8 @@ class SettingsViewModel(
         viewModelScope.launch { settings.setDefaultRoundCount(value) }
     }
 
-    fun setSuggestDiscardScan(value: Boolean) {
-        viewModelScope.launch { settings.setSuggestDiscardScan(value) }
+    fun setDiscardCaptureEnabled(value: Boolean) {
+        viewModelScope.launch { settings.setDiscardCaptureEnabled(value) }
     }
 
     fun clearGameData(onDone: () -> Unit = {}) {
@@ -117,7 +117,7 @@ class SettingsViewModel(
         val useDynamicColors: Boolean,
         val defaultPointLimit: Int,
         val defaultRoundCount: Int,
-        val suggestDiscardScan: Boolean,
+        val discardCaptureEnabled: Boolean,
     )
 
     class Factory(

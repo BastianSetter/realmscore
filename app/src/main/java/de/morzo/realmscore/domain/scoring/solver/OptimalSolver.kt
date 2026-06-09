@@ -17,15 +17,13 @@ data class OptimalResult(
 )
 
 /**
- * Brute-force search over joker assignments × player choices.
+ * Brute-force search over joker assignments × player choices (Island/Fountain/Necromancer).
  *
- * Necromancer pick is intentionally NOT optimized in this phase: without a scanned discard pile
- * the candidate set is every non-Wizard card, far too large to brute-force meaningfully. The
- * user's manual pick is therefore carried through unchanged (see the playerChoices copy below).
- *
- * PHASE 20: when the discard pile is scanned, brute-force the Necromancer pick over the captured
- * non-Wizard cards (CardLookup.getNecromancerCandidates(discardScanned = true, ...)) the same way
- * Island/Fountain options are enumerated here.
+ * Necromancer pick (Phase 20): only brute-forced when [ScoringInput.discardScanned] is true. Then
+ * the candidate set is the captured discard cards filtered to the Necromancer-eligible suits
+ * (mirrors CardLookup.NECROMANCER_SUITS), which is small enough to enumerate. Without a scanned
+ * discard pile the candidate set would be every eligible card in the game — too large to search —
+ * so the user's manual pick is carried through unchanged.
  */
 class OptimalSolver(
     private val engine: ScoringEngine,
@@ -68,6 +66,19 @@ class OptimalSolver(
 
         val islandPresent = hand.any { it.key == "island" }
         val fountainPresent = hand.any { it.key == "fountain_of_life" }
+        val necromancerPresent = hand.any { it.key == NECROMANCER_KEY }
+
+        // Necromancer candidates don't depend on joker assignments (they come from the discard
+        // pile, never the hand), so enumerate them once. Only when the middle was scanned; else
+        // keep the user's manual pick untouched.
+        val necromancerOptions: List<String?> =
+            if (necromancerPresent && seed.discardScanned) {
+                listOf<String?>(null) + seed.discardPile
+                    .filter { it.suit in NECROMANCER_SUITS && !it.isJoker && it.key !in handKeys }
+                    .map { it.key }
+            } else {
+                listOf(seed.playerChoices.necromancerPickKey)
+            }
 
         var best: OptimalResult? = null
 
@@ -92,17 +103,19 @@ class OptimalSolver(
 
             for (islandTgt in islandOptions) {
                 for (fountainSrc in fountainOptions) {
-                    val candidateInput = seed.copy(
-                        jokerAssignments = jokerAssignments,
-                        playerChoices = PlayerChoices(
-                            islandTargetKey = islandTgt,
-                            fountainSourceKey = fountainSrc,
-                            necromancerPickKey = seed.playerChoices.necromancerPickKey,
-                        ),
-                    )
-                    val result = engine.score(candidateInput)
-                    if (best == null || result.totalScore > best!!.bestResult.totalScore) {
-                        best = OptimalResult(candidateInput, result)
+                    for (necroPick in necromancerOptions) {
+                        val candidateInput = seed.copy(
+                            jokerAssignments = jokerAssignments,
+                            playerChoices = PlayerChoices(
+                                islandTargetKey = islandTgt,
+                                fountainSourceKey = fountainSrc,
+                                necromancerPickKey = necroPick,
+                            ),
+                        )
+                        val result = engine.score(candidateInput)
+                        if (best == null || result.totalScore > best!!.bestResult.totalScore) {
+                            best = OptimalResult(candidateInput, result)
+                        }
                     }
                 }
             }
@@ -149,8 +162,13 @@ class OptimalSolver(
     }
 
     companion object {
+        private const val NECROMANCER_KEY = "necromancer"
         private val MIRAGE_SUITS = setOf(Suit.ARMY, Suit.LAND, Suit.WEATHER, Suit.FLOOD, Suit.FLAME)
         private val SHAPESHIFTER_SUITS = setOf(Suit.ARTIFACT, Suit.LEADER, Suit.WIZARD, Suit.WEAPON, Suit.BEAST)
         private val ISLAND_SUITS = setOf(Suit.FLOOD, Suit.FLAME)
+
+        // Mirrors CardLookup.NECROMANCER_SUITS so "Optimal" offers the same candidates as the
+        // manual Necromancer picker (Army/Wizard/Leader/Beast).
+        private val NECROMANCER_SUITS = setOf(Suit.ARMY, Suit.WIZARD, Suit.LEADER, Suit.BEAST)
     }
 }

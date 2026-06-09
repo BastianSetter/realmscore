@@ -10,9 +10,9 @@ Voraussetzung: Phase 18 abgeschlossen.
 
 ## Kontext (kurz)
 
-Die App ist seit Phase 01 i18n-ready (alle Texte in `strings.xml`). In dieser Phase wird die englische Übersetzung tatsächlich befüllt: sowohl UI-Strings als auch die 53+47 Karten-Daten.
+Die App ist seit Phase 01 i18n-ready (alle Texte in `strings.xml`). In dieser Phase wird die englische Übersetzung tatsächlich befüllt: sowohl UI-Strings als auch die 53 Karten-Daten.
 
-Der User übersetzt selbst (nativ). Claude Code bereitet die Struktur vor, befüllt die technischen Strings maschinell und markiert alle inhaltlichen Strings die menschliche Überprüfung brauchen.
+Die Englischen Karten texte sind in "C:\Users\basti\AndroidApps\FantasyRealmScoringApp\cards\Fantasy_Realms_Cards.xlsx" festgehalten. Claude Code bereitet die Struktur vor, befüllt die technischen Strings maschinell und markiert alle inhaltlichen Strings die menschliche Überprüfung brauchen.
 
 ---
 

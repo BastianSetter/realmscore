@@ -20,8 +20,9 @@ interface SettingsRepository {
     val defaultRoundCount: Flow<Int>
     suspend fun setDefaultRoundCount(value: Int)
 
-    val suggestDiscardScan: Flow<Boolean>
-    suspend fun setSuggestDiscardScan(value: Boolean)
+    /** When true, the central discard pile (Mittelfeld) is captured like a player each round. */
+    val discardCaptureEnabled: Flow<Boolean>
+    suspend fun setDiscardCaptureEnabled(value: Boolean)
 
     suspend fun clearAll()
 

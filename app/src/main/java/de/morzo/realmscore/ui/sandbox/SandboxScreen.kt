@@ -188,9 +188,14 @@ fun SandboxScreen(
     }
 
     if (necromancerPickerOpen) {
-        // PHASE 20: bei gescanntem Mittelfeld auf discardKeys filtern (getNecromancerCandidates).
-        val candidates = remember(placedKeys) {
-            container.cardLookup.getNecromancerCandidates(handKeys = placedKeys)
+        // When this sandbox was opened from a round with a scanned Mittelfeld, restrict the
+        // Necromancer candidates to the captured discard cards (Phase 20).
+        val candidates = remember(placedKeys, state.discardScanned, state.discardCards) {
+            container.cardLookup.getNecromancerCandidates(
+                handKeys = placedKeys,
+                discardScanned = state.discardScanned,
+                discardKeys = state.discardCards.map { it.key }.toSet(),
+            )
         }
         CardPicker(
             allCards = candidates,

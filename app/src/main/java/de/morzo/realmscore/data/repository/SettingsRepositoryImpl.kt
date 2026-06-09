@@ -63,11 +63,11 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
         dataStore.edit { prefs -> prefs[KEY_DEFAULT_ROUND_COUNT] = value.coerceAtLeast(1) }
     }
 
-    override val suggestDiscardScan: Flow<Boolean> =
-        dataStore.data.map { prefs -> prefs[KEY_SUGGEST_DISCARD_SCAN] ?: true }
+    override val discardCaptureEnabled: Flow<Boolean> =
+        dataStore.data.map { prefs -> prefs[KEY_DISCARD_CAPTURE_ENABLED] ?: false }
 
-    override suspend fun setSuggestDiscardScan(value: Boolean) {
-        dataStore.edit { prefs -> prefs[KEY_SUGGEST_DISCARD_SCAN] = value }
+    override suspend fun setDiscardCaptureEnabled(value: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_DISCARD_CAPTURE_ENABLED] = value }
     }
 
     override suspend fun clearAll() {
@@ -80,6 +80,6 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
         private val KEY_USE_DYNAMIC_COLORS = booleanPreferencesKey("use_dynamic_colors")
         private val KEY_DEFAULT_POINT_LIMIT = intPreferencesKey("default_point_limit")
         private val KEY_DEFAULT_ROUND_COUNT = intPreferencesKey("default_round_count")
-        private val KEY_SUGGEST_DISCARD_SCAN = booleanPreferencesKey("suggest_discard_scan")
+        private val KEY_DISCARD_CAPTURE_ENABLED = booleanPreferencesKey("discard_capture_enabled")
     }
 }

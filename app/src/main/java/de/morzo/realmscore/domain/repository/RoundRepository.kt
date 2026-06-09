@@ -11,14 +11,20 @@ interface RoundRepository {
     fun observeResults(roundId: String): Flow<List<RoundResult>>
     fun observeResultsForGame(gameId: String): Flow<List<RoundResult>>
     suspend fun getRoundById(id: String): Round?
+    fun observeRoundById(id: String): Flow<Round?>
     suspend fun markRoundCompleted(roundId: String)
 
-    /**
-     * Card keys that were observed in the central discard area of [roundId].
-     * MVP collects no discard data, so this currently returns an empty list.
-     * Kept on the interface so the Sandbox prefill path is ready for Phase 2.
-     */
+    /** Card keys captured in the central discard area (Mittelfeld) of [roundId], in entry order. */
     suspend fun getDiscardCards(roundId: String): List<String>
+
+    /** Reactive variant of [getDiscardCards] — emits whenever the discard capture changes. */
+    fun observeDiscardCards(roundId: String): Flow<List<String>>
+
+    /**
+     * Replaces the captured discard cards for [roundId] with [cardKeys] and marks the round's
+     * `discardScanned` flag true (Phase 20). Saving an empty list still counts as "scanned".
+     */
+    suspend fun saveDiscardCards(roundId: String, cardKeys: List<String>)
 
     /**
      * Returns a map keyed by `gameId -> profileId -> totalScore` summed across all rounds.

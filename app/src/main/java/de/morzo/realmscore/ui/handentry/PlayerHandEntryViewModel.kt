@@ -36,6 +36,13 @@ data class PlayerHandEntryUiState(
     val cardsUsedByOthers: Set<String> = emptySet(),
     val isOptimalRunning: Boolean = false,
     val isSaving: Boolean = false,
+    /**
+     * Discard mode (Mittelfeld): the entry just records card identities, so joker resolution,
+     * the Necromancer field and per-card scoring are suppressed. Used by RoundCaptureViewModel.
+     */
+    val isDiscard: Boolean = false,
+    /** Cards required to mark the entry complete (7 for a hand, 10/12 for the Mittelfeld). */
+    val requiredSlotCount: Int = PLAYER_HAND_SLOT_COUNT,
 ) {
     val filledCards: List<CardDefinition>
         get() = slots.mapNotNull { (it as? CardSlot.Filled)?.card }
@@ -55,7 +62,7 @@ data class PlayerHandEntryUiState(
         }
 
     val canSubmit: Boolean
-        get() = cardsCount == PLAYER_HAND_SLOT_COUNT && allJokersResolved && !isSaving
+        get() = cardsCount == requiredSlotCount && (isDiscard || allJokersResolved) && !isSaving
 }
 
 class PlayerHandEntryViewModel(

@@ -31,7 +31,8 @@
       "Bash(git push *)",
       "Bash(git -C \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\" status)",
       "Bash(git -C \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\" log --oneline -5)",
-      "Bash(Select-Object -First 300)"
+      "Bash(Select-Object -First 300)",
+      "Bash(xargs grep -ln \"findOptimal\\\\|OptimalResult\\\\|ScoringInput\\\\|discardScanned\\\\|necromancer\")"
     ]
   }
 }

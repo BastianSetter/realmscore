@@ -66,7 +66,7 @@ fun PlayerHandCaptureContent(
     var autoOpenedOnce by rememberSaveable(autoOpenKey) { mutableStateOf(false) }
 
     LaunchedEffect(autoOpenKey, state.isLoading, state.cardsCount) {
-        if (!state.isLoading && !autoOpenedOnce && state.cardsCount < PLAYER_HAND_SLOT_COUNT) {
+        if (!state.isLoading && !autoOpenedOnce && state.cardsCount < state.requiredSlotCount) {
             pickerMode = PickerMode.ContinuousFill
             autoOpenedOnce = true
         }
@@ -83,7 +83,11 @@ fun PlayerHandCaptureContent(
             .verticalScroll(rememberScrollState()),
     ) {
         Text(
-            text = stringResource(R.string.player_hand_count, state.cardsCount),
+            text = if (state.isDiscard) {
+                stringResource(R.string.discard_capture_count, state.cardsCount, state.requiredSlotCount)
+            } else {
+                stringResource(R.string.player_hand_count, state.cardsCount)
+            },
             style = MaterialTheme.typography.titleMedium,
         )
 
@@ -100,7 +104,7 @@ fun PlayerHandCaptureContent(
             },
         )
 
-        if (state.jokersInHand.isNotEmpty()) {
+        if (!state.isDiscard && state.jokersInHand.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))
             JokerSection(
                 jokers = state.jokersInHand,
@@ -113,7 +117,7 @@ fun PlayerHandCaptureContent(
             )
         }
 
-        if (state.necromancerInHand) {
+        if (!state.isDiscard && state.necromancerInHand) {
             Spacer(Modifier.height(24.dp))
             NecromancerSection(
                 pickedCard = state.playerChoices.necromancerPickKey

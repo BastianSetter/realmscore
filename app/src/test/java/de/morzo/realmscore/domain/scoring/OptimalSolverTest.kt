@@ -54,6 +54,31 @@ class OptimalSolverTest {
         assertEquals("warship", best.bestInput.playerChoices.fountainSourceKey)
     }
 
+    @Test fun `solver picks best necromancer card when discard is scanned`() {
+        // necromancer(3) + beastmaster(9). Discard holds unicorn(BEAST,9) and rangers(ARMY,5).
+        // Pulling unicorn: beastmaster sees 1 beast (+9) + unicorn base 9 → 3+9+9+9 = 30.
+        // Pulling rangers: no beast bonus → 3+9+5 = 17. Solver must choose unicorn.
+        val seed = ScoringInput(
+            hand = TestFixture.hand("necromancer", "beastmaster"),
+            discardPile = TestFixture.hand("unicorn", "rangers"),
+            discardScanned = true,
+        )
+        val best = TestFixture.solver.findOptimal(seed)
+        assertEquals("unicorn", best.bestInput.playerChoices.necromancerPickKey)
+        assertEquals(30, best.bestResult.totalScore)
+    }
+
+    @Test fun `solver leaves necromancer pick untouched when discard is not scanned`() {
+        // Without a scanned discard the pick is carried through unchanged (here: none).
+        val seed = ScoringInput(
+            hand = TestFixture.hand("necromancer", "beastmaster"),
+            discardPile = TestFixture.hand("unicorn", "rangers"),
+            discardScanned = false,
+        )
+        val best = TestFixture.solver.findOptimal(seed)
+        assertEquals(null, best.bestInput.playerChoices.necromancerPickKey)
+    }
+
     @Test fun `solver skips blanked fountain source`() {
         // smoke(WEATHER 27) self-blanks (no flame). Better source: air_elemental(4) — not blanked but tiny.
         // Even though smoke has higher base strength, Fountain rule excludes blanked sources.

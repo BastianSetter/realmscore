@@ -57,6 +57,7 @@ fun RoundCaptureScreen(
             profileRepo = container.profileRepository,
             gameRepo = container.gameRepository,
             roundRepo = container.roundRepository,
+            settingsRepo = container.settingsRepository,
             engine = container.scoringEngine,
             optimalSolver = container.optimalSolver,
             roundId = roundId,
@@ -118,7 +119,11 @@ fun RoundCaptureScreen(
             onSetNecromancerPick = vm::setNecromancerPick,
             onClearNecromancerPick = vm::clearNecromancerPick,
             onSubmit = { vm.submitCurrentAndAdvance(onAllPlayersCaptured) },
-            submitLabel = stringResource(R.string.round_capture_submit),
+            submitLabel = if (state.current.isDiscard) {
+                stringResource(R.string.discard_capture_submit)
+            } else {
+                stringResource(R.string.round_capture_submit)
+            },
             autoOpenKey = state.currentProfileId,
         )
     }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
+import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.Game
 import de.morzo.realmscore.domain.model.GameMode
 import de.morzo.realmscore.domain.model.Suit
@@ -40,6 +41,7 @@ data class RoundSummaryUiState(
     val players: List<PlayerSummary> = emptyList(),
     val winnerId: String? = null,
     val discardScanned: Boolean = false,
+    val discardCards: List<CardDefinition> = emptyList(),
     val canStartNextRound: Boolean = false,
     val canEditRound: Boolean = false,
     val isLastRound: Boolean = false,
@@ -89,6 +91,18 @@ class RoundSummaryViewModel(
 
             roundRepo.markRoundCompleted(roundId)
 
+            // Discard pile (Mittelfeld) is editable after the reveal, so observe it reactively.
+            launch {
+                combine(
+                    roundRepo.observeRoundById(roundId),
+                    roundRepo.observeDiscardCards(roundId),
+                ) { r, keys ->
+                    (r?.discardScanned ?: false) to keys.mapNotNull { cardLookup.getByKey(it) }
+                }.collect { (scanned, cards) ->
+                    _uiState.update { it.copy(discardScanned = scanned, discardCards = cards) }
+                }
+            }
+
             launch {
                 combine(
                     roundRepo.observeRoundsForGame(game.id),
@@ -111,7 +125,6 @@ class RoundSummaryViewModel(
                             roundNumber = round.roundNumber,
                             players = rawSummaries,
                             winnerId = winnerId,
-                            discardScanned = round.discardScanned,
                             canStartNextRound = canNext && isLast,
                             canEditRound = isLast,
                             isLastRound = isLast,
