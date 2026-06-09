@@ -78,6 +78,11 @@
     <string name="round_entry_status_completed">Erfasst</string>
     <string name="round_entry_reveal_button">Punkte enthüllen</string>
 
+    <string name="round_capture_submit">Fertig erfasst</string>
+    <string name="round_capture_reveal">Punkte enthüllen</string>
+    <string name="round_capture_switch_player">Spieler wechseln</string>
+    <string name="round_capture_all_done">Alle Spieler erfasst</string>
+
     <string name="player_hand_title">Spieler: %1$s</string>
     <string name="player_hand_count">%1$d / 7 Karten</string>
     <string name="player_hand_submit">Erfasst – an nächsten Spieler weitergeben</string>
@@ -160,8 +165,15 @@
     <!-- Sandbox: Engine/Joker/Choice/Breakdown -->
     <string name="sandbox_optimal">Optimal</string>
     <string name="sandbox_breakdown">Aufschlüsselung</string>
+    <string name="sandbox_show_ring">Ring anzeigen</string>
     <string name="sandbox_breakdown_title">Punkte: %1$d</string>
     <string name="sandbox_breakdown_blanked">Blockiert</string>
+
+    <!-- Phase 18: Ring-Visualisierung der Hand -->
+    <string name="breakdown_mode_ring">Ring</string>
+    <string name="breakdown_mode_list">Liste</string>
+    <string name="ring_base_strength">Basisstärke: %1$d</string>
+    <string name="ring_tap_hint">Tippe auf eine Karte, um ihre Verbindungen und Punkte zu sehen.</string>
     <string name="sandbox_joker_section_title">Joker-Auflösung</string>
     <string name="sandbox_joker_target">Spiegelt</string>
     <string name="sandbox_joker_unset">— nicht gesetzt —</string>

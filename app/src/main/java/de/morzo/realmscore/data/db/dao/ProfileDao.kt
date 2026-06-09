@@ -33,6 +33,31 @@ interface ProfileDao {
     @Query("SELECT COUNT(*) FROM profile WHERE name = :name COLLATE NOCASE")
     suspend fun countByName(name: String): Int
 
+    /**
+     * Active (non-archived) profiles whose name starts with [prefix] (empty prefix = all active).
+     * Phase 18.1, Punkt 3: feeds the relevance-ranked autocomplete in NewGame.
+     */
+    @Query(
+        "SELECT * FROM profile " +
+            "WHERE isArchived = 0 " +
+            "AND name LIKE :prefix || '%' COLLATE NOCASE"
+    )
+    suspend fun getActiveByPrefix(prefix: String): List<ProfileEntity>
+
+    /**
+     * For every game the owner played, the (other) participant ids and that game's start time.
+     * Used to compute each profile's relevance score (frequency + recency) for autocomplete.
+     */
+    @Query(
+        "SELECT other.profileId AS profileId, g.startedAt AS startedAt " +
+            "FROM game_participants other " +
+            "JOIN game_participants owner_p " +
+            "ON owner_p.gameId = other.gameId AND owner_p.profileId = :ownerId " +
+            "JOIN games g ON g.id = other.gameId " +
+            "WHERE other.profileId != :ownerId"
+    )
+    suspend fun getSharedGamesWithOwner(ownerId: String): List<ProfileSharedGame>
+
     @Query("SELECT colorArgb FROM profile")
     suspend fun getAllColors(): List<Int>
 

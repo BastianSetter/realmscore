@@ -31,6 +31,7 @@ import androidx.navigation.navArgument
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.ui.game.GameInProgressScreen
+import de.morzo.realmscore.ui.game.RoundCaptureScreen
 import de.morzo.realmscore.ui.game.RoundEntryScreen
 import de.morzo.realmscore.ui.handentry.PlayerHandEntryScreen
 import de.morzo.realmscore.ui.newgame.NewGameScreen
@@ -113,7 +114,7 @@ fun MainScaffold(container: AppContainer) {
                     container = container,
                     gameId = gameId,
                     onStartRound = { roundId ->
-                        tabNavController.navigate(Routes.roundEntryRoute(roundId))
+                        tabNavController.navigate(Routes.roundCaptureRoute(roundId))
                     },
                     onMoveToSandbox = { gId, rid, pid ->
                         tabNavController.navigate(Routes.sandboxRouteFromRound(gId, rid, pid))
@@ -136,6 +137,22 @@ fun MainScaffold(container: AppContainer) {
                     },
                     onReveal = {
                         tabNavController.navigate(Routes.revealRoute(roundId))
+                    },
+                    onBack = { tabNavController.popBackStack() },
+                )
+            }
+            composable(
+                route = Routes.ROUND_CAPTURE,
+                arguments = listOf(navArgument(Routes.ARG_ROUND_ID) { type = NavType.StringType }),
+            ) { entry ->
+                val roundId = entry.arguments?.getString(Routes.ARG_ROUND_ID).orEmpty()
+                RoundCaptureScreen(
+                    container = container,
+                    roundId = roundId,
+                    onAllPlayersCaptured = {
+                        tabNavController.navigate(Routes.revealRoute(roundId)) {
+                            popUpTo(Routes.ROUND_CAPTURE) { inclusive = true }
+                        }
                     },
                     onBack = { tabNavController.popBackStack() },
                 )
@@ -186,7 +203,7 @@ fun MainScaffold(container: AppContainer) {
                     container = container,
                     roundId = roundId,
                     onNextRound = { newRoundId ->
-                        tabNavController.navigate(Routes.roundEntryRoute(newRoundId)) {
+                        tabNavController.navigate(Routes.roundCaptureRoute(newRoundId)) {
                             popUpTo(Routes.ROUND_SUMMARY) { inclusive = true }
                         }
                     },
@@ -194,7 +211,7 @@ fun MainScaffold(container: AppContainer) {
                         tabNavController.navigate(Routes.gameSummaryRoute(gameId))
                     },
                     onEditRound = {
-                        tabNavController.navigate(Routes.roundEntryRoute(roundId)) {
+                        tabNavController.navigate(Routes.roundCaptureRoute(roundId)) {
                             popUpTo(Routes.ROUND_SUMMARY) { inclusive = true }
                         }
                     },

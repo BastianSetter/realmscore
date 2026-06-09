@@ -35,8 +35,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -265,13 +269,16 @@ private fun AddPlayerField(
     onAddExisting: (Profile) -> Unit,
     onAddNew: () -> Unit,
 ) {
+    var focused by remember { mutableStateOf(false) }
     Column {
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
             label = { Text(stringResource(R.string.new_game_add_player_label)) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focused = it.isFocused },
             isError = error != null,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Words,
@@ -302,7 +309,7 @@ private fun AddPlayerField(
                 style = MaterialTheme.typography.bodySmall,
             )
         }
-        if (suggestions.isNotEmpty()) {
+        if (focused && suggestions.isNotEmpty()) {
             Spacer(Modifier.height(4.dp))
             Column(
                 modifier = Modifier

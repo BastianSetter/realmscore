@@ -9,9 +9,8 @@ import de.morzo.realmscore.domain.scoring.ScoringContext
 /** Kriegsherr: bonus = sum of base strengths of all non-blanked Army cards in hand. */
 object WarlordRule : CardScoringRule {
     override fun bonuses(self: ResolvedCard, ctx: ScoringContext): List<EffectApplication> {
-        val sum = ctx.nonBlankedHand()
-            .filter { it.effectiveSuit == Suit.ARMY }
-            .sumOf { it.effectiveStrength }
+        val armies = ctx.nonBlankedHand().filter { it.effectiveSuit == Suit.ARMY }
+        val sum = armies.sumOf { it.effectiveStrength }
         if (sum == 0) return emptyList()
         return listOf(
             EffectApplication(
@@ -19,6 +18,7 @@ object WarlordRule : CardScoringRule {
                 descriptionKey = "effect_warlord",
                 descriptionArgs = listOf(sum.toString()),
                 pointsDelta = sum,
+                contributingCardKeys = armies.map { it.originalKey },
             )
         )
     }

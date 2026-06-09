@@ -43,11 +43,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.ui.components.CardPicker
+import de.morzo.realmscore.ui.components.HandBreakdownSheet
 import de.morzo.realmscore.ui.sandbox.components.ChoiceSection
 import de.morzo.realmscore.ui.sandbox.components.HandSlotsRow
 import de.morzo.realmscore.ui.sandbox.components.JokerSection
 import de.morzo.realmscore.ui.sandbox.components.NecromancerSection
-import de.morzo.realmscore.ui.sandbox.components.ScoreBreakdownSheet
 import de.morzo.realmscore.ui.sandbox.components.ScoreFooter
 import de.morzo.realmscore.ui.util.formatShortDate
 
@@ -204,7 +204,8 @@ fun SandboxScreen(
 
     val result = state.scoringResult
     if (state.breakdownOpen && result != null) {
-        ScoreBreakdownSheet(
+        HandBreakdownSheet(
+            cards = state.filledCards,
             result = result,
             onDismiss = viewModel::closeBreakdown,
         )

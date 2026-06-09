@@ -47,8 +47,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
+import de.morzo.realmscore.ui.components.HandBreakdownSheet
 import de.morzo.realmscore.ui.sandbox.components.MoveToSandboxIcon
-import de.morzo.realmscore.ui.sandbox.components.ScoreBreakdownSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -176,8 +176,10 @@ fun RoundSummaryScreen(
             ),
         )
         val result by breakdownVm.scoringResult.collectAsStateWithLifecycle()
+        val handCards by breakdownVm.handCards.collectAsStateWithLifecycle()
         result?.let {
-            ScoreBreakdownSheet(
+            HandBreakdownSheet(
+                cards = handCards,
                 result = it,
                 onDismiss = { breakdownProfileId = null },
             )

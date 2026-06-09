@@ -28,16 +28,18 @@ private fun kethTierBonus(
     lowAmount: Int,
 ): List<EffectApplication> {
     val pool = ctx.nonBlankedHand().filter { it.originalKey != self.originalKey }
-    val hasLeader = pool.any { it.effectiveSuit == Suit.LEADER }
-    if (!hasLeader) return emptyList()
-    val hasPartner = pool.any { it.effectiveCardKey == partnerKey }
-    val amount = if (hasPartner) 40 else lowAmount
-    val descKey = if (hasPartner) "effect_keth_combo" else "effect_keth_leader_only"
+    val leaders = pool.filter { it.effectiveSuit == Suit.LEADER }
+    if (leaders.isEmpty()) return emptyList()
+    val partner = pool.firstOrNull { it.effectiveCardKey == partnerKey }
+    val amount = if (partner != null) 40 else lowAmount
+    val descKey = if (partner != null) "effect_keth_combo" else "effect_keth_leader_only"
+    val contributors = leaders.map { it.originalKey } + listOfNotNull(partner?.originalKey)
     return listOf(
         EffectApplication(
             sourceCardKey = self.originalKey,
             descriptionKey = descKey,
             pointsDelta = amount,
+            contributingCardKeys = contributors,
         )
     )
 }

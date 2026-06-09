@@ -255,6 +255,7 @@ private fun CardColumn(
 
 @Composable
 private fun CardPickerItem(card: CardDefinition, onClick: () -> Unit) {
+    val onColor = suitOnColor(card.suit)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -270,7 +271,7 @@ private fun CardPickerItem(card: CardDefinition, onClick: () -> Unit) {
             text = card.nameDe,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = onColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -278,7 +279,7 @@ private fun CardPickerItem(card: CardDefinition, onClick: () -> Unit) {
         Text(
             text = card.baseStrength.toString(),
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = onColor,
         )
     }
 }

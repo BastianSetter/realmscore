@@ -16,12 +16,14 @@ class ConditionalFlatRule(
 ) : CardScoringRule {
 
     override fun bonuses(self: ResolvedCard, ctx: ScoringContext): List<EffectApplication> {
-        if (!condition.evaluate(ctx.nonBlankedHand(), self)) return emptyList()
+        val hand = ctx.nonBlankedHand()
+        if (!condition.evaluate(hand, self)) return emptyList()
         return listOf(
             EffectApplication(
                 sourceCardKey = self.originalKey,
                 descriptionKey = descriptionKey,
                 pointsDelta = amount,
+                contributingCardKeys = condition.contributingKeys(hand, self).distinct(),
             )
         )
     }

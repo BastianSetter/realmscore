@@ -8,11 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,33 +26,24 @@ import de.morzo.realmscore.domain.scoring.CardScoreResult
 import de.morzo.realmscore.domain.scoring.EffectApplication
 import de.morzo.realmscore.domain.scoring.ScoringResult
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * List view of the per-card score breakdown. Used inside [HandBreakdownSheet]'s "Liste" tab
+ * (Phase 18) and reusable wherever the textual breakdown is needed.
+ */
 @Composable
-fun ScoreBreakdownSheet(
+fun CardBreakdownList(
     result: ScoringResult,
-    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val sheetState = rememberModalBottomSheetState()
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
+    val sortedCards = remember(result) {
+        result.perCard.sortedByDescending { it.contributedScore }
+    }
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.sandbox_breakdown_title, result.totalScore),
-                style = MaterialTheme.typography.titleLarge,
-            )
-            val sortedCards = remember(result) {
-                result.perCard.sortedByDescending { it.contributedScore }
-            }
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(sortedCards, key = { it.cardKey }) { cardResult ->
-                    CardBreakdownItem(cardResult)
-                }
-            }
+        items(sortedCards, key = { it.cardKey }) { cardResult ->
+            CardBreakdownItem(cardResult)
         }
     }
 }
@@ -101,15 +89,16 @@ private fun CardBreakdownItem(result: CardScoreResult) {
             }
             if (expanded && result.effects.isNotEmpty()) {
                 result.effects.forEach { effect ->
-                    EffectRow(effect)
+                    BreakdownEffectRow(effect)
                 }
             }
         }
     }
 }
 
+/** Renders one [EffectApplication] line, resolving its `descriptionKey` to a localized string. */
 @Composable
-private fun EffectRow(effect: EffectApplication) {
+fun BreakdownEffectRow(effect: EffectApplication) {
     val context = LocalContext.current
     val resId = remember(effect.descriptionKey) {
         context.resources.getIdentifier(effect.descriptionKey, "string", context.packageName)
@@ -136,4 +125,4 @@ private fun EffectRow(effect: EffectApplication) {
     }
 }
 
-private fun formatDelta(value: Int): String = if (value > 0) "+$value" else value.toString()
+fun formatDelta(value: Int): String = if (value > 0) "+$value" else value.toString()

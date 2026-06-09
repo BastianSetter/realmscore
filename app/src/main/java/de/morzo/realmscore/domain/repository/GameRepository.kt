@@ -22,4 +22,11 @@ interface GameRepository {
 
     suspend fun closeGame(gameId: String, reason: ClosedReason)
     suspend fun reopenGame(gameId: String)
+
+    /**
+     * Phase 18.1, Punkt 2: persist the scan order of a round into each participant's
+     * [GameParticipant.lastScanOrder], so the next round defaults to the same order.
+     * Keys are profileIds; values are 0-based positions (0 = captured first).
+     */
+    suspend fun updateScanOrder(gameId: String, profileIdToOrder: Map<String, Int>)
 }

@@ -25,16 +25,20 @@ private fun royalArmyBonus(
     descriptionKey: String,
 ): List<EffectApplication> {
     val pool = ctx.nonBlankedHand().filter { it.originalKey != self.originalKey }
-    val armyCount = pool.count { it.effectiveSuit == Suit.ARMY }
+    val armies = pool.filter { it.effectiveSuit == Suit.ARMY }
+    val armyCount = armies.size
     if (armyCount == 0) return emptyList()
-    val partnerPresent = pool.any { it.effectiveCardKey == partnerKey }
-    val per = if (partnerPresent) 20 else 5
+    val partner = pool.firstOrNull { it.effectiveCardKey == partnerKey }
+    val per = if (partner != null) 20 else 5
+    // The armies drive the bonus; the partner royal that upgrades it counts too.
+    val contributors = armies.map { it.originalKey } + listOfNotNull(partner?.originalKey)
     return listOf(
         EffectApplication(
             sourceCardKey = self.originalKey,
             descriptionKey = descriptionKey,
             descriptionArgs = listOf(per.toString(), armyCount.toString()),
             pointsDelta = per * armyCount,
+            contributingCardKeys = contributors,
         )
     )
 }

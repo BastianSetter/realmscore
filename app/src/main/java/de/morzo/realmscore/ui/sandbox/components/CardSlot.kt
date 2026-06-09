@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.ui.components.suitColor
+import de.morzo.realmscore.ui.components.suitOnColor
 import de.morzo.realmscore.ui.sandbox.CardSlot
 
 private val SlotShape = RoundedCornerShape(12.dp)
@@ -92,7 +93,7 @@ private fun FilledSlotContent(card: CardDefinition) {
             text = card.nameDe,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = suitOnColor(card.suit),
             textAlign = TextAlign.Center,
         )
     }

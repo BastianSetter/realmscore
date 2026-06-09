@@ -23,9 +23,9 @@ class PerOtherCountRule(
 
     override fun bonuses(self: ResolvedCard, ctx: ScoringContext): List<EffectApplication> {
         if (isPenalty) return emptyList()
-        val count = countMatches(self, ctx, strippedSuits = emptySet())
-        if (count == 0) return emptyList()
-        return listOf(line(self, count))
+        val matched = matchedKeys(self, ctx, strippedSuits = emptySet())
+        if (matched.isEmpty()) return emptyList()
+        return listOf(line(self, matched))
     }
 
     override fun penalties(self: ResolvedCard, ctx: ScoringContext): List<EffectApplication> {
@@ -33,27 +33,28 @@ class PerOtherCountRule(
         val pc = ctx.penaltyContext
         if (pc != null && pc.isFullyCancelled(self)) return emptyList()
         val stripped = pc?.strippedSuitsFor(self).orEmpty()
-        val count = countMatches(self, ctx, strippedSuits = stripped)
-        if (count == 0) return emptyList()
-        return listOf(line(self, count))
+        val matched = matchedKeys(self, ctx, strippedSuits = stripped)
+        if (matched.isEmpty()) return emptyList()
+        return listOf(line(self, matched))
     }
 
-    private fun countMatches(
+    private fun matchedKeys(
         self: ResolvedCard,
         ctx: ScoringContext,
         strippedSuits: Set<de.morzo.realmscore.domain.model.Suit>,
-    ): Int {
-        return ctx.nonBlankedHand().count { c ->
-            if (excludeSelf && c.originalKey == self.originalKey) return@count false
-            if (c.effectiveSuit in strippedSuits) return@count false
-            matcher.matches(c)
+    ): List<String> {
+        return ctx.nonBlankedHand().mapNotNull { c ->
+            if (excludeSelf && c.originalKey == self.originalKey) return@mapNotNull null
+            if (c.effectiveSuit in strippedSuits) return@mapNotNull null
+            if (matcher.matches(c)) c.originalKey else null
         }
     }
 
-    private fun line(self: ResolvedCard, count: Int): EffectApplication = EffectApplication(
+    private fun line(self: ResolvedCard, matched: List<String>): EffectApplication = EffectApplication(
         sourceCardKey = self.originalKey,
         descriptionKey = descriptionKey,
-        descriptionArgs = listOf(count.toString()),
-        pointsDelta = amountPer * count,
+        descriptionArgs = listOf(matched.size.toString()),
+        pointsDelta = amountPer * matched.size,
+        contributingCardKeys = matched,
     )
 }

@@ -87,6 +87,9 @@ class NewGameViewModel(
                     ),
                 )
             }
+            // Now that the owner is known, pre-compute suggestions so the empty/on-focus picker
+            // already has relevance-ranked entries to show without any typing.
+            refreshSuggestions(_uiState.value.addQuery.trim())
         }
         suggestionsJob = viewModelScope.launch {
             queryFlow
@@ -138,6 +141,7 @@ class NewGameViewModel(
             )
         }
         queryFlow.value = ""
+        scheduleSuggestionRefresh()
     }
 
     fun addNewProfile(rawName: String) {
@@ -171,6 +175,7 @@ class NewGameViewModel(
                 )
             }
             queryFlow.value = ""
+            scheduleSuggestionRefresh()
         }
     }
 
@@ -180,6 +185,7 @@ class NewGameViewModel(
         _uiState.update {
             it.copy(participants = it.participants.filterNot { p -> p.profileId == profileId })
         }
+        scheduleSuggestionRefresh()
     }
 
     fun startGame(onSuccess: (String) -> Unit) {
@@ -201,15 +207,24 @@ class NewGameViewModel(
     }
 
     private suspend fun refreshSuggestions(query: String) {
-        if (query.isEmpty()) {
+        val state = _uiState.value
+        val ownerId = state.ownerProfileId
+        if (ownerId == null) {
             _uiState.update { it.copy(suggestions = emptyList()) }
             return
         }
-        val matches = profileRepo.searchByNamePrefix(query)
-        val takenIds = _uiState.value.participants.map { it.profileId }.toSet()
-        _uiState.update {
-            it.copy(suggestions = matches.filter { p -> p.id !in takenIds })
-        }
+        val takenIds = state.participants.map { it.profileId }.toSet()
+        val matches = profileRepo.suggestProfiles(
+            prefix = query,
+            excludeProfileIds = takenIds,
+            ownerId = ownerId,
+        )
+        _uiState.update { it.copy(suggestions = matches) }
+    }
+
+    /** Recompute suggestions for the current query off the back of a participant-list change. */
+    private fun scheduleSuggestionRefresh() {
+        viewModelScope.launch { refreshSuggestions(_uiState.value.addQuery.trim()) }
     }
 
     companion object {

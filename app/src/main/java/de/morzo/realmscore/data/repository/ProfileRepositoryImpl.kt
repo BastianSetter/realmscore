@@ -6,6 +6,7 @@ import de.morzo.realmscore.data.db.AppDatabase
 import de.morzo.realmscore.data.db.dao.ProfileDao
 import de.morzo.realmscore.data.db.entity.ProfileEntity
 import de.morzo.realmscore.domain.model.Profile
+import de.morzo.realmscore.domain.profile.ProfileRelevance
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.util.Clock
 import kotlinx.coroutines.flow.Flow
@@ -67,6 +68,32 @@ class ProfileRepositoryImpl(
         val trimmed = prefix.trim()
         if (trimmed.isEmpty()) return emptyList()
         return dao.searchByNamePrefix(trimmed).map { it.toDomain() }
+    }
+
+    override suspend fun suggestProfiles(
+        prefix: String,
+        excludeProfileIds: Set<String>,
+        ownerId: String,
+    ): List<Profile> {
+        val candidates = dao.getActiveByPrefix(prefix.trim())
+            .filter { it.id != ownerId && it.id !in excludeProfileIds }
+        if (candidates.isEmpty()) return emptyList()
+
+        // Relevance: sum over shared games of exp(-ageDays / HALF_LIFE). More & more recent games
+        // rank higher. Profiles with no shared history score 0 and fall back to alphabetical order.
+        val now = clock.nowEpochMillis()
+        val scoreById = dao.getSharedGamesWithOwner(ownerId)
+            .groupBy { it.profileId }
+            .mapValues { (_, games) ->
+                ProfileRelevance.score(games.map { it.startedAt }, now)
+            }
+
+        return candidates
+            .sortedWith(
+                compareByDescending<ProfileEntity> { scoreById[it.id] ?: 0.0 }
+                    .thenBy { it.name.lowercase() },
+            )
+            .map { it.toDomain() }
     }
 
     override suspend fun existsByName(name: String): Boolean {

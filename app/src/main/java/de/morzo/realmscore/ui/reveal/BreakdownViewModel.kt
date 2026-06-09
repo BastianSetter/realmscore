@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
+import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.scoring.JokerAssignment
@@ -28,11 +29,15 @@ class BreakdownViewModel(
     private val _scoringResult = MutableStateFlow<ScoringResult?>(null)
     val scoringResult: StateFlow<ScoringResult?> = _scoringResult.asStateFlow()
 
+    private val _handCards = MutableStateFlow<List<CardDefinition>>(emptyList())
+    val handCards: StateFlow<List<CardDefinition>> = _handCards.asStateFlow()
+
     init {
         viewModelScope.launch {
             val saved = handCardRepo.getHand(roundId, profileId) ?: return@launch
             val hand = saved.cards.mapNotNull { cardLookup.getByKey(it.cardKey) }
             if (hand.size != saved.cards.size) return@launch
+            _handCards.value = hand
             val assignments: Map<String, JokerAssignment> = saved.cards.mapNotNull { entry ->
                 val target = entry.jokerTargetCardKey ?: return@mapNotNull null
                 val suit = entry.jokerTargetSuit?.let { runCatching { Suit.valueOf(it) }.getOrNull() }

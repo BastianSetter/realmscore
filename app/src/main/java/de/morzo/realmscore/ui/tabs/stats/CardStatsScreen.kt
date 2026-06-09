@@ -130,6 +130,7 @@ private fun CardHeader(stats: CardStats) {
                         text = stringResource(suitLabelRes(stats.card.suit)),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
+                        color = de.morzo.realmscore.ui.components.suitOnColor(stats.card.suit),
                     )
                 }
                 Spacer(Modifier.width(8.dp))

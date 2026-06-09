@@ -238,6 +238,7 @@ private fun SuitBadge(suit: de.morzo.realmscore.domain.model.Suit) {
             text = label,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
+            color = de.morzo.realmscore.ui.components.suitOnColor(suit),
         )
     }
 }

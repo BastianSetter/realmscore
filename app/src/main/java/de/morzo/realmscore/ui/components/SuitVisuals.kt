@@ -1,23 +1,31 @@
 package de.morzo.realmscore.ui.components
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.Suit
+import de.morzo.realmscore.ui.theme.SuitColors
 
-internal fun suitColor(suit: Suit): Color = when (suit) {
-    Suit.ARMY -> Color(0xFFFFAB91)
-    Suit.ARTIFACT -> Color(0xFFFFF59D)
-    Suit.BEAST -> Color(0xFFFFCDD2)
-    Suit.FLAME -> Color(0xFFFFAB40)
-    Suit.FLOOD -> Color(0xFF81D4FA)
-    Suit.LAND -> Color(0xFFC8E6C9)
-    Suit.LEADER -> Color(0xFFFFE0B2)
-    Suit.WEAPON -> Color(0xFFB3E5FC)
-    Suit.WEATHER -> Color(0xFFB0BEC5)
-    Suit.WIZARD -> Color(0xFFD1C4E9)
-    Suit.WILD -> Color(0xFFE1BEE7)
-}
+/**
+ * The real card colour for [suit], resolved for the current light/dark theme. Single source of
+ * truth is [SuitColors] (Phase 18.1, Punkt 1). For non-composable draw code (e.g. the ring canvas)
+ * call [SuitColors.forSuit] directly with an explicitly threaded `darkTheme` flag.
+ */
+@Composable
+internal fun suitColor(suit: Suit): Color =
+    SuitColors.forSuit(suit, isSystemInDarkTheme())
+
+/**
+ * A readable on-colour (black/white) for text/icons drawn on top of [suitColor]. Several suit
+ * colours are dark even in light mode (Land, Flut, Armee, …), so a fixed colour would fail
+ * contrast – pick by luminance instead.
+ */
+@Composable
+internal fun suitOnColor(suit: Suit): Color =
+    if (suitColor(suit).luminance() > 0.5f) Color.Black else Color.White
 
 @StringRes
 internal fun suitLabelRes(suit: Suit): Int = when (suit) {

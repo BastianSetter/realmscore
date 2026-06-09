@@ -90,4 +90,10 @@ class GameRepositoryImpl(
         val now = clock.nowEpochMillis()
         dao.reopenGame(gameId, now)
     }
+
+    override suspend fun updateScanOrder(gameId: String, profileIdToOrder: Map<String, Int>) {
+        profileIdToOrder.forEach { (profileId, order) ->
+            dao.updateScanOrder(gameId, profileId, order)
+        }
+    }
 }

@@ -66,6 +66,12 @@ interface GameDao {
     suspend fun getParticipants(gameId: String): List<GameParticipantEntity>
 
     @Query(
+        "UPDATE game_participants SET lastScanOrder = :order " +
+            "WHERE gameId = :gameId AND profileId = :profileId"
+    )
+    suspend fun updateScanOrder(gameId: String, profileId: String, order: Int)
+
+    @Query(
         "SELECT * FROM game_participants WHERE gameId IN (:gameIds) " +
             "ORDER BY gameId ASC, seatOrder ASC"
     )

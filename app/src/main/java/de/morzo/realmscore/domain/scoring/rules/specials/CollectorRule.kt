@@ -21,20 +21,26 @@ object CollectorRule : CardScoringRule {
 
     override fun bonuses(self: ResolvedCard, ctx: ScoringContext): List<EffectApplication> {
         val pool = ctx.nonBlankedHand()
-        val bestEntry = pool
-            .groupBy { it.effectiveSuit }
+        val bySuit = pool.groupBy { it.effectiveSuit }
+        val bestEntry = bySuit
             .mapValues { (_, cards) -> cards.distinctBy { it.effectiveCardKey }.size }
             .filterValues { it in tiers.keys }
             .maxByOrNull { tiers[it.value]!! }
             ?: return emptyList()
         val (suit, count) = bestEntry
         val bonus = tiers[count]!!
+        // The cards forming the winning same-suit set drive the bonus (self excluded for the lines).
+        val contributors = bySuit[suit].orEmpty()
+            .distinctBy { it.effectiveCardKey }
+            .map { it.originalKey }
+            .filter { it != self.originalKey }
         return listOf(
             EffectApplication(
                 sourceCardKey = self.originalKey,
                 descriptionKey = "effect_collector",
                 descriptionArgs = listOf(count.toString(), suit.name),
                 pointsDelta = bonus,
+                contributingCardKeys = contributors,
             )
         )
     }

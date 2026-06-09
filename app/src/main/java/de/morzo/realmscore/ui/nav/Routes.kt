@@ -21,6 +21,7 @@ object Routes {
 
     const val GAME_IN_PROGRESS = "game/{gameId}"
     const val ROUND_ENTRY = "round/{roundId}"
+    const val ROUND_CAPTURE = "round/{roundId}/capture"
     const val PLAYER_HAND_ENTRY = "round/{roundId}/player/{profileId}"
     const val REVEAL = "round/{roundId}/reveal"
     const val ROUND_SUMMARY = "round/{roundId}/summary"
@@ -40,6 +41,7 @@ object Routes {
 
     fun gameRoute(gameId: String): String = "game/$gameId"
     fun roundEntryRoute(roundId: String): String = "round/$roundId"
+    fun roundCaptureRoute(roundId: String): String = "round/$roundId/capture"
     fun playerHandEntryRoute(roundId: String, profileId: String): String =
         "round/$roundId/player/$profileId"
     fun revealRoute(roundId: String): String = "round/$roundId/reveal"

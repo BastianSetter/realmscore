@@ -12,30 +12,27 @@ Auto-loaded every session. Keep concise; HANDOFF.md and `specs/00-vision.md` car
 
 ## Building from this environment (verified)
 
-Plain `./gradlew` via Bash **fails** here — `JAVA_HOME` is not set in the shell:
-
-```
-ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
-```
-
-Use PowerShell with `JAVA_HOME` set inline. The two commands that worked in this session:
+`JAVA_HOME` is supplied to the build via the `env` block in `.claude/settings.local.json`, so
+**do not** set it inline. Use the clean relative form via the **PowerShell tool** (the shell already
+runs in the project root):
 
 ```powershell
 # Fast iteration — Kotlin-only compile (~1 min cold, seconds incremental)
-$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; `
-  & "C:\Users\basti\AndroidApps\FantasyRealmScoringApp\gradlew.bat" `
-  :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 80
+./gradlew.bat :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 80
 ```
 
 ```powershell
 # Full debug APK — needed to actually validate end-to-end (~2 min)
-$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; `
-  & "C:\Users\basti\AndroidApps\FantasyRealmScoringApp\gradlew.bat" `
-  :app:assembleDebug --console=plain 2>&1 | Select-Object -Last 30
+./gradlew.bat :app:assembleDebug --console=plain 2>&1 | Select-Object -Last 30
 ```
 
+> ⚠️ **Do NOT** use the old inline form `$env:JAVA_HOME="..."; & "C:\...\gradlew.bat" ...`. Claude
+> Code checks each `;`/`|` sub-command against the allowlist separately, and the auto-generated
+> rules for the `& "C:\...gradlew.bat"` part double the backslashes, so they never match → you get
+> re-prompted every run and accumulate dead duplicate rules. The clean `./gradlew.bat *` form is
+> allowlisted and matches. See the `feedback_gradle_invocation_permissions` memory.
+
 Notes:
-- Run via the **Bash tool** (not PowerShell tool) only if you first export `JAVA_HOME` — otherwise prefer the PowerShell tool with the inline `$env:JAVA_HOME=...; & "...\gradlew.bat" ...` form.
 - `--console=plain` keeps output diff-friendly.
 - `2>&1 | Select-Object -Last N` keeps the tool output under the token cap. Bump N (60/80/200) if a stack trace gets cut off.
 - For a faster correctness check use `:app:compileDebugKotlin`. Use `:app:assembleDebug` when you need to confirm resources, KSP/Room, and packaging together.

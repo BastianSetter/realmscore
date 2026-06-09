@@ -37,7 +37,7 @@ fun ScoreFooter(
             )
             if (onBreakdownClick != null) {
                 TextButton(onClick = onBreakdownClick) {
-                    Text(stringResource(R.string.sandbox_breakdown))
+                    Text(stringResource(R.string.sandbox_show_ring))
                 }
             }
         }

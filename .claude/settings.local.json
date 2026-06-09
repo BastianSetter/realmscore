@@ -1,8 +1,11 @@
 {
+  "env": {
+    "JAVA_HOME": "C:\\Program Files\\Android\\Android Studio\\jbr"
+  },
   "permissions": {
     "allow": [
       "PowerShell(java *)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" *)",
+      "PowerShell(./gradlew.bat *)",
       "PowerShell(Select-Object *)",
       "PowerShell(Select-String *)",
       "Bash(./gradlew *)",
@@ -14,40 +17,21 @@
       "PowerShell(python -c \"import openpyxl; print\\(openpyxl.__version__\\)\")",
       "PowerShell(pip install *)",
       "PowerShell(New-Item *)",
-      "PowerShell($env:PYTHONIOENCODING=\"utf-8\"; python \"C:/Users/basti/AndroidApps/FantasyRealmScoringApp/cards/_build_json.py\")",
       "Bash(where python *)",
       "Bash(python *)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 120)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:assembleDebug --console=plain 2>&1 | Select-Object -Last 60)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:dependencies --configuration debugRuntimeClasspath --console=plain 2>&1 | Select-String -Pattern \"\\(gms|firebase|mlkit|google-services\\)\")",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 60)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:assembleDebug --console=plain 2>&1 | Select-Object -Last 40)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 100)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 40)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:testDebugUnitTest --console=plain 2>&1 | Select-Object -Last 30)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:dependencies --configuration releaseRuntimeClasspath --console=plain 2>&1 | Select-String -Pattern \"\\(gms|firebase|mlkit|google-services\\)\")",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 30)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 80)",
-      "Bash(find C:\\\\\\\\Users\\\\\\\\basti\\\\\\\\AndroidApps\\\\\\\\FantasyRealmScoringApp -name \"BuildConfig*\" -type f)",
-      "Bash(cat C:\\\\\\\\Users\\\\\\\\basti\\\\\\\\AndroidApps\\\\\\\\FantasyRealmScoringApp/app/build.gradle.kts)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:assembleDebug --console=plain 2>&1 | Select-Object -Last 80)",
       "Bash(curl -fsSL https://www.gnu.org/licenses/gpl-3.0.txt -o /tmp/gpl-3.0.txt)",
       "Read(//tmp/**)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:assembleRelease --console=plain 2>&1 | Select-Object -Last 50)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:dependencies --console=plain 2>&1 | Select-String -Pattern \"\\(gms|firebase|mlkit|google-services|com.google.android.play\\)\"; if \\(-not $?\\) {} ; Write-Output \"=== exit; empty above = F-Droid clean ===\")",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:assembleRelease --console=plain 2>&1 | Select-Object -Last 40)",
       "PowerShell(Stop-Process *)",
       "WebSearch",
       "WebFetch(domain:boardgamegeek.com)",
       "WebFetch(domain:www.boardgameswizard.com)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:testDebugUnitTest --console=plain 2>&1 | Select-Object -Last 25)",
       "Bash(git checkout *)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:compileDebugAndroidTestKotlin --console=plain 2>&1 | Select-Object -Last 40)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:assembleDebug --console=plain 2>&1 | Select-Object -Last 15)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:testDebugUnitTest --console=plain 2>&1 | Select-Object -Last 50)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:assembleDebug --console=plain 2>&1 | Select-Object -Last 20)",
-      "PowerShell($env:JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; & \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\\\\gradlew.bat\" :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 12)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git -C \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\basti\\\\AndroidApps\\\\FantasyRealmScoringApp\" log --oneline -5)",
+      "Bash(Select-Object -First 300)"
     ]
   }
 }
