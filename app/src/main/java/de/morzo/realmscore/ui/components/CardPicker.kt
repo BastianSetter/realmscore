@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.Suit
+import de.morzo.realmscore.ui.util.displayName
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,7 +79,11 @@ fun CardPicker(
             .asSequence()
             .filter { it.key !in excludedKeys }
             .filter { effectiveSuit == null || it.suit == effectiveSuit }
-            .filter { normalizedQuery.isEmpty() || it.nameDe.lowercase().contains(normalizedQuery) }
+            .filter {
+                normalizedQuery.isEmpty() ||
+                    it.nameDe.lowercase().contains(normalizedQuery) ||
+                    it.nameEn?.lowercase()?.contains(normalizedQuery) == true
+            }
             .toList()
     }
 
@@ -268,7 +273,7 @@ private fun CardPickerItem(card: CardDefinition, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = card.nameDe,
+            text = card.displayName(),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = onColor,

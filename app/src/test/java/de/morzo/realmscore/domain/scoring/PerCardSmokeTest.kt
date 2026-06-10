@@ -266,14 +266,14 @@ class PerCardSmokeTest {
 
     // ── LEADER ──────────────────────────────────────────────────────────────
     @Test fun `princess +8 per target`() {
-        // princess(2) + rangers(5,army) + enchantress(5,wizard) + king(6,leader)
+        // princess(2) + rangers(5,army) + enchantress(5,wizard) + king(8,leader)
         // princess: 1 army + 1 wizard + 1 leader = 3 → +24
         // rangers +10 per land = 0
         // enchantress +5 per land/weather/flood/flame = 0
         // king: 1 army, no queen → +5
-        // total = 2+5+5+6+24+5 = 47
+        // total = 2+5+5+8+24+5 = 49
         val r = TestFixture.score("princess", "rangers", "enchantress", "king")
-        assertEquals(47, r.totalScore)
+        assertEquals(49, r.totalScore)
     }
 
     @Test fun `warlord adds army strengths`() {
@@ -286,24 +286,24 @@ class PerCardSmokeTest {
     }
 
     @Test fun `king alone +5 per army`() {
-        // king(6) + rangers(5) → king +5 → total = 6+5+5 = 16
+        // king(8) + rangers(5) → king +5 → total = 8+5+5 = 18
         val r = TestFixture.score("king", "rangers")
-        assertEquals(16, r.totalScore)
-    }
-
-    @Test fun `queen alone +5 per army`() {
-        // queen(8) + rangers(5) → queen +5 → 8+5+5 = 18
-        val r = TestFixture.score("queen", "rangers")
         assertEquals(18, r.totalScore)
     }
 
+    @Test fun `queen alone +5 per army`() {
+        // queen(6) + rangers(5) → queen +5 → 6+5+5 = 16
+        val r = TestFixture.score("queen", "rangers")
+        assertEquals(16, r.totalScore)
+    }
+
     @Test fun `empress +10 per army -5 per leader`() {
-        // empress(15) + rangers(5) + king(6)
+        // empress(15) + rangers(5) + king(8)
         // empress: +10 per army = +10. -5 per other leader = -5.
         // king: 1 army, no queen → +5
-        // total = 15+5+6+10-5+5 = 36
+        // total = 15+5+8+10-5+5 = 38
         val r = TestFixture.score("empress", "rangers", "king")
-        assertEquals(36, r.totalScore)
+        assertEquals(38, r.totalScore)
     }
 
     // ── WEAPON ──────────────────────────────────────────────────────────────
@@ -372,14 +372,14 @@ class PerCardSmokeTest {
     }
 
     @Test fun `blizzard -5 per target`() {
-        // blizzard(30) + elven_archers(10,army) + king(6,leader) + dragon(30,beast)
+        // blizzard(30) + elven_archers(10,army) + king(8,leader) + dragon(30,beast)
         // blizzard: 3 targets (army+leader+beast) → -15
         // elven_archers: no weather → blizzard IS weather → 0
         // king: 1 army (elven_archers) → +5 (no queen)
         // dragon: no wizard → -40
-        // total = 30+10+6+30 - 15 + 0 + 5 - 40 = 26
+        // total = 30+10+8+30 - 15 + 0 + 5 - 40 = 28
         val r = TestFixture.score("blizzard", "elven_archers", "king", "dragon")
-        assertEquals(26, r.totalScore)
+        assertEquals(28, r.totalScore)
     }
 
     // ── WILD (jokers) covered by JokerSubstitutionTest ──────────────────────

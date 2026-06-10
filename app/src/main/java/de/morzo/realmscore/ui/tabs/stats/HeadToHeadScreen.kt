@@ -39,8 +39,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
+import de.morzo.realmscore.domain.model.displayName
 import de.morzo.realmscore.domain.stats.HeadToHeadStats
 import de.morzo.realmscore.domain.stats.SharedGameEntry
+import de.morzo.realmscore.ui.util.currentLocale
 import de.morzo.realmscore.ui.util.formatRelativeDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +57,7 @@ fun HeadToHeadScreen(
         factory = HeadToHeadViewModel.Factory(profileIdA, profileIdB, container.statsRepository),
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val locale = currentLocale()
 
     Scaffold(
         topBar = {
@@ -79,7 +82,9 @@ fun HeadToHeadScreen(
                 state.stats == null -> Text(stringResource(R.string.stats_empty_title))
                 else -> HeadToHeadBody(
                     state.stats!!,
-                    cardNameFor = { key -> container.cardLookup.getByKey(key)?.nameDe ?: key },
+                    cardNameFor = { key ->
+                        container.cardLookup.getByKey(key)?.displayName(locale) ?: key
+                    },
                 )
             }
         }

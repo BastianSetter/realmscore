@@ -2,6 +2,7 @@ package de.morzo.realmscore.domain.stats.random
 
 import android.content.Context
 import de.morzo.realmscore.R
+import de.morzo.realmscore.domain.model.displayName
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.StatsRepository
 
@@ -81,7 +82,10 @@ class MostPopularCardProvider(
         val top = overview.cardHits.mostPlayed ?: return null
         return RandomStat(
             key = key,
-            title = appContext.getString(R.string.random_stat_most_popular_card, top.card.nameDe),
+            title = appContext.getString(
+                R.string.random_stat_most_popular_card,
+                top.card.displayName(appContext.resources.configuration.locales[0]),
+            ),
             visualization = StatVisualization.BigNumber(top.count.toString()),
             tapDestination = StatDestination.Card(top.card.key),
         )
@@ -98,7 +102,10 @@ class RarestPlayedCardProvider(
         val rare = overview.cardHits.rarestPlayed ?: return null
         return RandomStat(
             key = key,
-            title = appContext.getString(R.string.random_stat_rarest_played_card, rare.card.nameDe),
+            title = appContext.getString(
+                R.string.random_stat_rarest_played_card,
+                rare.card.displayName(appContext.resources.configuration.locales[0]),
+            ),
             visualization = StatVisualization.BigNumber(rare.count.toString()),
             tapDestination = StatDestination.Card(rare.card.key),
         )

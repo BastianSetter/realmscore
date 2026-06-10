@@ -17,16 +17,15 @@ class PenaltyCancellationTest {
     }
 
     @Test fun `rangers strips ARMY from blizzard penalty`() {
-        // blizzard(30) + rangers(5,army) + king(6,leader) + dragon(30,beast)
+        // blizzard(30) + rangers(5,army) + king(8,leader) + dragon(30,beast)
         // Normally blizzard: -5 per army/leader/beast/flame = 3 → -15
         // With rangers: ARMY stripped → 2 targets (leader+beast) → -10
         // dragon: no wizard → -40
         // king: 1 army → +5
         // rangers: 0 lands → 0
-        // total = 30+5+6-10+5-40 = -4? Hmm wait
-        // 30+5+6+30 = 71 base, -10 blizzard, +5 king, -40 dragon = 26
+        // 30+5+8+30 = 73 base, -10 blizzard, +5 king, -40 dragon = 28
         val r = TestFixture.score("blizzard", "rangers", "king", "dragon")
-        assertEquals(26, r.totalScore)
+        assertEquals(28, r.totalScore)
     }
 
     @Test fun `rune cancels every penalty`() {
@@ -37,7 +36,7 @@ class PenaltyCancellationTest {
     }
 
     @Test fun `cavern cancels weather penalties`() {
-        // cavern(6) + blizzard(30) + rangers(5,army) + king(6,leader) + dragon(30,beast) + sword_of_keth(7)
+        // cavern(6) + blizzard(30) + rangers(5,army) + king(8,leader) + dragon(30,beast) + sword_of_keth(7)
         // Without cavern: blizzard -15 (army+leader+beast = 3)
         // With cavern: blizzard penalty cancelled → 0
         // dragon: no wizard → -40
@@ -45,9 +44,9 @@ class PenaltyCancellationTest {
         // rangers: 1 land → +10
         // sword: leader present → +10. no shield → +10
         // cavern: needs dwarves or dragon → has dragon → +25
-        // total = 6+30+5+6+30+7+25+5+10+10-40 = 94
+        // total = 6+30+5+8+30+7+25+5+10+10-40 = 96
         val r = TestFixture.score("cavern", "blizzard", "rangers", "king", "dragon", "sword_of_keth")
-        assertEquals(94, r.totalScore)
+        assertEquals(96, r.totalScore)
     }
 
     @Test fun `mountain clears great_flood penalty so nothing is blanked`() {
@@ -89,26 +88,26 @@ class PenaltyCancellationTest {
     }
 
     @Test fun `warship strips ARMY from flood penalty only`() {
-        // warship(23) + swamp(18) + rangers(5,army) + king(6,leader)
+        // warship(23) + swamp(18) + rangers(5,army) + king(8,leader)
         // warship needs flood → swamp is flood → not self-blanked
         // warship strips ARMY from FLOOD penalties:
         //   - swamp's "-3 per army/flame": ARMY removed → only counts flame (0) → 0 penalty
         // king: 1 army → +5
         // rangers: 0 lands → 0
-        // total = 23+18+5+6+5 = 57
+        // total = 23+18+5+8+5 = 59
         val r = TestFixture.score("warship", "swamp", "rangers", "king")
-        assertEquals(57, r.totalScore)
+        assertEquals(59, r.totalScore)
     }
 
     @Test fun `rune clears basilisk penalty so nothing is blanked`() {
-        // rune(1) + basilisk(35) + knights(20) + king(6,leader)
+        // rune(1) + basilisk(35) + knights(20) + king(8,leader)
         // Rune des Schutzes clears every penalty. Basilisk's penalty IS its blanking, so it
         // blanks nothing → knights and king both survive (and their own penalties are cleared too).
         // knights: no-leader penalty cleared (and king is a leader anyway) → 20
         // king: +5 per Army → knights is the only Army → +5
-        // total = 1 + 35 + 20 + (6+5) = 67
+        // total = 1 + 35 + 20 + (8+5) = 69
         val r = TestFixture.score("protection_rune", "basilisk", "knights", "king")
         assertTrue(r.blankedKeys.isEmpty())
-        assertEquals(67, r.totalScore)
+        assertEquals(69, r.totalScore)
     }
 }

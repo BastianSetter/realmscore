@@ -1,5 +1,6 @@
 package de.morzo.realmscore.domain.repository
 
+import de.morzo.realmscore.domain.model.AppLanguage
 import de.morzo.realmscore.domain.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 
@@ -7,6 +8,9 @@ interface SettingsRepository {
 
     val lastRandomStatKey: Flow<String?>
     suspend fun setLastRandomStatKey(key: String?)
+
+    val appLanguage: Flow<AppLanguage>
+    suspend fun setAppLanguage(lang: AppLanguage)
 
     val themeMode: Flow<ThemeMode>
     suspend fun setThemeMode(mode: ThemeMode)

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
+import de.morzo.realmscore.ui.util.displayName
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.domain.stats.CardWithCount
 import de.morzo.realmscore.domain.stats.GlobalStats
@@ -243,7 +244,7 @@ private fun CardHitsCard(
             Spacer(Modifier.height(8.dp))
             CardHitRow(
                 titleRes = R.string.stats_card_hits_most_played,
-                cardName = hits.mostPlayed?.card?.nameDe,
+                cardName = hits.mostPlayed?.card?.displayName(),
                 secondary = hits.mostPlayed?.count?.let {
                     stringResource(R.string.stats_card_hits_count, it)
                 },
@@ -252,7 +253,7 @@ private fun CardHitsCard(
             HorizontalDivider(thickness = 0.5.dp)
             CardHitRow(
                 titleRes = R.string.stats_card_hits_rarest,
-                cardName = hits.rarestPlayed?.card?.nameDe,
+                cardName = hits.rarestPlayed?.card?.displayName(),
                 secondary = hits.rarestPlayed?.count?.let {
                     stringResource(R.string.stats_card_hits_count, it)
                 },
@@ -261,7 +262,7 @@ private fun CardHitsCard(
             HorizontalDivider(thickness = 0.5.dp)
             CardHitRow(
                 titleRes = R.string.stats_card_hits_most_valuable,
-                cardName = hits.mostValuable?.first?.nameDe,
+                cardName = hits.mostValuable?.first?.displayName(),
                 secondary = hits.mostValuable?.let { (_, avg, _) ->
                     stringResource(R.string.stats_card_hits_avg, avg)
                 },

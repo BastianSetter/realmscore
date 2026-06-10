@@ -7,12 +7,12 @@ class SpecialBonusTest {
 
     // ── King + Queen Synergy ────────────────────────────────────────────────
     @Test fun `king plus queen gives +20 per army each`() {
-        // king(6) + queen(8) + rangers(5,army) + knights(20,army)
+        // king(8) + queen(6) + rangers(5,army) + knights(20,army)
         // knights: leader present → no penalty (20)
         // king: 2 armies × 20 = +40 (queen present)
         // queen: 2 armies × 20 = +40 (king present)
         // rangers: 0 lands → 0
-        // total = 6+8+5+20+40+40 = 119
+        // total = 8+6+5+20+40+40 = 119
         val r = TestFixture.score("king", "queen", "rangers", "knights")
         assertEquals(119, r.totalScore)
     }
@@ -21,8 +21,8 @@ class SpecialBonusTest {
         val r = TestFixture.score("king", "rangers", "knights")
         // knights: leader present → 20
         // king: 2 armies × 5 = +10
-        // total = 6+5+20+10 = 41
-        assertEquals(41, r.totalScore)
+        // total = 8+5+20+10 = 43
+        assertEquals(43, r.totalScore)
     }
 
     // ── Shield/Sword of Keth Tiers ──────────────────────────────────────────
@@ -91,13 +91,13 @@ class SpecialBonusTest {
 
     // ── Unicorn ─────────────────────────────────────────────────────────────
     @Test fun `unicorn +15 with queen`() {
-        // unicorn(9) + queen(8) + rangers(5,army)
+        // unicorn(9) + queen(6) + rangers(5,army)
         // queen: 1 army, no king → +5
         // unicorn: queen present → +15
         // rangers: 0 lands → 0
-        // total = 9+8+5+5+15 = 42
+        // total = 9+6+5+5+15 = 40
         val r = TestFixture.score("unicorn", "queen", "rangers")
-        assertEquals(42, r.totalScore)
+        assertEquals(40, r.totalScore)
     }
 
     // ── Warlord ─────────────────────────────────────────────────────────────

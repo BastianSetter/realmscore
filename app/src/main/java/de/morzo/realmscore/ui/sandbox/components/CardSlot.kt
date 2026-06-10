@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.CardDefinition
+import de.morzo.realmscore.ui.util.displayName
 import de.morzo.realmscore.ui.components.suitColor
 import de.morzo.realmscore.ui.components.suitOnColor
 import de.morzo.realmscore.ui.sandbox.CardSlot
@@ -90,7 +91,7 @@ private fun FilledSlotContent(card: CardDefinition) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = card.nameDe,
+            text = card.displayName(),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = suitOnColor(card.suit),

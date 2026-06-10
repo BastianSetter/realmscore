@@ -341,6 +341,12 @@
     <string name="settings_discard_capture_enabled">Mittelfeld erfassen</string>
     <string name="settings_discard_capture_enabled_desc">Wenn aktiv, wird das Mittelfeld wie ein Spieler erfasst (Pflicht vor dem Reveal).</string>
 
+    <!-- Sprachwahl (Phase 19) -->
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_language_german">Deutsch</string>
+    <string name="settings_language_english">English</string>
+
     <string name="settings_theme_mode">Farbschema</string>
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Hell</string>

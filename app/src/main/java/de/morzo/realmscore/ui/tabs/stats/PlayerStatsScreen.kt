@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
+import de.morzo.realmscore.ui.util.displayName
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.domain.stats.OpponentStat
 import de.morzo.realmscore.domain.stats.PlayerStats
@@ -255,7 +256,7 @@ private fun FavoritesSection(stats: PlayerStats) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = item.card.nameDe,
+                            text = item.card.displayName(),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodyLarge,
                         )

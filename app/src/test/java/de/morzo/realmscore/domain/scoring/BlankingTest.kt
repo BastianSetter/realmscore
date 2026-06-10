@@ -29,7 +29,7 @@ class BlankingTest {
     }
 
     @Test fun `wildfire blanks most cards but spares allowed`() {
-        // wildfire(40) + dragon(30 beast, allowed-key) + king(6 leader, NOT allowed → blanked)
+        // wildfire(40) + dragon(30 beast, allowed-key) + king(8 leader, NOT allowed → blanked)
         //              + magic_wand(1 weapon, allowed by suit)
         // dragon: no wizard → -40
         // wand: no wizard → 0 bonus

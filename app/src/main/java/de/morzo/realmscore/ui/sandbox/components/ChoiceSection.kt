@@ -20,6 +20,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.CardDefinition
+import de.morzo.realmscore.domain.model.displayName
+import de.morzo.realmscore.ui.util.currentLocale
 import de.morzo.realmscore.domain.model.Suit
 
 @Composable
@@ -81,7 +83,8 @@ private fun ChoiceRow(
     candidates: List<CardDefinition>,
     onSelected: (String?) -> Unit,
 ) {
-    val currentName = candidates.firstOrNull { it.key == currentKey }?.nameDe
+    val locale = currentLocale()
+    val currentName = candidates.firstOrNull { it.key == currentKey }?.displayName(locale)
         ?: stringResource(R.string.sandbox_joker_unset)
     var expanded by remember { mutableStateOf(false) }
     AssistChip(
@@ -95,7 +98,7 @@ private fun ChoiceRow(
         )
         candidates.forEach { card ->
             DropdownMenuItem(
-                text = { Text(card.nameDe) },
+                text = { Text(card.displayName(locale)) },
                 onClick = { onSelected(card.key); expanded = false },
             )
         }

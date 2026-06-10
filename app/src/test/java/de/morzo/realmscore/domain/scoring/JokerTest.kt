@@ -68,11 +68,11 @@ class JokerTest {
 
     @Test fun `book_of_changes changes target suit`() {
         // book + rangers (army) → change rangers to LAND
-        // Now rangers is LAND. king: 0 armies → 0 (rangers no longer army)
+        // Now rangers is LAND. king: 0 armies → 0 (rangers no longer army), base 8
         // rangers bonus: PerOtherCountRule(LAND). rangers' rule still fires but its SUIT is now LAND.
         // Wait, ranger sees other LAND cards. Its filter is BySuit(LAND). 0 other lands → 0.
         // But rangers itself is a LAND now → does it count itself? excludeSelf=true → no.
-        // total = 3(book) + 5(rangers) + 6(king) + 0 = 14
+        // total = 3(book) + 5(rangers) + 8(king) + 0 = 16
         // Without book: king would give +5 (rangers is army)
         val input = ScoringInput(
             hand = TestFixture.hand("book_of_changes", "rangers", "king"),
@@ -81,7 +81,7 @@ class JokerTest {
             ),
         )
         val r = TestFixture.engine.score(input)
-        assertEquals(14, r.totalScore)
+        assertEquals(16, r.totalScore)
     }
 
     @Test fun `shapeshifter copies suit only`() {

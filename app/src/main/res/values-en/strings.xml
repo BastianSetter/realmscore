@@ -1,0 +1,479 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RealmScore</string>
+    <string name="onboarding_headline">Welcome!</string>
+    <string name="onboarding_body">This app helps you keep score in Fantasy Realms. Tell me quickly — what\'s your name?</string>
+    <string name="onboarding_name_label">Your name</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_error_empty">Please enter a name.</string>
+
+    <string name="home_greeting">Hello %1$s!</string>
+    <string name="home_new_game">New Game</string>
+    <string name="home_sandbox_title">Sandbox</string>
+    <string name="home_sandbox_body">Freely combine cards and explore synergies</string>
+    <string name="home_games_to_continue">Games in progress</string>
+    <string name="home_open_game_fallback_name">Game from %1$s</string>
+    <string name="home_open_game_top_stand">Currently leading: %1$s with %2$d points</string>
+    <string name="home_avatar_overflow">+%1$d</string>
+    <string name="home_did_you_know">Did you know …</string>
+    <string name="home_stats_not_enough_title">No insights yet</string>
+    <string name="home_stats_not_enough_body">Play a few rounds and interesting stats will show up here.</string>
+
+    <string name="random_stat_owner_avg">You score %1$d points per hand on average</string>
+    <string name="random_stat_owner_best">Your best hand scored %1$d points</string>
+    <string name="random_stat_most_popular_card">%1$s is the most popular card across all players</string>
+    <string name="random_stat_rarest_played_card">%1$s is the least played card</string>
+    <string name="random_stat_highest_winrate_player">%1$s has the highest win rate: %2$d %%</string>
+    <string name="random_stat_closest_round_ever">Closest round ever: %1$s vs %2$s with just %3$d points apart</string>
+    <string name="random_stat_most_played_together">%1$s and %2$s play together most often (%3$d games)</string>
+
+    <string name="tab_home">Home</string>
+    <string name="tab_history">History</string>
+    <string name="tab_stats">Stats</string>
+    <string name="tab_sandbox">Sandbox</string>
+    <string name="tab_settings">Settings</string>
+
+    <string name="placeholder_new_game">New game goes here</string>
+    <string name="placeholder_stats">Stats go here</string>
+    <string name="placeholder_settings">Settings go here</string>
+
+    <string name="history_title">History</string>
+    <string name="history_search">Search</string>
+    <string name="history_search_clear">Clear search</string>
+    <string name="history_status_open">In progress</string>
+    <string name="history_status_completed">Completed</string>
+    <string name="history_status_abandoned">Abandoned</string>
+    <string name="history_fallback_name">Game from %1$s</string>
+    <string name="history_winner_label">Winner: %1$s with %2$d points</string>
+    <string name="history_top_stand_label">Currently leading: %1$s with %2$d points</string>
+    <string name="history_empty">No games played yet</string>
+    <string name="history_empty_filtered">No games match the filters</string>
+    <string name="history_player_filter">Player filter</string>
+    <string name="history_player_filter_count">Players · %1$d</string>
+    <string name="history_player_filter_clear">All</string>
+    <string name="history_player_filter_selected_mark">✓</string>
+    <string name="history_avatar_overflow">+%1$d</string>
+
+    <string name="date_today">today</string>
+    <string name="date_yesterday">yesterday</string>
+    <string name="date_days_ago">%1$d days ago</string>
+    <string name="date_weeks_ago">%1$d weeks ago</string>
+
+    <string name="game_in_progress_title">Game</string>
+    <string name="game_back">Back</string>
+    <string name="game_start_round">Start next round</string>
+    <string name="game_continue_round">Continue round</string>
+    <string name="game_no_rounds_yet">No rounds played yet</string>
+    <string name="game_total">Total</string>
+    <string name="game_progress">Progress</string>
+    <string name="game_table_player">Player</string>
+    <string name="game_progress_to_limit">%1$d / %2$d</string>
+    <string name="game_header_mode_fixed_rounds">Fixed rounds · %1$d</string>
+    <string name="game_header_mode_point_limit">Point limit · %1$d</string>
+
+    <string name="round_entry_title">Round %1$d</string>
+    <string name="round_entry_title_loading">Loading round…</string>
+    <string name="round_entry_subtitle">Tap a player to enter their cards.</string>
+    <string name="round_entry_status_not_started">Not captured yet</string>
+    <string name="round_entry_status_completed">Captured</string>
+    <string name="round_entry_reveal_button">Reveal scores</string>
+
+    <string name="round_capture_submit">Capture done</string>
+    <string name="round_capture_reveal">Reveal scores</string>
+    <string name="round_capture_switch_player">Switch player</string>
+    <string name="round_capture_all_done">All players captured</string>
+
+    <!-- Phase 20: discard pile captured as a pseudo-player in the round rotation -->
+    <string name="discard_capture_count">Discard pile: %1$d / %2$d cards</string>
+    <string name="discard_capture_submit">Discard pile captured</string>
+
+    <string name="player_hand_title">Player: %1$s</string>
+    <string name="player_hand_count">%1$d / 7 cards</string>
+    <string name="player_hand_submit">Captured – pass to next player</string>
+    <string name="player_hand_joker_section">Resolve jokers</string>
+    <string name="player_hand_optimal">Set optimal</string>
+
+    <string name="round_summary_title">Round %1$d</string>
+    <string name="round_summary_next_round">Start next round</string>
+    <string name="round_summary_complete_game">Finish game</string>
+    <string name="round_summary_edit_round">Edit this round</string>
+    <string name="round_summary_reveal_again">Show reveal again</string>
+    <string name="round_summary_skip">Skip</string>
+    <string name="round_summary_continue_to_summary">Continue to round overview</string>
+    <string name="round_summary_discard_title">Discard pile</string>
+    <string name="round_summary_discard_count">%1$d cards captured</string>
+    <string name="round_summary_winner_badge">Winner</string>
+    <string name="round_summary_points">%1$d points</string>
+    <string name="reveal_points">%1$d</string>
+    <string name="reveal_winner_label">Round winner</string>
+
+    <string name="game_summary_title">Game over</string>
+    <string name="podium_score">%1$d points</string>
+    <string name="game_stats_section_title">Game stats</string>
+    <string name="game_stats_rounds">Number of rounds: %1$d</string>
+    <string name="game_stats_highest_hand">Highest hand: %1$s with %2$d points in round %3$d</string>
+    <string name="game_stats_closest_round">Closest round: round %1$d (%2$d points apart)</string>
+    <string name="game_summary_rounds_table_title">Round table</string>
+    <string name="game_summary_round_label">Round</string>
+    <string name="game_summary_total_label">Total</string>
+    <string name="game_summary_close_game">Finish game</string>
+    <string name="game_summary_back_to_game">Back to game</string>
+    <string name="game_summary_back_home">Back to main menu</string>
+    <string name="game_summary_show_stats">View stats</string>
+
+    <string name="new_game_title">New Game</string>
+    <string name="new_game_mode_section">Game mode</string>
+    <string name="new_game_mode_fixed_rounds">Fixed number of rounds</string>
+    <string name="new_game_mode_point_limit">Point limit</string>
+    <string name="new_game_target_rounds">Number of rounds</string>
+    <string name="new_game_target_points">Target points</string>
+    <string name="new_game_players_section">Players</string>
+    <string name="new_game_add_player_label">Add player</string>
+    <string name="new_game_add_button">Add</string>
+    <string name="new_game_remove_button">Remove</string>
+    <string name="new_game_owner_badge">(You)</string>
+    <string name="new_game_start">Start game</string>
+    <string name="new_game_back">Back</string>
+    <string name="new_game_error_min_players">At least 2 players required</string>
+    <string name="new_game_error_max_players">At most 6 players allowed</string>
+    <string name="new_game_error_name_exists">A profile with this name already exists</string>
+    <string name="new_game_error_name_empty">Please enter a name</string>
+
+    <string name="sandbox_title">Sandbox</string>
+    <string name="sandbox_reset">Reset</string>
+    <string name="sandbox_score">%1$d points</string>
+    <string name="sandbox_empty_slot">Choose card</string>
+    <string name="sandbox_remove_card">Remove</string>
+    <string name="sandbox_picker_title">Choose card</string>
+    <string name="move_to_sandbox">Open in Sandbox</string>
+    <string name="sandbox_origin_banner">From %1$s, round %2$d, played by %3$s</string>
+    <string name="sandbox_origin_no_game_name">Game from %1$s</string>
+    <string name="sandbox_origin_dismiss">Clear Sandbox</string>
+
+    <string name="card_picker_title">Choose card</string>
+    <string name="card_picker_search">Search card</string>
+    <string name="card_picker_no_results">No card found</string>
+
+    <string name="suit_army">Army</string>
+    <string name="suit_artifact">Artifact</string>
+    <string name="suit_beast">Beast</string>
+    <string name="suit_flame">Flame</string>
+    <string name="suit_flood">Flood</string>
+    <string name="suit_land">Land</string>
+    <string name="suit_leader">Leader</string>
+    <string name="suit_weapon">Weapon</string>
+    <string name="suit_weather">Weather</string>
+    <string name="suit_wizard">Wizard</string>
+    <string name="suit_wild">Wild</string>
+    <string name="suit_all">All</string>
+
+    <!-- Sandbox: Engine/Joker/Choice/Breakdown -->
+    <string name="sandbox_optimal">Optimal</string>
+    <string name="sandbox_breakdown">Breakdown</string>
+    <string name="sandbox_show_ring">Show ring</string>
+    <string name="sandbox_breakdown_title">Points: %1$d</string>
+    <string name="sandbox_breakdown_blanked">Blanked</string>
+
+    <!-- Phase 18: ring visualization of the hand -->
+    <string name="breakdown_mode_ring">Ring</string>
+    <string name="breakdown_mode_list">List</string>
+    <string name="ring_base_strength">Base strength: %1$d</string>
+    <string name="ring_tap_hint">Tap a card to see its connections and points.</string>
+    <string name="sandbox_joker_section_title">Joker resolution</string>
+    <string name="sandbox_joker_target">Mirrors</string>
+    <string name="sandbox_joker_unset">— not set —</string>
+    <string name="sandbox_book_new_suit">New suit</string>
+    <string name="sandbox_choice_section_title">Card choices</string>
+    <string name="sandbox_choice_island">Island clears penalty of <!-- NEEDS REVIEW --></string>
+    <string name="sandbox_choice_fountain">Fountain copies <!-- NEEDS REVIEW --></string>
+
+    <!-- Necromancer (Phase 17.1): joker-like pull of a non-Wizard card from the discard pile -->
+    <string name="necromancer_section_title">Necromancer takes</string>
+    <string name="necromancer_pick_hint">Choose a card from the discard pile <!-- NEEDS REVIEW --></string>
+    <string name="necromancer_picked_label">Taken: %1$s</string>
+    <string name="necromancer_suit_hint">Only Armies, Wizards, Leaders or Beasts <!-- NEEDS REVIEW --></string>
+    <string name="necromancer_clear">Clear selection</string>
+    <string name="necromancer_breakdown_tag">Taken by the Necromancer <!-- NEEDS REVIEW --></string>
+
+    <!-- Effect descriptions (Breakdown sheet). %1$s and %2$s are dynamic args. -->
+    <string name="effect_base_strength">Base strength %1$s</string>
+
+    <string name="effect_rangers_per_land">+10 per Land (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_elven_archers_no_weather">+5 if no Weather <!-- NEEDS REVIEW --></string>
+    <string name="effect_dwarvish_infantry_per_army">−2 per other Army (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_light_cavalry_per_land">−2 per Land (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_knights_no_leader">−8 without a Leader <!-- NEEDS REVIEW --></string>
+
+    <string name="effect_shield_of_keth_leader">+15 with a Leader <!-- NEEDS REVIEW --></string>
+    <string name="effect_shield_of_keth_combo">+40 with Leader and Sword of Keth <!-- NEEDS REVIEW --></string>
+    <string name="effect_keth_leader_only">+15 with a Leader <!-- NEEDS REVIEW --></string>
+    <string name="effect_keth_combo">+40 with Leader and matching Keth <!-- NEEDS REVIEW --></string>
+    <string name="effect_gem_of_order">Run of %1$s cards <!-- NEEDS REVIEW --></string>
+    <string name="effect_world_tree">All suits different <!-- NEEDS REVIEW --></string>
+
+    <string name="effect_warhorse_leader_or_wizard">+14 with Leader or Wizard <!-- NEEDS REVIEW --></string>
+    <string name="effect_unicorn_princess">+30 with Princess <!-- NEEDS REVIEW --></string>
+    <string name="effect_unicorn_royal">+15 with Empress/Queen/Enchantress <!-- NEEDS REVIEW --></string>
+    <string name="effect_hydra_swamp">+28 with Swamp <!-- NEEDS REVIEW --></string>
+    <string name="effect_dragon_no_wizard">−40 without a Wizard <!-- NEEDS REVIEW --></string>
+
+    <string name="effect_candle_combo">+100 with Book + Bell Tower + Wizard <!-- NEEDS REVIEW --></string>
+    <string name="effect_fire_elemental_per_flame">+15 per other Flame (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_forge_per_weapon_or_artifact">+9 per Weapon/Artifact (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_lightning_rainstorm">+30 with Rainstorm <!-- NEEDS REVIEW --></string>
+
+    <string name="effect_fountain_of_life">Copies strength of %1$s (+%2$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_water_elemental_per_flood">+15 per other Flood (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_swamp_per_army_or_flame">−3 per Army/Flame (× %1$s) <!-- NEEDS REVIEW --></string>
+
+    <string name="effect_earth_elemental_per_land">+15 per other Land (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_cavern_dwarves_or_dragon">+25 with Dwarves or Dragon <!-- NEEDS REVIEW --></string>
+    <string name="effect_forest_per_beast_or_archers">+12 per Beast/Elven Archers (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_bell_tower_wizard">+15 with a Wizard <!-- NEEDS REVIEW --></string>
+    <string name="effect_mountain_smoke_wildfire">+50 with Smoke and Wildfire <!-- NEEDS REVIEW --></string>
+
+    <string name="effect_princess_per_target">+8 per Army/Wizard/other Leader (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_warlord">Sum of Army strengths (%1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_king_armies">+%1$s per Army (× %2$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_queen_armies">+%1$s per Army (× %2$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_empress_per_army">+10 per Army (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_empress_per_other_leader">−5 per other Leader (× %1$s) <!-- NEEDS REVIEW --></string>
+
+    <string name="effect_magic_wand_wizard">+25 with a Wizard <!-- NEEDS REVIEW --></string>
+    <string name="effect_elven_longbow_target">+30 with Elven Archers/Warlord/Beastmaster <!-- NEEDS REVIEW --></string>
+
+    <string name="effect_air_elemental_per_weather">+15 per other Weather (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_rainstorm_per_flood">+10 per Flood (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_whirlwind_combo">+40 with Rainstorm and Blizzard/Great Flood <!-- NEEDS REVIEW --></string>
+    <string name="effect_blizzard_per_target">−5 per Army/Leader/Beast/Flame (× %1$s) <!-- NEEDS REVIEW --></string>
+
+    <string name="effect_collector">Collection: %1$s cards of %2$s <!-- NEEDS REVIEW --></string>
+    <string name="effect_enchantress_per_target">+5 per Land/Weather/Flood/Flame (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_beastmaster_per_beast">+9 per Beast (× %1$s) <!-- NEEDS REVIEW --></string>
+    <string name="effect_warlock_per_target">−10 per Leader/other Wizard (× %1$s) <!-- NEEDS REVIEW --></string>
+
+    <!-- Stats (Phase 12) -->
+    <string name="stats_overview_title">Stats</string>
+    <string name="stats_overview_global">Global overview</string>
+    <string name="stats_overview_player_ranking">Player ranking</string>
+    <string name="stats_overview_card_hits">Card hits</string>
+    <string name="stats_overview_all_cards">View all cards</string>
+    <string name="stats_global_games">Games played</string>
+    <string name="stats_global_rounds">Rounds played</string>
+    <string name="stats_global_players">Different players</string>
+    <string name="stats_card_hits_most_played">Most popular card</string>
+    <string name="stats_card_hits_rarest">Most neglected card</string>
+    <string name="stats_card_hits_most_valuable">Most valuable card</string>
+    <string name="stats_card_hits_count">played %1$d ×</string>
+    <string name="stats_card_hits_avg">Ø %1$.1f points</string>
+    <string name="stats_player_ranking_winrate">%1$d %% win rate · %2$d games</string>
+    <string name="stats_player_ranking_no_games">No games yet</string>
+
+    <string name="stats_player_title">%1$s</string>
+    <string name="stats_player_games_played">Games</string>
+    <string name="stats_player_win_rate">Win rate</string>
+    <string name="stats_player_avg_score">Ø points</string>
+    <string name="stats_player_best_score">Best hand</string>
+    <string name="stats_player_winrate_value">%1$d %%</string>
+    <string name="stats_player_section_trend">Points trend</string>
+    <string name="stats_player_section_histogram">Hand values</string>
+    <string name="stats_player_section_favorites">Favorite cards</string>
+    <string name="stats_player_section_opponents">Head-to-head</string>
+    <string name="stats_player_section_recent">Recent games</string>
+    <string name="stats_player_opponent_record">%1$d wins / %2$d losses</string>
+    <string name="stats_player_opponent_games">%1$d games together</string>
+    <string name="stats_player_favorite_count">%1$d ×</string>
+    <string name="stats_player_recent_won">Won</string>
+    <string name="stats_player_recent_won_by">Winner: %1$s</string>
+    <string name="stats_player_no_trend">Not enough data for a trend yet</string>
+    <string name="stats_player_no_histogram">No captured hands yet</string>
+
+    <string name="stats_cards_title">Card stats</string>
+    <string name="stats_cards_sort_label">Sort by</string>
+    <string name="stats_cards_sort_popularity">Popularity</string>
+    <string name="stats_cards_sort_avg">Ø points</string>
+    <string name="stats_cards_sort_name">Name</string>
+    <string name="stats_card_in_hand">In hand: %1$d</string>
+    <string name="stats_card_in_discard">In discard pile: %1$d</string>
+    <string name="stats_card_avg_contribution">Ø contribution: %1$.1f</string>
+    <string name="stats_card_hand_share">Hand share: %1$d %%</string>
+    <string name="stats_card_data_warning">Based on %1$d rounds, %2$d of them with a discard-pile scan</string>
+    <string name="stats_card_low_data_hint">Stats get more reliable when you capture the discard pile</string>
+    <string name="stats_card_section_basics">Key figures</string>
+    <string name="stats_card_section_players">Popularity per player</string>
+    <string name="stats_card_section_partners">Most frequent combo partners</string>
+    <string name="stats_card_section_histogram">Point contribution distribution</string>
+    <string name="stats_card_highest_single">Best single contribution: %1$d</string>
+    <string name="stats_card_highest_context">Round %1$d · %2$s</string>
+    <string name="stats_card_no_contributions">Not played yet</string>
+    <string name="stats_card_player_count">%1$d ×</string>
+    <string name="stats_card_partner_count">%1$d ×</string>
+
+    <string name="stats_h2h_title">Head-to-head</string>
+    <string name="stats_h2h_games_together">%1$d games played together</string>
+    <string name="stats_h2h_wins_a">%1$d wins</string>
+    <string name="stats_h2h_wins_b">%1$d wins</string>
+    <string name="stats_h2h_avg_a">Ø %1$.0f points</string>
+    <string name="stats_h2h_avg_b">Ø %1$.0f points</string>
+    <string name="stats_h2h_section_games">Shared games</string>
+    <string name="stats_h2h_section_cards">Card comparison</string>
+    <string name="stats_h2h_card_diff_label">%1$s vs. %2$s</string>
+    <string name="stats_h2h_no_games">These two have never played together</string>
+    <string name="stats_h2h_select_opponent">Choose opponent</string>
+
+    <string name="stats_empty_title">No stats yet</string>
+    <string name="stats_empty_body">Play a few rounds and insights will show up here.</string>
+    <string name="stats_back">Back</string>
+
+    <!-- Settings (Phase 15) -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_profile">Profile</string>
+    <string name="settings_profile_owner_label">Local owner</string>
+    <string name="settings_profile_none">No owner created</string>
+    <string name="settings_game">Game settings</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_data">Data</string>
+    <string name="settings_about">About the app</string>
+
+    <string name="settings_change_username">Change username</string>
+    <string name="settings_default_point_limit">Default point limit</string>
+    <string name="settings_default_round_count">Default number of rounds</string>
+    <string name="settings_discard_capture_enabled">Capture discard pile</string>
+    <string name="settings_discard_capture_enabled_desc">When enabled, the discard pile is captured like a player (mandatory before the reveal).</string>
+
+    <!-- Language switcher (Phase 19) -->
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_language_german">Deutsch</string>
+    <string name="settings_language_english">English</string>
+
+    <string name="settings_theme_mode">Color scheme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_dynamic_colors">Dynamic colors (Android 12+)</string>
+
+    <string name="settings_data_open_games">Games in progress: %1$d</string>
+    <string name="settings_data_closed_games">Completed games: %1$d</string>
+    <string name="settings_data_rounds">Rounds played: %1$d</string>
+    <string name="settings_data_profiles">Profiles: %1$d</string>
+
+    <string name="settings_clear_game_data">Delete all game data</string>
+    <string name="settings_reset_app">Reset app</string>
+    <string name="settings_confirm_clear_data_title">Really delete all game data?</string>
+    <string name="settings_confirm_clear_data_body">Profiles are kept, but all games, rounds and cards will be removed. This action cannot be undone.</string>
+    <string name="settings_confirm_reset_app_title">Really reset the app?</string>
+    <string name="settings_confirm_reset_app_body">All data, profiles and settings will be deleted. You will be taken back to onboarding afterwards.</string>
+    <string name="settings_confirm_keyword">DELETE</string>
+    <string name="settings_confirm_type_keyword">Type %1$s to confirm</string>
+    <string name="settings_confirm_delete">Delete</string>
+    <string name="settings_cancel">Cancel</string>
+
+    <!-- Profile management (Phase 17) -->
+    <string name="settings_manage_profiles">Manage profiles</string>
+    <string name="profile_management_title">Profiles</string>
+    <string name="profile_management_empty">No profiles created yet.</string>
+    <string name="profile_management_archived_section">Archived profiles</string>
+    <string name="profile_owner_label">Owner</string>
+    <string name="profile_games_count">%1$d games</string>
+    <string name="profile_actions_menu">Actions</string>
+    <string name="profile_action_rename">Rename</string>
+    <string name="profile_action_change_color">Change color</string>
+    <string name="profile_action_archive">Archive</string>
+    <string name="profile_action_merge">Merge with another profile</string>
+    <string name="profile_action_unarchive">Reactivate</string>
+    <string name="profile_rename_title">Rename profile</string>
+    <string name="profile_rename_label">Name</string>
+    <string name="profile_rename_error_empty">Name must not be empty.</string>
+    <string name="profile_rename_error_exists">A profile with this name already exists.</string>
+    <string name="profile_rename_save">Save</string>
+    <string name="profile_archive_confirm_title">Archive profile?</string>
+    <string name="profile_archive_confirm_body">The profile will be hidden. All games are kept.</string>
+    <string name="profile_archive_confirm_owner_body">You are archiving your owner profile. You will be left without an owner profile afterwards. All games are kept.</string>
+    <string name="profile_archive_confirm">Archive</string>
+    <string name="profile_merge_title">Merge profiles</string>
+    <string name="profile_merge_pick_other">Choose the profile that should merge into “%1$s”:</string>
+    <string name="profile_merge_no_candidates">No other active profiles available to merge.</string>
+    <string name="profile_merge_preview">%1$s (%2$d games) + %3$s (%4$d games) → %1$s (%5$d games)</string>
+    <string name="profile_merge_preview_note">The name and color of “%1$s” are kept. “%2$s” will be archived afterwards.</string>
+    <string name="profile_merge_confirm">Merge</string>
+    <string name="profile_color_picker_title">Choose color</string>
+    <string name="profile_dialog_cancel">Cancel</string>
+    <string name="action_close">Close</string>
+
+    <string name="about_version">Version %1$s</string>
+    <string name="about_license">License: GPL-3.0</string>
+    <string name="about_disclaimer">This app is a fan implementation and is not affiliated with WizKids/Strohmann Games.</string>
+
+    <!-- Username change (Phase 15) -->
+    <string name="username_change_title">Change username</string>
+    <string name="username_change_body">Choose a new name for your owner profile. Your game history is kept.</string>
+    <string name="username_change_label">New name</string>
+    <string name="username_change_submit">Save</string>
+    <string name="username_change_cancel">Cancel</string>
+    <string name="username_change_error_empty">Please enter a name</string>
+    <string name="username_change_error_exists">A profile with this name already exists</string>
+
+    <!-- Common empty/error states (Phase 15) -->
+    <string name="state_empty_default_title">Nothing here yet</string>
+    <string name="state_error_default_title">Something went wrong</string>
+    <string name="state_retry">Try again</string>
+
+    <!--
+        ============================================================================
+        TODO(TRANSLATE) — strings containing game rule text. Machine-translated,
+        need human review against the official Fantasy Realms (WizKids) wording.
+        Each is marked inline with <!- - NEEDS REVIEW - -> above.
+        ============================================================================
+        sandbox_choice_island
+        sandbox_choice_fountain
+        necromancer_pick_hint
+        necromancer_suit_hint
+        necromancer_breakdown_tag
+        effect_rangers_per_land
+        effect_elven_archers_no_weather
+        effect_dwarvish_infantry_per_army
+        effect_light_cavalry_per_land
+        effect_knights_no_leader
+        effect_shield_of_keth_leader
+        effect_shield_of_keth_combo
+        effect_keth_leader_only
+        effect_keth_combo
+        effect_gem_of_order
+        effect_world_tree
+        effect_warhorse_leader_or_wizard
+        effect_unicorn_princess
+        effect_unicorn_royal
+        effect_hydra_swamp
+        effect_dragon_no_wizard
+        effect_candle_combo
+        effect_fire_elemental_per_flame
+        effect_forge_per_weapon_or_artifact
+        effect_lightning_rainstorm
+        effect_fountain_of_life
+        effect_water_elemental_per_flood
+        effect_swamp_per_army_or_flame
+        effect_earth_elemental_per_land
+        effect_cavern_dwarves_or_dragon
+        effect_forest_per_beast_or_archers
+        effect_bell_tower_wizard
+        effect_mountain_smoke_wildfire
+        effect_princess_per_target
+        effect_warlord
+        effect_king_armies
+        effect_queen_armies
+        effect_empress_per_army
+        effect_empress_per_other_leader
+        effect_magic_wand_wizard
+        effect_elven_longbow_target
+        effect_air_elemental_per_weather
+        effect_rainstorm_per_flood
+        effect_whirlwind_combo
+        effect_blizzard_per_target
+        effect_collector
+        effect_enchantress_per_target
+        effect_beastmaster_per_beast
+        effect_warlock_per_target
+        ============================================================================
+    -->
+</resources>

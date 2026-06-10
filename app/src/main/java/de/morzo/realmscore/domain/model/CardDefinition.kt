@@ -8,4 +8,8 @@ data class CardDefinition(
     val ruleTextDe: String,
     val isJoker: Boolean,
     val jokerType: JokerType?,
+    /** Official English card name (Phase 19), null if no override is available → falls back to [nameDe]. */
+    val nameEn: String? = null,
+    /** Official English rule text (Phase 19), null if no override is available → falls back to [ruleTextDe]. */
+    val ruleTextEn: String? = null,
 )

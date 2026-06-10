@@ -27,7 +27,9 @@ import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.JokerType
 import de.morzo.realmscore.domain.model.Suit
+import de.morzo.realmscore.domain.model.displayName
 import de.morzo.realmscore.domain.scoring.JokerAssignment
+import de.morzo.realmscore.ui.util.currentLocale
 
 private val MIRAGE_SUITS = setOf(Suit.ARMY, Suit.LAND, Suit.WEATHER, Suit.FLOOD, Suit.FLAME)
 private val SHAPESHIFTER_SUITS = setOf(Suit.ARTIFACT, Suit.LEADER, Suit.WIZARD, Suit.WEAPON, Suit.BEAST)
@@ -103,15 +105,18 @@ private fun JokerRow(
             null -> emptyList()
         }
     }
+    val locale = currentLocale()
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(joker.nameDe, style = MaterialTheme.typography.bodyLarge)
+        Text(joker.displayName(locale), style = MaterialTheme.typography.bodyLarge)
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TargetPicker(
                 label = stringResource(R.string.sandbox_joker_target),
-                current = assignment?.targetCardKey?.let { key -> allCards.firstOrNull { it.key == key }?.nameDe }
+                current = assignment?.targetCardKey?.let { key ->
+                    allCards.firstOrNull { it.key == key }?.displayName(locale)
+                }
                     ?: stringResource(R.string.sandbox_joker_unset),
                 options = targets,
                 onSelected = { target ->
@@ -146,6 +151,7 @@ private fun TargetPicker(
     onSelected: (CardDefinition?) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val locale = currentLocale()
     AssistChip(
         onClick = { expanded = true },
         label = { Text("$label: $current") },
@@ -159,7 +165,7 @@ private fun TargetPicker(
         )
         options.forEach { card ->
             DropdownMenuItem(
-                text = { Text(card.nameDe) },
+                text = { Text(card.displayName(locale)) },
                 onClick = {
                     onSelected(card); expanded = false
                 },

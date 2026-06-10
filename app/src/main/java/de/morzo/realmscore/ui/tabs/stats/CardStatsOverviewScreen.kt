@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
+import de.morzo.realmscore.ui.util.displayName
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.domain.stats.CardStatsRow
 import de.morzo.realmscore.domain.stats.CardStatsSort
@@ -191,7 +192,7 @@ private fun CardStatsRowItem(row: CardStatsRow, onClick: () -> Unit) {
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = row.card.nameDe,
+                    text = row.card.displayName(),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                 )

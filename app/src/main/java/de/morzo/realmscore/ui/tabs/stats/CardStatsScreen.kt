@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
+import de.morzo.realmscore.ui.util.displayName
+import de.morzo.realmscore.ui.util.displayRuleText
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.domain.stats.CardStats
 import de.morzo.realmscore.ui.components.charts.BarChart
@@ -62,7 +64,7 @@ fun CardStatsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.stats?.card?.nameDe ?: "") },
+                title = { Text(state.stats?.card?.displayName() ?: "") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -142,13 +144,13 @@ private fun CardHeader(stats: CardStats) {
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stats.card.nameDe,
+                text = stats.card.displayName(),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stats.card.ruleTextDe,
+                text = stats.card.displayRuleText(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -284,7 +286,7 @@ private fun PartnersSection(stats: CardStats) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = item.card.nameDe,
+                            text = item.card.displayName(),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodyLarge,
                         )

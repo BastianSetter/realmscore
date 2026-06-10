@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
+import de.morzo.realmscore.domain.model.displayName
+import de.morzo.realmscore.ui.util.currentLocale
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.ui.components.HandBreakdownSheet
 import de.morzo.realmscore.ui.sandbox.components.MoveToSandboxIcon
@@ -78,6 +80,7 @@ fun RoundSummaryScreen(
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
     var breakdownProfileId by remember { mutableStateOf<String?>(null) }
+    val locale = currentLocale()
 
     Scaffold(
         topBar = {
@@ -124,7 +127,7 @@ fun RoundSummaryScreen(
 
                 if (state.discardScanned) {
                     Spacer(Modifier.height(8.dp))
-                    DiscardSection(cardNames = state.discardCards.map { it.nameDe })
+                    DiscardSection(cardNames = state.discardCards.map { it.displayName(locale) })
                 }
 
                 Spacer(Modifier.height(16.dp))

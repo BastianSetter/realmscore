@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.db.AppDatabase
+import de.morzo.realmscore.domain.model.AppLanguage
 import de.morzo.realmscore.domain.model.Profile
 import de.morzo.realmscore.domain.model.ThemeMode
 import de.morzo.realmscore.domain.repository.ProfileRepository
@@ -24,6 +25,7 @@ data class DataInfo(
 
 data class SettingsUiState(
     val ownerProfile: Profile? = null,
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val useDynamicColors: Boolean = true,
     val defaultPointLimit: Int = SettingsRepository.DEFAULT_POINT_LIMIT,
@@ -62,9 +64,11 @@ class SettingsViewModel(
         profileRepo.observeLocalOwner(),
         preferencesFlow,
         dataInfoFlow,
-    ) { owner, prefs, dataInfo ->
+        settings.appLanguage,
+    ) { owner, prefs, dataInfo, language ->
         SettingsUiState(
             ownerProfile = owner,
+            appLanguage = language,
             themeMode = prefs.themeMode,
             useDynamicColors = prefs.useDynamicColors,
             defaultPointLimit = prefs.defaultPointLimit,
@@ -77,6 +81,10 @@ class SettingsViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = SettingsUiState(),
     )
+
+    fun setAppLanguage(lang: AppLanguage) {
+        viewModelScope.launch { settings.setAppLanguage(lang) }
+    }
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { settings.setThemeMode(mode) }

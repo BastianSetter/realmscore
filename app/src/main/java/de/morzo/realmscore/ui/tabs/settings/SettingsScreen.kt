@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.morzo.realmscore.R
+import de.morzo.realmscore.domain.model.AppLanguage
 import de.morzo.realmscore.domain.model.Profile
 import de.morzo.realmscore.domain.model.ThemeMode
 
@@ -96,6 +97,12 @@ fun SettingsScreen(
         }
 
         item { SectionHeader(stringResource(R.string.settings_appearance)) }
+        item {
+            LanguageRadioGroup(
+                selected = state.appLanguage,
+                onSelect = viewModel::setAppLanguage,
+            )
+        }
         item {
             ThemeModeRadioGroup(
                 selected = state.themeMode,
@@ -253,6 +260,44 @@ private fun ToggleRow(
             style = MaterialTheme.typography.bodyLarge,
         )
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun LanguageRadioGroup(
+    selected: AppLanguage,
+    onSelect: (AppLanguage) -> Unit,
+) {
+    val options = listOf(
+        AppLanguage.SYSTEM to R.string.settings_language_system,
+        AppLanguage.GERMAN to R.string.settings_language_german,
+        AppLanguage.ENGLISH to R.string.settings_language_english,
+    )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.settings_language),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
+        options.forEach { (lang, labelRes) ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = (lang == selected),
+                        onClick = { onSelect(lang) },
+                    )
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(
+                    selected = (lang == selected),
+                    onClick = null,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(labelRes))
+            }
+        }
     }
 }
 

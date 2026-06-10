@@ -1,0 +1,271 @@
+{
+  "version": 1,
+  "note": "English names for Fantasy Realms (original WizKids edition). Loaded as override on top of base_game.json.",
+  "cards": [
+    {
+      "key": "rangers",
+      "nameEn": "Rangers",
+      "ruleTextEn": "Bonus: +10 for each Land; Clears the word Army from Penalty section of all cards in hand"
+    },
+    {
+      "key": "elven_archers",
+      "nameEn": "Elven Archers",
+      "ruleTextEn": "Bonus: +5 if no Weather in hand"
+    },
+    {
+      "key": "dwarvish_infantry",
+      "nameEn": "Dwarvish Infantry",
+      "ruleTextEn": "Penalty: -2 for each other Army"
+    },
+    {
+      "key": "light_cavalry",
+      "nameEn": "Light Cavalry",
+      "ruleTextEn": "Penalty: -2 for each Land"
+    },
+    {
+      "key": "knights",
+      "nameEn": "Celestial Knights",
+      "ruleTextEn": "Penalty: -8 unless with at least one Leader"
+    },
+    {
+      "key": "protection_rune",
+      "nameEn": "Protection Rune",
+      "ruleTextEn": "Clears the Penalty sections on all cards in hand"
+    },
+    {
+      "key": "world_tree",
+      "nameEn": "World Tree",
+      "ruleTextEn": "Bonus: +50 if every active card in hand is a different suit"
+    },
+    {
+      "key": "book_of_changes",
+      "nameEn": "Book of Changes",
+      "ruleTextEn": "Bonus: you may change the suit of one other card. Its name, bonuses and penalties remain the same."
+    },
+    {
+      "key": "shield_of_keth",
+      "nameEn": "Shield of Keth",
+      "ruleTextEn": "Bonus: +15 with any one Leader, +40 with both Leader and Sword of Keth"
+    },
+    {
+      "key": "gem_of_order",
+      "nameEn": "Gem of Order",
+      "ruleTextEn": "Bonus: +10 for 3-card run, +30 for 4-card run, +60 for 5-card run, +100 for 6-card run, +150 for 7-card run"
+    },
+    {
+      "key": "warhorse",
+      "nameEn": "Warhorse",
+      "ruleTextEn": "Bonus: +14 with any Leader or Wizard"
+    },
+    {
+      "key": "unicorn",
+      "nameEn": "Unicorn",
+      "ruleTextEn": "Bonus: +30 with Princess, +15 with Empress, Queen, or Elemental Enchantress"
+    },
+    {
+      "key": "hydra",
+      "nameEn": "Hydra",
+      "ruleTextEn": "Bonus: +28 with Swamp"
+    },
+    {
+      "key": "dragon",
+      "nameEn": "Dragon",
+      "ruleTextEn": "Penalty: -40 unless with at least one Wizard"
+    },
+    {
+      "key": "basilisk",
+      "nameEn": "Basilisk",
+      "ruleTextEn": "Penalty: Blanks all Armies, Leaders, and other Beasts"
+    },
+    {
+      "key": "candle",
+      "nameEn": "Candle",
+      "ruleTextEn": "Bonus: +100 with Book of Changes, Bell Tower, and any one Wizard"
+    },
+    {
+      "key": "fire_elemental",
+      "nameEn": "Fire Elemental",
+      "ruleTextEn": "Bonus: +15 for each other Flame"
+    },
+    {
+      "key": "forge",
+      "nameEn": "Forge",
+      "ruleTextEn": "Bonus: +9 for each Weapon and Artifact"
+    },
+    {
+      "key": "lightning",
+      "nameEn": "Lightning",
+      "ruleTextEn": "Bonus: +30 with Rainstorm"
+    },
+    {
+      "key": "wildfire",
+      "nameEn": "Wildfire",
+      "ruleTextEn": "Blanks all cards except Flames, Weather, Wizards, Weapons, Artifacts, Great Flood, Island, Mountain, Unicorn, & Dragon"
+    },
+    {
+      "key": "fountain_of_life",
+      "nameEn": "Fountain of Life",
+      "ruleTextEn": "Bonus: Add the base strength of any Weapon, Flood, Flame, Land, or Weather in your hand"
+    },
+    {
+      "key": "water_elemental",
+      "nameEn": "Water Elemental",
+      "ruleTextEn": "Bonus: +15 for each other Flood"
+    },
+    {
+      "key": "island",
+      "nameEn": "Island",
+      "ruleTextEn": "Clears the Penalty on any one Flood or Flame"
+    },
+    {
+      "key": "swamp",
+      "nameEn": "Swamp",
+      "ruleTextEn": "Penalty: -3 for each Army and Flame"
+    },
+    {
+      "key": "great_flood",
+      "nameEn": "Great Flood",
+      "ruleTextEn": "Penalty: Blanks all Armies, all Land except Mountain, all Flames except Lightning"
+    },
+    {
+      "key": "earth_elemental",
+      "nameEn": "Earth Elemental",
+      "ruleTextEn": "Bonus: +15 for each other Land"
+    },
+    {
+      "key": "cavern",
+      "nameEn": "Underground Caverns",
+      "ruleTextEn": "Bonus: +25 with Dwarvish Infantry or Dragon; Clears the Penalty on all Weather"
+    },
+    {
+      "key": "forest",
+      "nameEn": "Forest",
+      "ruleTextEn": "Bonus: +12 for each Beast and Elven Archers"
+    },
+    {
+      "key": "bell_tower",
+      "nameEn": "Bell Tower",
+      "ruleTextEn": "Bonus: +15 with any one Wizard"
+    },
+    {
+      "key": "mountain",
+      "nameEn": "Mountain",
+      "ruleTextEn": "Bonus: +50 with both Smoke and Wildfire; Clears the Penalty on all Floods"
+    },
+    {
+      "key": "princess",
+      "nameEn": "Princess",
+      "ruleTextEn": "Bonus: +8 for each Army, Wizard, and other Leader"
+    },
+    {
+      "key": "warlord",
+      "nameEn": "Warlord",
+      "ruleTextEn": "Bonus: Equal to the base strengths of all Armies in your hand"
+    },
+    {
+      "key": "king",
+      "nameEn": "King",
+      "ruleTextEn": "Bonus: +5 for each Army, +20 for each Army if in the same hand with Queen"
+    },
+    {
+      "key": "queen",
+      "nameEn": "Queen",
+      "ruleTextEn": "Bonus: +5 for each Army, +20 for each Army if in the same hand with King"
+    },
+    {
+      "key": "empress",
+      "nameEn": "Empress",
+      "ruleTextEn": "Bonus: +10 for each Army; Penalty: -5 for each other leader"
+    },
+    {
+      "key": "magic_wand",
+      "nameEn": "Magic Wand",
+      "ruleTextEn": "Bonus: +25 with any one Wizard"
+    },
+    {
+      "key": "elven_longbow",
+      "nameEn": "Elven Longbow",
+      "ruleTextEn": "Bonus: +30 with Elven Archers or Warlord or Beastmaster"
+    },
+    {
+      "key": "sword_of_keth",
+      "nameEn": "Sword of Keth",
+      "ruleTextEn": "Bonus: +10 with any one Leader, +40 with both Leader and Shield of Keth"
+    },
+    {
+      "key": "warship",
+      "nameEn": "Warship",
+      "ruleTextEn": "Penalty: Blanked unless with at least one Flood; Clears the word Army from Penalty section of all Floods"
+    },
+    {
+      "key": "war_dirigible",
+      "nameEn": "War Dirigible",
+      "ruleTextEn": "Penalty: Blanked unless with at least one Army, Blanked if hand contains any weather"
+    },
+    {
+      "key": "air_elemental",
+      "nameEn": "Air Elemental",
+      "ruleTextEn": "Bonus: +15 for each other Weather"
+    },
+    {
+      "key": "rainstorm",
+      "nameEn": "Rainstorm",
+      "ruleTextEn": "Bonus: +10 for each Flood; Penalty: Blanks all Flames except Lightning"
+    },
+    {
+      "key": "whirlwind",
+      "nameEn": "Whirlwind",
+      "ruleTextEn": "Bonus: +40 with Rainstorm and either Blizzard or Great Flood"
+    },
+    {
+      "key": "smoke",
+      "nameEn": "Smoke",
+      "ruleTextEn": "Penalty: This card is blanked unless with at least one Flame"
+    },
+    {
+      "key": "blizzard",
+      "nameEn": "Blizzard",
+      "ruleTextEn": "Penalty: Blanks all Floods, -5 for each Army, Leader, Beast, and Flame"
+    },
+    {
+      "key": "shapeshifter",
+      "nameEn": "Shapeshifter",
+      "ruleTextEn": "May take on the name and suit of any Artifact, Leader, Wizard, Weapon or Beast. Does not take bonus or penalty."
+    },
+    {
+      "key": "mirage",
+      "nameEn": "Mirage",
+      "ruleTextEn": "May take on the name and suit of any Army, Land, Weather, Flood or Flame. Does not take bonus or penalty."
+    },
+    {
+      "key": "doppelganger",
+      "nameEn": "Doppelganger",
+      "ruleTextEn": "May duplicate the name, suit, base strength, and penalty but not bonus of any one other card in your hand"
+    },
+    {
+      "key": "necromancer",
+      "nameEn": "Necromancer",
+      "ruleTextEn": "Bonus: At the end of the game, you may take one Army, Leader, Wizard, or Beast from the discard pile and add it to your hand as an eighth card."
+    },
+    {
+      "key": "enchantress",
+      "nameEn": "Elemental Enchantress",
+      "ruleTextEn": "Bonus: +5 for each Land, Weather, Flood, and Flame"
+    },
+    {
+      "key": "collector",
+      "nameEn": "Collector",
+      "ruleTextEn": "Bonus: +10 if three different cards in same suit, +40 if four different cards, +100 if five different cards"
+    },
+    {
+      "key": "beastmaster",
+      "nameEn": "Beastmaster",
+      "ruleTextEn": "Bonus: +9 for each Beast; Clears the Penalty on all Beasts"
+    },
+    {
+      "key": "warlock",
+      "nameEn": "Warlock Lord",
+      "ruleTextEn": "Penalty: -10 for each Leader and other Wizard"
+    }
+  ]
+}

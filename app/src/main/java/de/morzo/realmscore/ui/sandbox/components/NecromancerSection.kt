@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.morzo.realmscore.R
+import de.morzo.realmscore.ui.util.displayName
 import de.morzo.realmscore.domain.model.CardDefinition
 
 /**
@@ -52,7 +53,7 @@ fun NecromancerSection(
                 ) {
                     if (pickedCard != null) {
                         Text(
-                            text = pickedCard.nameDe,
+                            text = pickedCard.displayName(),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodyLarge,
                         )

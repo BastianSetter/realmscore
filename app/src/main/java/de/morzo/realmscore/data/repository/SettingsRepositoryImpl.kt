@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import de.morzo.realmscore.domain.model.AppLanguage
 import de.morzo.realmscore.domain.model.ThemeMode
 import de.morzo.realmscore.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +30,13 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
             if (key == null) prefs.remove(KEY_LAST_RANDOM_STAT)
             else prefs[KEY_LAST_RANDOM_STAT] = key
         }
+    }
+
+    override val appLanguage: Flow<AppLanguage> =
+        dataStore.data.map { prefs -> AppLanguage.fromName(prefs[KEY_APP_LANGUAGE]) }
+
+    override suspend fun setAppLanguage(lang: AppLanguage) {
+        dataStore.edit { prefs -> prefs[KEY_APP_LANGUAGE] = lang.name }
     }
 
     override val themeMode: Flow<ThemeMode> =
@@ -76,6 +84,7 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
 
     companion object {
         private val KEY_LAST_RANDOM_STAT = stringPreferencesKey("last_random_stat_key")
+        private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         private val KEY_USE_DYNAMIC_COLORS = booleanPreferencesKey("use_dynamic_colors")
         private val KEY_DEFAULT_POINT_LIMIT = intPreferencesKey("default_point_limit")

@@ -40,8 +40,12 @@ import de.morzo.realmscore.domain.scoring.RingLayoutOptimizer
 import de.morzo.realmscore.domain.scoring.ScoringResult
 import de.morzo.realmscore.domain.scoring.buildRingConnections
 import de.morzo.realmscore.R
+import de.morzo.realmscore.domain.model.displayName
 import de.morzo.realmscore.ui.theme.SuitColors
 import de.morzo.realmscore.ui.sandbox.components.BreakdownEffectRow
+import de.morzo.realmscore.ui.util.currentLocale
+import de.morzo.realmscore.ui.util.displayName as displayNameComposable
+import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -91,6 +95,7 @@ fun HandRingView(
 
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
+    val locale = currentLocale()
     val onSurface = MaterialTheme.colorScheme.onSurface
     val highlight = MaterialTheme.colorScheme.primary
     val darkTheme = androidx.compose.foundation.isSystemInDarkTheme()
@@ -162,6 +167,7 @@ fun HandRingView(
                     drawCardNode(
                         textMeasurer = textMeasurer,
                         card = card,
+                        locale = locale,
                         contributedScore = res?.contributedScore ?: 0,
                         baseStrength = card.baseStrength,
                         isBlanked = res?.isBlanked == true,
@@ -211,7 +217,7 @@ private fun CardDetailCard(
     ) {
         Column(Modifier.padding(12.dp)) {
             Text(
-                text = card.nameDe,
+                text = card.displayNameComposable(),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -333,6 +339,7 @@ private fun DrawScope.drawArrowHead(color: Color, tip: Offset, dir: Offset, stro
 private fun DrawScope.drawCardNode(
     textMeasurer: TextMeasurer,
     card: CardDefinition,
+    locale: Locale,
     contributedScore: Int,
     baseStrength: Int,
     isBlanked: Boolean,
@@ -363,7 +370,7 @@ private fun DrawScope.drawCardNode(
         )
     }
 
-    val shortName = card.nameDe.let { if (it.length > 10) it.take(9) + "…" else it }
+    val shortName = card.displayName(locale).let { if (it.length > 10) it.take(9) + "…" else it }
     val nameStyle = TextStyle(
         color = textColor.copy(alpha = alpha),
         fontSize = 10.sp,
