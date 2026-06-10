@@ -21,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -88,6 +89,12 @@ fun HomeScreen(
                         text = stringResource(R.string.home_sandbox_body),
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                    TextButton(
+                        onClick = { navController.navigate(Routes.sandboxFavoritesRoute()) },
+                        contentPadding = PaddingValues(0.dp),
+                    ) {
+                        Text(stringResource(R.string.home_sandbox_view_favorites))
+                    }
                 }
             }
         }

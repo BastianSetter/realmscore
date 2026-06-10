@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,9 +26,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
@@ -48,6 +53,7 @@ import de.morzo.realmscore.ui.sandbox.components.HandSlotsRow
 import de.morzo.realmscore.ui.sandbox.components.JokerSection
 import de.morzo.realmscore.ui.sandbox.components.NecromancerSection
 import de.morzo.realmscore.ui.sandbox.components.ScoreFooter
+import de.morzo.realmscore.ui.sandbox.multihand.MultiHandScreen
 import de.morzo.realmscore.ui.util.formatShortDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +61,7 @@ import de.morzo.realmscore.ui.util.formatShortDate
 fun SandboxScreen(
     container: AppContainer,
     launchData: SandboxLaunchData = SandboxLaunchData.Empty,
+    onOpenFavorites: () -> Unit = {},
     viewModel: SandboxViewModel = viewModel(
         key = sandboxViewModelKey(launchData),
         factory = SandboxViewModel.Factory(
@@ -66,12 +73,33 @@ fun SandboxScreen(
             roundRepo = container.roundRepository,
             gameRepo = container.gameRepository,
             profileRepo = container.profileRepository,
+            favoriteRepo = container.sandboxFavoriteRepository,
         ),
     ),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var pickerForSlot by rememberSaveable { mutableStateOf<Int?>(null) }
     var necromancerPickerOpen by rememberSaveable { mutableStateOf(false) }
+    var compareSnapshot by remember { mutableStateOf<HandSnapshot?>(null) }
+
+    compareSnapshot?.let { snapshot ->
+        MultiHandScreen(
+            container = container,
+            initialLeft = snapshot,
+            onBack = { compareSnapshot = null },
+        )
+        return
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.favoriteSaved.collect { number ->
+            snackbarHostState.showSnackbar(
+                context.getString(R.string.sandbox_saved_as_favorite, number),
+            )
+        }
+    }
 
     val placedKeys = remember(state.slots) {
         state.filledCards.map { it.key }.toSet()
@@ -80,8 +108,19 @@ fun SandboxScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.sandbox_title)) })
+            TopAppBar(
+                title = { Text(stringResource(R.string.sandbox_title)) },
+                actions = {
+                    IconButton(onClick = onOpenFavorites) {
+                        Icon(
+                            imageVector = Icons.Outlined.BookmarkBorder,
+                            contentDescription = stringResource(R.string.sandbox_favorites_title),
+                        )
+                    }
+                },
+            )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             ScoreFooter(
                 score = state.score,
@@ -155,6 +194,21 @@ fun SandboxScreen(
                 }
                 OutlinedButton(onClick = viewModel::reset) {
                     Text(stringResource(R.string.sandbox_reset))
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = viewModel::saveFavorite,
+                    enabled = state.canSaveFavorite,
+                ) {
+                    Text(stringResource(R.string.sandbox_save_favorite))
+                }
+                OutlinedButton(
+                    onClick = { compareSnapshot = viewModel.currentSnapshot() },
+                    enabled = state.filledCards.isNotEmpty(),
+                ) {
+                    Text(stringResource(R.string.sandbox_compare))
                 }
             }
         }
@@ -258,4 +312,6 @@ private fun sandboxViewModelKey(launchData: SandboxLaunchData): String = when (l
     SandboxLaunchData.Empty -> "sandbox-empty"
     is SandboxLaunchData.FromRound ->
         "sandbox-from-${launchData.gameId}-${launchData.roundId}-${launchData.profileId}"
+    is SandboxLaunchData.FromFavorite -> "sandbox-favorite-${launchData.favoriteId}"
+    is SandboxLaunchData.Prefilled -> "sandbox-prefilled"
 }

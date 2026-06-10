@@ -8,6 +8,7 @@ import de.morzo.realmscore.data.db.dao.HandCardDao
 import de.morzo.realmscore.data.db.dao.ProfileDao
 import de.morzo.realmscore.data.db.dao.RoundDao
 import de.morzo.realmscore.data.db.dao.RoundResultDao
+import de.morzo.realmscore.data.db.dao.SandboxFavoriteDao
 import de.morzo.realmscore.data.db.entity.DiscardCardEntity
 import de.morzo.realmscore.data.db.entity.GameEntity
 import de.morzo.realmscore.data.db.entity.GameParticipantEntity
@@ -15,6 +16,7 @@ import de.morzo.realmscore.data.db.entity.HandCardEntity
 import de.morzo.realmscore.data.db.entity.ProfileEntity
 import de.morzo.realmscore.data.db.entity.RoundEntity
 import de.morzo.realmscore.data.db.entity.RoundResultEntity
+import de.morzo.realmscore.data.db.entity.SandboxFavoriteEntity
 
 @Database(
     entities = [
@@ -25,8 +27,9 @@ import de.morzo.realmscore.data.db.entity.RoundResultEntity
         RoundResultEntity::class,
         HandCardEntity::class,
         DiscardCardEntity::class,
+        SandboxFavoriteEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun roundResultDao(): RoundResultDao
     abstract fun handCardDao(): HandCardDao
     abstract fun discardCardDao(): DiscardCardDao
+    abstract fun sandboxFavoriteDao(): SandboxFavoriteDao
 
     companion object {
         const val DB_NAME = "fantasy_realms.db"

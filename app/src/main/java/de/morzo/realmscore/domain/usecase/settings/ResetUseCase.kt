@@ -22,6 +22,7 @@ class ResetUseCase(
 
     suspend fun resetApp() {
         clearGameData()
+        db.sandboxFavoriteDao().deleteAll()
         db.profileDao().deleteAll()
         deviceUuidProvider.clear()
         settings.clearAll()

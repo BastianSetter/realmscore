@@ -9,12 +9,14 @@ import de.morzo.realmscore.data.repository.GameRepositoryImpl
 import de.morzo.realmscore.data.repository.HandCardRepositoryImpl
 import de.morzo.realmscore.data.repository.ProfileRepositoryImpl
 import de.morzo.realmscore.data.repository.RoundRepositoryImpl
+import de.morzo.realmscore.data.repository.SandboxFavoriteRepositoryImpl
 import de.morzo.realmscore.data.repository.SettingsRepositoryImpl
 import de.morzo.realmscore.data.repository.StatsRepositoryImpl
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.RoundRepository
+import de.morzo.realmscore.domain.repository.SandboxFavoriteRepository
 import de.morzo.realmscore.domain.repository.SettingsRepository
 import de.morzo.realmscore.domain.repository.StatsRepository
 import de.morzo.realmscore.domain.stats.random.ClosestRoundEverProvider
@@ -91,6 +93,14 @@ class AppContainer(private val applicationContext: Context) {
             roundResultDao = database.roundResultDao(),
             roundDao = database.roundDao(),
             gameDao = database.gameDao(),
+            deviceUuidProvider = deviceUuidProvider,
+            clock = clock,
+        )
+    }
+
+    val sandboxFavoriteRepository: SandboxFavoriteRepository by lazy {
+        SandboxFavoriteRepositoryImpl(
+            dao = database.sandboxFavoriteDao(),
             deviceUuidProvider = deviceUuidProvider,
             clock = clock,
         )

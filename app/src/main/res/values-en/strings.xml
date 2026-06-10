@@ -196,6 +196,25 @@
     <string name="necromancer_clear">Clear selection</string>
     <string name="necromancer_breakdown_tag">Taken by the Necromancer <!-- NEEDS REVIEW --></string>
 
+    <!-- Phase 22: Sandbox favorites + multi-hand comparison -->
+    <string name="sandbox_save_favorite">Save as favorite</string>
+    <string name="sandbox_saved_as_favorite">Saved as favorite #%1$d</string>
+    <string name="sandbox_favorites_title">Favorites</string>
+    <string name="sandbox_favorite_number">Favorite #%1$d</string>
+    <string name="sandbox_load_favorite">Load</string>
+    <string name="sandbox_favorites_empty">No favorites saved yet. Build a full hand in the Sandbox and tap “Save as favorite”.</string>
+    <string name="sandbox_compare">Compare</string>
+    <string name="home_sandbox_view_favorites">View favorites</string>
+    <string name="multihand_title">Comparison</string>
+    <string name="multihand_left">Hand A</string>
+    <string name="multihand_right">Hand B</string>
+    <string name="multihand_vs">vs</string>
+    <string name="multihand_back_to_single">Back to single hand</string>
+    <string name="multihand_copy_a_to_b">Copy A → B</string>
+    <string name="multihand_swap">Swap</string>
+    <string name="action_back">Back</string>
+    <string name="action_delete">Delete</string>
+
     <!-- Effect descriptions (Breakdown sheet). %1$s and %2$s are dynamic args. -->
     <string name="effect_base_strength">Base strength %1$s</string>
 

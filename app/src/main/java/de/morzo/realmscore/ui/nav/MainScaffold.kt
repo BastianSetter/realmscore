@@ -39,6 +39,8 @@ import de.morzo.realmscore.ui.reveal.RevealScreen
 import de.morzo.realmscore.ui.reveal.RoundSummaryScreen
 import de.morzo.realmscore.ui.sandbox.SandboxLaunchData
 import de.morzo.realmscore.ui.sandbox.SandboxScreen
+import de.morzo.realmscore.ui.sandbox.favorites.SandboxFavoritesScreen
+import de.morzo.realmscore.ui.sandbox.favorites.SandboxFavoritesViewModel
 import de.morzo.realmscore.ui.summary.GameSummaryScreen
 import de.morzo.realmscore.ui.tabs.history.HistoryScreen
 import de.morzo.realmscore.ui.tabs.home.HomeScreen
@@ -282,25 +284,54 @@ fun MainScaffold(container: AppContainer) {
                         type = NavType.StringType
                         defaultValue = ""
                     },
+                    navArgument(Routes.ARG_FAVORITE_ID) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
                 ),
             ) { entry ->
                 val launchType = entry.arguments?.getString(Routes.ARG_LAUNCH_TYPE).orEmpty()
                 val gameId = entry.arguments?.getString(Routes.ARG_GAME_ID).orEmpty()
                 val roundId = entry.arguments?.getString(Routes.ARG_ROUND_ID).orEmpty()
                 val profileId = entry.arguments?.getString(Routes.ARG_PROFILE_ID).orEmpty()
-                val launchData: SandboxLaunchData = if (
+                val favoriteId = entry.arguments?.getString(Routes.ARG_FAVORITE_ID).orEmpty()
+                val launchData: SandboxLaunchData = when {
                     launchType == Routes.SANDBOX_LAUNCH_FROM_ROUND &&
-                    gameId.isNotEmpty() && roundId.isNotEmpty() && profileId.isNotEmpty()
-                ) {
-                    SandboxLaunchData.FromRound(
-                        gameId = gameId,
-                        roundId = roundId,
-                        profileId = profileId,
-                    )
-                } else {
-                    SandboxLaunchData.Empty
+                        gameId.isNotEmpty() && roundId.isNotEmpty() && profileId.isNotEmpty() ->
+                        SandboxLaunchData.FromRound(
+                            gameId = gameId,
+                            roundId = roundId,
+                            profileId = profileId,
+                        )
+
+                    launchType == Routes.SANDBOX_LAUNCH_FROM_FAVORITE && favoriteId.isNotEmpty() ->
+                        SandboxLaunchData.FromFavorite(favoriteId = favoriteId)
+
+                    else -> SandboxLaunchData.Empty
                 }
-                SandboxScreen(container = container, launchData = launchData)
+                SandboxScreen(
+                    container = container,
+                    launchData = launchData,
+                    onOpenFavorites = {
+                        tabNavController.navigate(Routes.sandboxFavoritesRoute())
+                    },
+                )
+            }
+            composable(Routes.SANDBOX_FAVORITES) {
+                val vm: SandboxFavoritesViewModel = viewModel(
+                    factory = SandboxFavoritesViewModel.Factory(
+                        repo = container.sandboxFavoriteRepository,
+                    ),
+                )
+                SandboxFavoritesScreen(
+                    viewModel = vm,
+                    onLoad = { favorite ->
+                        tabNavController.navigate(Routes.sandboxRouteFromFavorite(favorite.id)) {
+                            popUpTo(Routes.SANDBOX_FAVORITES) { inclusive = true }
+                        }
+                    },
+                    onBack = { tabNavController.popBackStack() },
+                )
             }
             composable(Routes.TAB_HISTORY) {
                 HistoryScreen(

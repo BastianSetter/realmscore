@@ -7,10 +7,13 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.Suit
+import de.morzo.realmscore.domain.model.FavoriteCard
+import de.morzo.realmscore.domain.model.SandboxFavorite
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.RoundRepository
+import de.morzo.realmscore.domain.repository.SandboxFavoriteRepository
 import de.morzo.realmscore.domain.scoring.JokerAssignment
 import de.morzo.realmscore.domain.scoring.PlayerChoices
 import de.morzo.realmscore.domain.scoring.ScoringEngine
@@ -18,8 +21,11 @@ import de.morzo.realmscore.domain.scoring.ScoringInput
 import de.morzo.realmscore.domain.scoring.ScoringResult
 import de.morzo.realmscore.domain.scoring.solver.OptimalSolver
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -40,6 +46,17 @@ data class OriginBanner(
     val gameStartedAt: Long,
 )
 
+/**
+ * Serializable-by-value snapshot of a Sandbox hand (Phase 22). Carries only card keys plus joker
+ * assignments and player choices, so it can pre-fill another [SandboxViewModel] (Multi-Hand left
+ * column) or be turned into a [FavoriteCard] list.
+ */
+data class HandSnapshot(
+    val slotKeys: List<String?>,
+    val jokerAssignments: Map<String, JokerAssignment>,
+    val playerChoices: PlayerChoices,
+)
+
 data class SandboxUiState(
     val slots: List<CardSlot> = List(SANDBOX_SLOT_COUNT) { CardSlot.Empty },
     val jokerAssignments: Map<String, JokerAssignment> = emptyMap(),
@@ -56,6 +73,10 @@ data class SandboxUiState(
 
     val filledCards: List<CardDefinition>
         get() = slots.mapNotNull { (it as? CardSlot.Filled)?.card }
+
+    /** A favorite may only be saved from a full, 7-card hand (Phase 22). */
+    val canSaveFavorite: Boolean
+        get() = filledCards.size == SANDBOX_SLOT_COUNT
 
     val jokersInHand: List<CardDefinition>
         get() = filledCards.filter { it.isJoker }
@@ -79,6 +100,7 @@ class SandboxViewModel(
     private val roundRepo: RoundRepository?,
     private val gameRepo: GameRepository?,
     private val profileRepo: ProfileRepository?,
+    private val favoriteRepo: SandboxFavoriteRepository?,
 ) : ViewModel() {
 
     val allCards: List<CardDefinition> = cardLookup.getAll()
@@ -86,12 +108,23 @@ class SandboxViewModel(
     private val _uiState = MutableStateFlow(SandboxUiState())
     val uiState: StateFlow<SandboxUiState> = _uiState.asStateFlow()
 
+    /** Emits the favorite number each time [saveFavorite] succeeds, for the confirmation snackbar. */
+    private val _favoriteSaved = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+    val favoriteSaved: SharedFlow<Int> = _favoriteSaved.asSharedFlow()
+
     init {
         when (val data = launchData) {
             is SandboxLaunchData.Empty -> Unit
             is SandboxLaunchData.FromRound -> {
                 _uiState.update { it.copy(isLoadingLaunchData = true) }
                 viewModelScope.launch { loadFromRound(data) }
+            }
+            is SandboxLaunchData.FromFavorite -> {
+                _uiState.update { it.copy(isLoadingLaunchData = true) }
+                viewModelScope.launch { loadFromFavorite(data.favoriteId) }
+            }
+            is SandboxLaunchData.Prefilled -> {
+                _uiState.update { it.applySnapshot(data.snapshot) }
             }
         }
     }
@@ -157,6 +190,84 @@ class SandboxViewModel(
 
     private fun clearLoading() {
         _uiState.update { it.copy(isLoadingLaunchData = false) }
+    }
+
+    private suspend fun loadFromFavorite(favoriteId: String) {
+        val repo = favoriteRepo ?: return clearLoading()
+        val favorite = repo.getById(favoriteId) ?: return clearLoading()
+        _uiState.update { it.applySnapshot(favorite.toSnapshot()).copy(isLoadingLaunchData = false) }
+    }
+
+    /** Snapshot of the current hand, for the Multi-Hand left column or favorite serialization. */
+    fun currentSnapshot(): HandSnapshot = _uiState.value.toSnapshot()
+
+    /** Replaces the current hand with [snapshot] (Multi-Hand copy/swap). */
+    fun applyHandSnapshot(snapshot: HandSnapshot) {
+        _uiState.update { it.applySnapshot(snapshot) }
+    }
+
+    /** Saves the current (full) hand as a new favorite and emits its number via [favoriteSaved]. */
+    fun saveFavorite() {
+        val repo = favoriteRepo ?: return
+        val state = _uiState.value
+        if (!state.canSaveFavorite) return
+        val cards = state.toFavoriteCards()
+        viewModelScope.launch {
+            val number = repo.save(cards)
+            _favoriteSaved.emit(number)
+        }
+    }
+
+    fun loadFavorite(favorite: SandboxFavorite) {
+        _uiState.update { it.applySnapshot(favorite.toSnapshot()) }
+    }
+
+    private fun SandboxUiState.toSnapshot(): HandSnapshot = HandSnapshot(
+        slotKeys = slots.map { (it as? CardSlot.Filled)?.card?.key },
+        jokerAssignments = jokerAssignments,
+        playerChoices = playerChoices,
+    )
+
+    private fun SandboxUiState.toFavoriteCards(): List<FavoriteCard> =
+        slots.mapIndexedNotNull { index, slot ->
+            val card = (slot as? CardSlot.Filled)?.card ?: return@mapIndexedNotNull null
+            val assignment = jokerAssignments[card.key]
+            FavoriteCard(
+                position = index,
+                cardKey = card.key,
+                jokerTargetCardKey = assignment?.targetCardKey,
+                jokerTargetSuit = assignment?.targetSuit?.name,
+            )
+        }
+
+    private fun SandboxFavorite.toSnapshot(): HandSnapshot {
+        val slotKeys = MutableList<String?>(SANDBOX_SLOT_COUNT) { null }
+        val assignments = mutableMapOf<String, JokerAssignment>()
+        handCards.forEach { fav ->
+            if (fav.position in 0 until SANDBOX_SLOT_COUNT) slotKeys[fav.position] = fav.cardKey
+            if (fav.jokerTargetCardKey != null || fav.jokerTargetSuit != null) {
+                assignments[fav.cardKey] = JokerAssignment(
+                    jokerKey = fav.cardKey,
+                    targetCardKey = fav.jokerTargetCardKey,
+                    targetSuit = fav.jokerTargetSuit?.let { runCatching { Suit.valueOf(it) }.getOrNull() },
+                )
+            }
+        }
+        return HandSnapshot(slotKeys, assignments, PlayerChoices())
+    }
+
+    private fun SandboxUiState.applySnapshot(snapshot: HandSnapshot): SandboxUiState {
+        val slots = snapshot.slotKeys.take(SANDBOX_SLOT_COUNT).map { key ->
+            val card = key?.let { cardLookup.getByKey(it) }
+            if (card != null) CardSlot.Filled(card) else CardSlot.Empty
+        }
+        val padded = (slots + List(SANDBOX_SLOT_COUNT) { CardSlot.Empty }).take(SANDBOX_SLOT_COUNT)
+        return copy(
+            slots = padded,
+            jokerAssignments = snapshot.jokerAssignments,
+            playerChoices = snapshot.playerChoices,
+            originBanner = null,
+        ).pruneStaleSelections().recomputeScore()
     }
 
     fun setCardInSlot(slotIndex: Int, card: CardDefinition) {
@@ -277,6 +388,7 @@ class SandboxViewModel(
         private val roundRepo: RoundRepository? = null,
         private val gameRepo: GameRepository? = null,
         private val profileRepo: ProfileRepository? = null,
+        private val favoriteRepo: SandboxFavoriteRepository? = null,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
@@ -289,6 +401,7 @@ class SandboxViewModel(
                 roundRepo = roundRepo,
                 gameRepo = gameRepo,
                 profileRepo = profileRepo,
+                favoriteRepo = favoriteRepo,
             ) as T
         }
     }
