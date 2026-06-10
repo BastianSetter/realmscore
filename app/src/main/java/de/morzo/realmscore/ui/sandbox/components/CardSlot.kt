@@ -4,9 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -35,6 +35,9 @@ import de.morzo.realmscore.ui.sandbox.CardSlot
 
 private val SlotShape = RoundedCornerShape(12.dp)
 
+/** Card aspect ratio (width : height = 80 : 120 = 2 : 3); the width is supplied by the caller. */
+private const val CardAspectRatio = 80f / 120f
+
 @Composable
 fun CardSlotView(
     slot: CardSlot,
@@ -43,7 +46,7 @@ fun CardSlotView(
 ) {
     Box(
         modifier = modifier
-            .size(width = 80.dp, height = 120.dp)
+            .aspectRatio(CardAspectRatio)
             .clip(SlotShape)
             .clickable(onClick = onClick),
     ) {

@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -70,7 +71,10 @@ fun StatsOverviewScreen(
                         CircularProgressIndicator()
                     }
                 }
-                state.overview == null || state.isEmpty -> EmptyStatsBody()
+                state.overview == null || state.isEmpty -> EmptyStatsBody(
+                    gamesNeeded = (STATS_MIN_GAMES - (state.overview?.totalClosedGames ?: 0))
+                        .coerceAtLeast(1),
+                )
                 else -> OverviewBody(
                     overview = state.overview!!,
                     onOpenPlayer = onOpenPlayer,
@@ -314,7 +318,7 @@ private fun CardHitRow(
 }
 
 @Composable
-private fun EmptyStatsBody() {
+private fun EmptyStatsBody(gamesNeeded: Int) {
     Box(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         contentAlignment = Alignment.Center,
@@ -327,7 +331,7 @@ private fun EmptyStatsBody() {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(R.string.stats_empty_body),
+                text = pluralStringResource(R.plurals.stats_empty_body, gamesNeeded, gamesNeeded),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

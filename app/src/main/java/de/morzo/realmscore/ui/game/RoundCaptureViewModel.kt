@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.domain.game.CaptureOrdering
 import de.morzo.realmscore.domain.model.CardDefinition
-import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardEntry
 import de.morzo.realmscore.domain.repository.HandCardRepository
@@ -18,6 +17,7 @@ import de.morzo.realmscore.domain.scoring.PlayerChoices
 import de.morzo.realmscore.domain.scoring.ScoringEngine
 import de.morzo.realmscore.domain.scoring.ScoringInput
 import de.morzo.realmscore.domain.scoring.solver.OptimalSolver
+import de.morzo.realmscore.domain.scoring.toScoringChoices
 import de.morzo.realmscore.ui.handentry.PLAYER_HAND_SLOT_COUNT
 import de.morzo.realmscore.ui.handentry.PlayerHandEntryUiState
 import de.morzo.realmscore.ui.sandbox.CardSlot
@@ -32,6 +32,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val NECROMANCER_KEY = "necromancer"
+private const val ISLAND_KEY = "island"
+private const val FOUNTAIN_KEY = "fountain_of_life"
 
 /** Sentinel id for the synthetic Mittelfeld (discard) entry in the capture rotation. */
 private const val DISCARD_ID = "__discard__"
@@ -191,24 +193,13 @@ class RoundCaptureViewModel(
                 slots[entry.position] = CardSlot.Filled(card)
             }
         }
-        val jokerAssignments = existing.cards
-            .filter { it.cardKey != NECROMANCER_KEY }
-            .mapNotNull { entry ->
-                val target = entry.jokerTargetCardKey ?: return@mapNotNull null
-                val suit = entry.jokerTargetSuit?.let { runCatching { Suit.valueOf(it) }.getOrNull() }
-                entry.cardKey to JokerAssignment(
-                    jokerKey = entry.cardKey,
-                    targetCardKey = target,
-                    targetSuit = suit,
-                )
-            }.toMap()
-        val necromancerPickKey = existing.cards
-            .firstOrNull { it.cardKey == NECROMANCER_KEY }
-            ?.jokerTargetCardKey
+        // Necromancer pick and Island/Fountain choices are persisted on their own card entry's
+        // jokerTargetCardKey column; the shared mapper sorts them back into playerChoices.
+        val reconstructed = existing.cards.toScoringChoices()
         return Draft(
             slots = slots,
-            jokerAssignments = jokerAssignments,
-            playerChoices = PlayerChoices(necromancerPickKey = necromancerPickKey),
+            jokerAssignments = reconstructed.jokerAssignments,
+            playerChoices = reconstructed.playerChoices,
         )
     }
 
@@ -308,6 +299,18 @@ class RoundCaptureViewModel(
         }
     }
 
+    fun setIslandTarget(cardKey: String?) {
+        updateCurrentDraft { draft ->
+            draft.copy(playerChoices = draft.playerChoices.copy(islandTargetKey = cardKey))
+        }
+    }
+
+    fun setFountainSource(cardKey: String?) {
+        updateCurrentDraft { draft ->
+            draft.copy(playerChoices = draft.playerChoices.copy(fountainSourceKey = cardKey))
+        }
+    }
+
     fun applyOptimal() {
         val id = _uiState.value.currentProfileId ?: return
         if (id == DISCARD_ID) return
@@ -379,10 +382,14 @@ class RoundCaptureViewModel(
         val entries = draft.slots.mapIndexedNotNull { idx, slot ->
             val card = (slot as? CardSlot.Filled)?.card ?: return@mapIndexedNotNull null
             val assignment = draft.jokerAssignments[card.key]
-            val targetCardKey = if (card.key == NECROMANCER_KEY) {
-                draft.playerChoices.necromancerPickKey
-            } else {
-                assignment?.targetCardKey
+            // Necromancer pick + Island/Fountain choices reuse the jokerTargetCardKey column on
+            // their own card entry so the reconstruction path (BreakdownViewModel/RevealViewModel
+            // via toScoringChoices) can rebuild playerChoices without a schema change.
+            val targetCardKey = when (card.key) {
+                NECROMANCER_KEY -> draft.playerChoices.necromancerPickKey
+                ISLAND_KEY -> draft.playerChoices.islandTargetKey
+                FOUNTAIN_KEY -> draft.playerChoices.fountainSourceKey
+                else -> assignment?.targetCardKey
             }
             HandCardEntry(
                 cardKey = card.key,

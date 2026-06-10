@@ -58,10 +58,16 @@ class CardLookup(private val context: Context) {
         val raw = context.assets.open(ASSET_PATH).bufferedReader(Charsets.UTF_8).use { it.readText() }
         val file = json.decodeFromString<CardDataFile>(raw)
         val overrides = loadEnOverrides()
-        return file.cards.map { dto ->
-            val override = overrides[dto.key]
-            dto.toDomain(nameEn = override?.nameEn, ruleTextEn = override?.ruleTextEn)
-        }
+        return file.cards
+            .map { dto ->
+                val override = overrides[dto.key]
+                dto.toDomain(nameEn = override?.nameEn, ruleTextEn = override?.ruleTextEn)
+            }
+            // Sort once at the source: by suit, then alphabetically by German name. Every consumer
+            // (CardPicker, Sandbox, Necromancer candidates, …) reads this same list, so they all
+            // inherit the ordering. Previously the order was just the asset-file order (suit, then
+            // ascending baseStrength).
+            .sortedWith(compareBy({ it.suit.ordinal }, { it.nameDe.lowercase() }))
     }
 
     /**

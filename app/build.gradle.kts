@@ -15,7 +15,7 @@ android {
 
     defaultConfig {
         applicationId = "de.morzo.realmscore"
-        minSdk = 26
+        minSdk = 29   // war 26 – für automatische Silbentrennung (Hyphens.Auto, API 29+)
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"

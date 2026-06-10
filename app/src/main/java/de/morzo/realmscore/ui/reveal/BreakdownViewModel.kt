@@ -5,12 +5,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.domain.model.CardDefinition
-import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.domain.repository.HandCardRepository
-import de.morzo.realmscore.domain.scoring.JokerAssignment
 import de.morzo.realmscore.domain.scoring.ScoringEngine
 import de.morzo.realmscore.domain.scoring.ScoringInput
 import de.morzo.realmscore.domain.scoring.ScoringResult
+import de.morzo.realmscore.domain.scoring.toScoringChoices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,17 +37,18 @@ class BreakdownViewModel(
             val hand = saved.cards.mapNotNull { cardLookup.getByKey(it.cardKey) }
             if (hand.size != saved.cards.size) return@launch
             _handCards.value = hand
-            val assignments: Map<String, JokerAssignment> = saved.cards.mapNotNull { entry ->
-                val target = entry.jokerTargetCardKey ?: return@mapNotNull null
-                val suit = entry.jokerTargetSuit?.let { runCatching { Suit.valueOf(it) }.getOrNull() }
-                entry.cardKey to JokerAssignment(
-                    jokerKey = entry.cardKey,
-                    targetCardKey = target,
-                    targetSuit = suit,
-                )
-            }.toMap()
+            // Reconstruct jokers AND playerChoices (Necromancer pick, Island, Fountain) so the
+            // breakdown matches the Sandbox for the same hand. Previously only jokerAssignments were
+            // rebuilt, so the Necromancer-pulled card was missing from the breakdown.
+            val reconstructed = saved.cards.toScoringChoices()
             val result = withContext(Dispatchers.Default) {
-                engine.score(ScoringInput(hand = hand, jokerAssignments = assignments))
+                engine.score(
+                    ScoringInput(
+                        hand = hand,
+                        jokerAssignments = reconstructed.jokerAssignments,
+                        playerChoices = reconstructed.playerChoices,
+                    ),
+                )
             }
             _scoringResult.value = result
         }

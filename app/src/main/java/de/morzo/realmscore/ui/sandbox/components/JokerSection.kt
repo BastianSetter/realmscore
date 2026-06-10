@@ -35,6 +35,16 @@ private val MIRAGE_SUITS = setOf(Suit.ARMY, Suit.LAND, Suit.WEATHER, Suit.FLOOD,
 private val SHAPESHIFTER_SUITS = setOf(Suit.ARTIFACT, Suit.LEADER, Suit.WIZARD, Suit.WEAPON, Suit.BEAST)
 private val BOOK_OF_CHANGES_SUITS = Suit.entries.filter { it != Suit.WILD }
 
+private const val ISLAND_KEY = "island"
+private const val FOUNTAIN_KEY = "fountain_of_life"
+private val ISLAND_SUITS = setOf(Suit.FLOOD, Suit.FLAME)
+private val FOUNTAIN_SUITS = setOf(Suit.WEAPON, Suit.FLOOD, Suit.FLAME, Suit.LAND, Suit.WEATHER)
+
+/**
+ * Shows the joker assignments together with the Island / Fountain-of-Life picks (Phase 18.2): these
+ * two are [de.morzo.realmscore.domain.scoring.PlayerChoices], not real jokers, but the [OptimalSolver]
+ * brute-forces them just like jokers, so they live in the same section and share the "Optimal" button.
+ */
 @Composable
 fun JokerSection(
     jokers: List<CardDefinition>,
@@ -43,10 +53,16 @@ fun JokerSection(
     handCards: List<CardDefinition>,
     onAssignmentChange: (String, JokerAssignment?) -> Unit,
     modifier: Modifier = Modifier,
+    islandTargetKey: String? = null,
+    fountainSourceKey: String? = null,
+    onIslandChange: (String?) -> Unit = {},
+    onFountainChange: (String?) -> Unit = {},
     onOptimal: (() -> Unit)? = null,
     optimalRunning: Boolean = false,
 ) {
-    if (jokers.isEmpty()) return
+    val islandPresent = handCards.any { it.key == ISLAND_KEY }
+    val fountainPresent = handCards.any { it.key == FOUNTAIN_KEY }
+    if (jokers.isEmpty() && !islandPresent && !fountainPresent) return
     Surface(
         modifier = modifier.fillMaxWidth(),
         tonalElevation = 1.dp,
@@ -66,6 +82,22 @@ fun JokerSection(
                     allCards = allCards,
                     handCards = handCards,
                     onChange = { onAssignmentChange(joker.key, it) },
+                )
+            }
+            if (islandPresent) {
+                ChoiceRow(
+                    label = stringResource(R.string.sandbox_choice_island),
+                    currentKey = islandTargetKey,
+                    candidates = handCards.filter { it.key != ISLAND_KEY && it.suit in ISLAND_SUITS },
+                    onSelected = onIslandChange,
+                )
+            }
+            if (fountainPresent) {
+                ChoiceRow(
+                    label = stringResource(R.string.sandbox_choice_fountain),
+                    currentKey = fountainSourceKey,
+                    candidates = handCards.filter { it.key != FOUNTAIN_KEY && it.suit in FOUNTAIN_SUITS },
+                    onSelected = onFountainChange,
                 )
             }
             if (onOptimal != null) {
@@ -170,6 +202,37 @@ private fun TargetPicker(
                     onSelected(card); expanded = false
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun ChoiceRow(
+    label: String,
+    currentKey: String?,
+    candidates: List<CardDefinition>,
+    onSelected: (String?) -> Unit,
+) {
+    val locale = currentLocale()
+    val currentName = candidates.firstOrNull { it.key == currentKey }?.displayName(locale)
+        ?: stringResource(R.string.sandbox_joker_unset)
+    var expanded by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        AssistChip(
+            onClick = { expanded = true },
+            label = { Text("$label: $currentName") },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.sandbox_joker_unset)) },
+                onClick = { onSelected(null); expanded = false },
+            )
+            candidates.forEach { card ->
+                DropdownMenuItem(
+                    text = { Text(card.displayName(locale)) },
+                    onClick = { onSelected(card.key); expanded = false },
+                )
+            }
         }
     }
 }

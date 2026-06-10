@@ -43,6 +43,38 @@ class OptimalSolverTest {
         assertTrue(best.bestResult.totalScore >= unassigned.totalScore)
     }
 
+    @Test fun `solver assigns a target even when the joker effect is irrelevant`() {
+        // Same irrelevant-effect hand as above. The solver must still hand the mirage a valid
+        // target instead of leaving it unset.
+        val seed = ScoringInput(
+            hand = TestFixture.hand(
+                "mirage",
+                "rangers",
+                "cavern",
+                "forest",
+                "knights",
+                "magic_wand",
+                "bell_tower",
+            ),
+        )
+        val best = TestFixture.solver.findOptimal(seed)
+        assertTrue(
+            "mirage should be assigned a target",
+            best.bestInput.jokerAssignments["mirage"]?.targetCardKey != null,
+        )
+    }
+
+    @Test fun `solver assigns island even when no penalty to cancel`() {
+        // water_elemental(FLOOD) carries no penalty, so Island has nothing to cancel — its target
+        // is irrelevant to the score. The solver should still hand Island a valid target instead of
+        // leaving it unset.
+        val seed = ScoringInput(
+            hand = TestFixture.hand("island", "water_elemental"),
+        )
+        val best = TestFixture.solver.findOptimal(seed)
+        assertEquals("water_elemental", best.bestInput.playerChoices.islandTargetKey)
+    }
+
     @Test fun `solver picks highest-strength fountain source`() {
         // Note: fountain itself is FLOOD, so warship has its required flood and is NOT self-blanked.
         // Eligible sources (WEAPON/FLOOD/FLAME/LAND/WEATHER, strength>0): warship(23), sword(7), air(4).

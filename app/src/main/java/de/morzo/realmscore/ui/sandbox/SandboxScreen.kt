@@ -44,7 +44,6 @@ import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.ui.components.CardPicker
 import de.morzo.realmscore.ui.components.HandBreakdownSheet
-import de.morzo.realmscore.ui.sandbox.components.ChoiceSection
 import de.morzo.realmscore.ui.sandbox.components.HandSlotsRow
 import de.morzo.realmscore.ui.sandbox.components.JokerSection
 import de.morzo.realmscore.ui.sandbox.components.NecromancerSection
@@ -123,10 +122,6 @@ fun SandboxScreen(
                 allCards = viewModel.allCards,
                 handCards = state.filledCards,
                 onAssignmentChange = viewModel::setJokerAssignment,
-            )
-
-            ChoiceSection(
-                handCards = state.filledCards,
                 islandTargetKey = state.playerChoices.islandTargetKey,
                 fountainSourceKey = state.playerChoices.fountainSourceKey,
                 onIslandChange = viewModel::setIslandTarget,

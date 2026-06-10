@@ -4,14 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
-import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.RoundRepository
-import de.morzo.realmscore.domain.scoring.JokerAssignment
 import de.morzo.realmscore.domain.scoring.ScoringEngine
 import de.morzo.realmscore.domain.scoring.ScoringInput
+import de.morzo.realmscore.domain.scoring.toScoringChoices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -98,16 +97,16 @@ class RevealViewModel(
     ): List<String> {
         val hand = cards.mapNotNull { cardLookup.getByKey(it.cardKey) }
         if (hand.size != cards.size) return emptyList()
-        val assignments: Map<String, JokerAssignment> = cards.mapNotNull { entry ->
-            val target = entry.jokerTargetCardKey ?: return@mapNotNull null
-            val suit = entry.jokerTargetSuit?.let { runCatching { Suit.valueOf(it) }.getOrNull() }
-            entry.cardKey to JokerAssignment(
-                jokerKey = entry.cardKey,
-                targetCardKey = target,
-                targetSuit = suit,
-            )
-        }.toMap()
-        val result = engine.score(ScoringInput(hand = hand, jokerAssignments = assignments))
+        // Rebuild jokers AND playerChoices so the Necromancer pick / Island / Fountain effects are
+        // reflected here exactly as in the Sandbox (shared toScoringChoices mapper).
+        val reconstructed = cards.toScoringChoices()
+        val result = engine.score(
+            ScoringInput(
+                hand = hand,
+                jokerAssignments = reconstructed.jokerAssignments,
+                playerChoices = reconstructed.playerChoices,
+            ),
+        )
         return result.perCard
             .filter { !it.isBlanked }
             .sortedByDescending { it.contributedScore }

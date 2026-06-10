@@ -113,7 +113,16 @@ class OptimalSolver(
                             ),
                         )
                         val result = engine.score(candidateInput)
-                        if (best == null || result.totalScore > best!!.bestResult.totalScore) {
+                        val better = when {
+                            best == null -> true
+                            result.totalScore != best!!.bestResult.totalScore ->
+                                result.totalScore > best!!.bestResult.totalScore
+                            // Equal score: prefer the combo that fills in more selections, so a
+                            // joker / Island / Fountain / Necromancer pick whose effect is
+                            // irrelevant still gets a valid value instead of being left "unset".
+                            else -> candidateInput.selectionCount() > best!!.bestInput.selectionCount()
+                        }
+                        if (better) {
                             best = OptimalResult(candidateInput, result)
                         }
                     }
@@ -128,6 +137,13 @@ class OptimalSolver(
         }
         return best!!
     }
+
+    /** Number of filled-in selections — used to break score ties toward concrete values. */
+    private fun ScoringInput.selectionCount(): Int =
+        jokerAssignments.size +
+            (if (playerChoices.islandTargetKey != null) 1 else 0) +
+            (if (playerChoices.fountainSourceKey != null) 1 else 0) +
+            (if (playerChoices.necromancerPickKey != null) 1 else 0)
 
     private inline fun forEachJokerCombo(
         candidates: List<Pair<String, List<JokerAssignment?>>>,

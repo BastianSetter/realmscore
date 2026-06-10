@@ -34,7 +34,8 @@
       "Bash(Select-Object -First 300)",
       "Bash(xargs grep -ln \"findOptimal\\\\|OptimalResult\\\\|ScoringInput\\\\|discardScanned\\\\|necromancer\")",
       "Bash(pip show *)",
-      "PowerShell(git stash *)"
+      "PowerShell(git stash *)",
+      "Bash(git reset *)"
     ]
   }
 }

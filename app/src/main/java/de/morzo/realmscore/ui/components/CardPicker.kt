@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,16 +20,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +45,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.Suit
@@ -58,6 +62,10 @@ fun CardPicker(
     excludedKeys: Set<String> = emptySet(),
     showClearButton: Boolean = false,
     onClear: (() -> Unit)? = null,
+    // When both are non-null, the title shows a "(scanned/total)" progress hint — used during the
+    // continuous-fill capture of a hand/Mittelfeld so the user sees how many cards are already in.
+    scannedCount: Int? = null,
+    totalCount: Int? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     // Single-select suit filter. null = "Alle" (no filter).
@@ -87,65 +95,88 @@ fun CardPicker(
             .toList()
     }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
+    // Full-screen dialog (Phase 18.2): the picker used to be a ModalBottomSheet "pull-up". A
+    // full-screen Dialog keeps the existing search / suit-column / card-list content intact while
+    // giving it the whole screen. Back press maps to onDismiss via the Dialog.
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        modifier = modifier,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.card_picker_title),
-                style = MaterialTheme.typography.titleLarge,
-            )
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text(stringResource(R.string.card_picker_search)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (showClearButton && onClear != null) {
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = onClear,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(imageVector = Icons.Default.Delete, contentDescription = null)
-                    Spacer(Modifier.size(8.dp))
-                    Text(stringResource(R.string.sandbox_remove_card))
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(8.dp))
-            Row(
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+            topBar = {
+                TopAppBar(
+                    title = {
+                        val base = stringResource(R.string.card_picker_title)
+                        Text(
+                            if (scannedCount != null && totalCount != null) {
+                                "$base ($scannedCount/$totalCount)"
+                            } else {
+                                base
+                            },
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.card_picker_close),
+                            )
+                        }
+                    },
+                )
+            },
+        ) { padding ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 420.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 16.dp),
             ) {
-                SuitColumn(
-                    suits = availableSuits,
-                    selected = effectiveSuit,
-                    onSelect = { selectedSuit = it },
-                    modifier = Modifier
-                        .width(128.dp)
-                        .fillMaxHeight(),
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text(stringResource(R.string.card_picker_search)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                CardColumn(
-                    cards = filtered,
-                    onCardClick = onCardChosen,
+                if (showClearButton && onClear != null) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = onClear,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = null)
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.sandbox_remove_card))
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                Row(
                     modifier = Modifier
-                        .fillMaxHeight()
+                        .fillMaxWidth()
                         .weight(1f),
-                )
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SuitColumn(
+                        suits = availableSuits,
+                        selected = effectiveSuit,
+                        onSelect = { selectedSuit = it },
+                        modifier = Modifier
+                            .width(128.dp)
+                            .fillMaxHeight(),
+                    )
+                    CardColumn(
+                        cards = filtered,
+                        onCardClick = onCardChosen,
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(1f),
+                    )
+                }
             }
         }
     }

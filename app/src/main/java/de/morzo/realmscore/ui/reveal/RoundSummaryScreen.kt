@@ -49,10 +49,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
+import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.displayName
 import de.morzo.realmscore.ui.util.currentLocale
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.ui.components.HandBreakdownSheet
+import de.morzo.realmscore.ui.components.suitColor
+import de.morzo.realmscore.ui.components.suitOnColor
 import de.morzo.realmscore.ui.sandbox.components.MoveToSandboxIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,7 +83,6 @@ fun RoundSummaryScreen(
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
     var breakdownProfileId by remember { mutableStateOf<String?>(null) }
-    val locale = currentLocale()
 
     Scaffold(
         topBar = {
@@ -127,7 +129,7 @@ fun RoundSummaryScreen(
 
                 if (state.discardScanned) {
                     Spacer(Modifier.height(8.dp))
-                    DiscardSection(cardNames = state.discardCards.map { it.displayName(locale) })
+                    DiscardSection(cards = state.discardCards)
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -265,7 +267,8 @@ private fun PlayerSummaryCard(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DiscardSection(cardNames: List<String>) {
+private fun DiscardSection(cards: List<CardDefinition>) {
+    val locale = currentLocale()
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -277,21 +280,25 @@ private fun DiscardSection(cardNames: List<String>) {
                 style = MaterialTheme.typography.titleSmall,
             )
             Text(
-                text = stringResource(R.string.round_summary_discard_count, cardNames.size),
+                text = stringResource(R.string.round_summary_discard_count, cards.size),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (cardNames.isNotEmpty()) {
+            if (cards.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    cardNames.forEach { name ->
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    cards.forEach { card ->
                         Surface(
-                            color = MaterialTheme.colorScheme.surface,
+                            color = suitColor(card.suit),
                             shape = RoundedCornerShape(6.dp),
                         ) {
                             Text(
-                                text = name,
+                                text = card.displayName(locale),
                                 style = MaterialTheme.typography.labelMedium,
+                                color = suitOnColor(card.suit),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }

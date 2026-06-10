@@ -13,12 +13,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 
+/** Minimum number of closed games before the stats overview is shown instead of the empty state. */
+const val STATS_MIN_GAMES = 3
+
 data class StatsOverviewUiState(
     val isLoading: Boolean = true,
     val overview: StatsOverview? = null,
 ) {
     val isEmpty: Boolean
-        get() = overview != null && overview.totalClosedGames < 3
+        get() = overview != null && overview.totalClosedGames < STATS_MIN_GAMES
 }
 
 class StatsOverviewViewModel(

@@ -31,7 +31,7 @@
     <string name="tab_history">Historie</string>
     <string name="tab_stats">Statistik</string>
     <string name="tab_sandbox">Sandbox</string>
-    <string name="tab_settings">Einstellungen</string>
+    <string name="tab_settings">Optionen</string>
 
     <string name="placeholder_new_game">Neues Spiel kommt hier hin</string>
     <string name="placeholder_stats">Statistik kommt hier hin</string>
@@ -153,6 +153,7 @@
     <string name="card_picker_title">Karte wählen</string>
     <string name="card_picker_search">Karte suchen</string>
     <string name="card_picker_no_results">Keine Karte gefunden</string>
+    <string name="card_picker_close">Schließen</string>
 
     <string name="suit_army">Armee</string>
     <string name="suit_artifact">Artefakt</string>
@@ -322,7 +323,10 @@
     <string name="stats_h2h_select_opponent">Gegner auswählen</string>
 
     <string name="stats_empty_title">Noch keine Statistiken</string>
-    <string name="stats_empty_body">Spiele ein paar Runden, dann gibt\'s hier Insights.</string>
+    <plurals name="stats_empty_body">
+        <item quantity="one">Spiele noch %1$d Spiel, dann gibt\'s hier Insights.</item>
+        <item quantity="other">Spiele noch %1$d Spiele, dann gibt\'s hier Insights.</item>
+    </plurals>
     <string name="stats_back">Zurück</string>
 
     <!-- Settings (Phase 15) -->
