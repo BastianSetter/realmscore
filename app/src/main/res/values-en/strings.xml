@@ -181,6 +181,7 @@
     <string name="breakdown_mode_list">List</string>
     <string name="ring_base_strength">Base strength: %1$d</string>
     <string name="ring_tap_hint">Tap a card to see its connections and points.</string>
+    <string name="ring_blanked_by">Blanked by %1$s</string>
     <string name="sandbox_joker_section_title">Joker resolution</string>
     <string name="sandbox_joker_target">Mirrors</string>
     <string name="sandbox_joker_unset">— not set —</string>

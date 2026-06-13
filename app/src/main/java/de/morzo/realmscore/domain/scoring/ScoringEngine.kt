@@ -61,7 +61,8 @@ class ScoringEngine(
         // also consumes the cancellations: a card whose penalty is fully cancelled (e.g. Herr
         // der Bestien → Basilisk, Gebirge → Große Flut) blanks nothing.
         val blanker = BlankingResolver { key -> registry.get(key) }
-        val blankedKeys = blanker.resolve(workingCtx, rawCancellations)
+        val blankingOutcome = blanker.resolve(workingCtx, rawCancellations)
+        val blankedKeys = blankingOutcome.blanked
 
         // 4) PenaltyContext: clearing is permanent.
         // Per the rulebook order of operations, clearing happens *before* penalties are applied,
@@ -81,14 +82,22 @@ class ScoringEngine(
         val perCard = resolved.map { card ->
             val isNecromancerPick = card.originalKey == necromancerPickKey
             val isBlanked = card.originalKey in blankedKeys
+            // Book of Changes re-suits a card while it keeps its own identity (effectiveCardKey ==
+            // originalKey). A different effectiveCardKey means a Doppelganger/Mirage/Shapeshifter
+            // substitution instead, which is not a suit-only change and must not be flagged here.
+            val printedSuit = cardLookup(card.originalKey)?.suit
+            val bookOfChangesSuit = card.effectiveSuit.takeIf {
+                card.effectiveCardKey == card.originalKey && printedSuit != null && it != printedSuit
+            }
             if (isBlanked) {
                 return@map CardScoreResult(
                     cardKey = card.originalKey,
-                    effectiveName = card.effectiveName,
+                    effectiveCardKey = card.effectiveCardKey,
                     contributedScore = 0,
                     isBlanked = true,
                     effects = emptyList(),
                     isNecromancerPick = isNecromancerPick,
+                    bookOfChangesSuit = bookOfChangesSuit,
                 )
             }
 
@@ -100,7 +109,7 @@ class ScoringEngine(
                 effects += EffectApplication(
                     sourceCardKey = card.originalKey,
                     descriptionKey = "effect_base_strength",
-                    descriptionArgs = listOf(card.effectiveName),
+                    nameCardKey = card.effectiveCardKey,
                     pointsDelta = card.effectiveStrength,
                 )
             }
@@ -116,11 +125,12 @@ class ScoringEngine(
 
             CardScoreResult(
                 cardKey = card.originalKey,
-                effectiveName = card.effectiveName,
+                effectiveCardKey = card.effectiveCardKey,
                 contributedScore = effects.sumOf { it.pointsDelta },
                 isBlanked = false,
                 effects = effects,
                 isNecromancerPick = isNecromancerPick,
+                bookOfChangesSuit = bookOfChangesSuit,
             )
         }
 
@@ -128,6 +138,7 @@ class ScoringEngine(
             totalScore = perCard.sumOf { it.contributedScore },
             perCard = perCard,
             blankedKeys = blankedKeys,
+            blankedBy = blankingOutcome.blankedBy,
         )
     }
 
@@ -149,7 +160,6 @@ class ScoringEngine(
             ResolvedCard(
                 originalKey = picked.key,
                 effectiveCardKey = picked.key,
-                effectiveName = picked.nameDe,
                 effectiveSuit = picked.suit,
                 effectiveStrength = picked.baseStrength,
                 bonusEnabled = !picked.isJoker,

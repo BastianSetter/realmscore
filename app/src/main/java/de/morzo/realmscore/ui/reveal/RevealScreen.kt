@@ -48,6 +48,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
+import de.morzo.realmscore.domain.model.displayName
+import de.morzo.realmscore.ui.util.currentLocale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,6 +107,7 @@ fun RevealScreen(
                     PlayerRevealCard(
                         player = state.players[index],
                         isWinner = index == state.players.size - 1,
+                        cardLookup = container.cardLookup::getByKey,
                     )
                 } else {
                     CompletionContent(onContinue = onDone)
@@ -128,7 +131,11 @@ fun RevealScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PlayerRevealCard(player: PlayerReveal, isWinner: Boolean) {
+private fun PlayerRevealCard(
+    player: PlayerReveal,
+    isWinner: Boolean,
+    cardLookup: (String) -> de.morzo.realmscore.domain.model.CardDefinition?,
+) {
     val animatedScore by animateIntAsState(
         targetValue = player.finalScore,
         animationSpec = tween(durationMillis = 1500),
@@ -186,14 +193,15 @@ private fun PlayerRevealCard(player: PlayerReveal, isWinner: Boolean) {
             fontWeight = FontWeight.Bold,
         )
 
-        if (player.topCards.isNotEmpty()) {
+        if (player.topCardKeys.isNotEmpty()) {
+            val locale = currentLocale()
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                player.topCards.forEach { name ->
-                    TopCardChip(name)
+                player.topCardKeys.forEach { key ->
+                    TopCardChip(cardLookup(key)?.displayName(locale) ?: key)
                 }
             }
         }

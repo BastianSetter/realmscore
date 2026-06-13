@@ -31,7 +31,8 @@ object FountainOfLifeRule : CardScoringRule {
             EffectApplication(
                 sourceCardKey = self.originalKey,
                 descriptionKey = "effect_fountain_of_life",
-                descriptionArgs = listOf(source.effectiveName, source.effectiveStrength.toString()),
+                nameCardKey = source.effectiveCardKey,
+                descriptionArgs = listOf(source.effectiveStrength.toString()),
                 pointsDelta = source.effectiveStrength,
             )
         )

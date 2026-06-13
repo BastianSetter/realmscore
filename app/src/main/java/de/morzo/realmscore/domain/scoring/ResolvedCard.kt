@@ -17,7 +17,6 @@ import de.morzo.realmscore.domain.model.Suit
 data class ResolvedCard(
     val originalKey: String,
     val effectiveCardKey: String,
-    val effectiveName: String,
     val effectiveSuit: Suit,
     val effectiveStrength: Int,
     val bonusEnabled: Boolean,

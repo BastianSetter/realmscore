@@ -10,6 +10,15 @@ data class EffectApplication(
     val sourceCardKey: String,
     val descriptionKey: String,
     val descriptionArgs: List<String> = emptyList(),
+    /**
+     * Language-neutral key of a card whose localized NAME is the leading format argument of
+     * [descriptionKey] (`%1$s`), resolved by the UI via `cardLookup(it).displayName(locale)`. The
+     * resolved name is prepended to [descriptionArgs], so a string like "Base strength %1$s" or
+     * "Copies strength of %1$s (+%2$s)" gets its name as `%1$s` and the numbers as the following
+     * args. Null when the effect text has no card-name placeholder. Keeps the engine Android-free:
+     * it emits keys, never finished German text (spec 25.7, Ursache B).
+     */
+    val nameCardKey: String? = null,
     val pointsDelta: Int,
     /**
      * Other hand cards that *caused* this effect (e.g. the Lands a Ranger counts, the Queen that

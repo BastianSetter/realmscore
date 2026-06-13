@@ -29,6 +29,15 @@ import de.morzo.realmscore.domain.scoring.penalty.PenaltyContext
  *
  * Base-game cycles are impossible, so the loop converges within a few rounds; we cap at 10.
  */
+/**
+ * Result of a blanking fixpoint: the set of blanked originalKeys plus, per blanked card, the
+ * other cards responsible (self-blanks excluded).
+ */
+data class BlankingOutcome(
+    val blanked: Set<String>,
+    val blankedBy: Map<String, List<String>>,
+)
+
 class BlankingResolver(
     private val ruleFor: (String) -> CardScoringRule?,
 ) {
@@ -37,34 +46,42 @@ class BlankingResolver(
      * @param rawCancellations all penalty cancellations emitted by the hand (bonus-gated,
      *        collected from the full pre-blanking hand). Clearing is permanent, so this snapshot
      *        is held constant; any blanker whose own penalty it fully cancels blanks nothing.
+     * @return the blanked originalKeys together with, per blanked card, the *other* cards that
+     *         blank it (self-blanks excluded from the source list).
      */
     fun resolve(
         initialContext: ScoringContext,
         rawCancellations: List<PenaltyCancellation> = emptyList(),
-    ): Set<String> {
+    ): BlankingOutcome {
         val hand = initialContext.hand
         val penaltyCtx = PenaltyContext(rawCancellations)
         var blanked: Set<String> = emptySet()
+        var lastMap: Map<String, List<String>> = emptyMap()
         repeat(MAX_ROUNDS) {
             val ctxThisRound = initialContext.copy(
                 blankedKeys = blanked,
                 penaltyContext = penaltyCtx,
             )
-            val newBlanked = computeBlanked(hand, ctxThisRound, penaltyCtx)
-            if (newBlanked == blanked) return blanked
-            blanked = newBlanked
+            val newMap = computeBlanked(hand, ctxThisRound, penaltyCtx)
+            lastMap = newMap.mapValues { it.value.toList() }
+            val newBlanked = newMap.keys
+            // The blanked set is the fixpoint variable; once it stabilizes the (deterministic)
+            // source map computed against it is final too.
+            if (newBlanked == blanked) return BlankingOutcome(blanked, lastMap)
+            blanked = LinkedHashSet(newBlanked)
         }
-        return blanked
+        return BlankingOutcome(blanked, lastMap)
     }
 
     private fun computeBlanked(
         hand: List<ResolvedCard>,
         ctx: ScoringContext,
         penaltyCtx: PenaltyContext,
-    ): Set<String> {
+    ): Map<String, MutableSet<String>> {
         // Pass conditions a hand that doesn't include already-blanked cards.
         val activeHand = hand.filter { it.originalKey !in ctx.blankedKeys }
-        val result = mutableSetOf<String>()
+        // target originalKey -> originalKeys of the foreign cards blanking it (self excluded).
+        val result = LinkedHashMap<String, MutableSet<String>>()
         for (target in hand) {
             for (source in hand) {
                 if (!source.penaltyEnabled) continue
@@ -77,11 +94,14 @@ class BlankingResolver(
                     // Blank-others effects from a blanked source are inert.
                     if (!isSelf && source.originalKey in ctx.blankedKeys) continue
                     if (effect.blanks(self = source, target = target, hand = activeHand)) {
-                        result += target.originalKey
+                        val sources = result.getOrPut(target.originalKey) { linkedSetOf() }
+                        // A self-blank marks the card blanked but is not a foreign "blocked by".
+                        if (source.originalKey != target.originalKey) {
+                            sources += source.originalKey
+                        }
                         break
                     }
                 }
-                if (target.originalKey in result) break
             }
         }
         return result

@@ -82,6 +82,11 @@ class JokerTest {
         )
         val r = TestFixture.engine.score(input)
         assertEquals(16, r.totalScore)
+
+        // The re-suited target carries its new suit (ring half-colour); nothing else does.
+        assertEquals(Suit.LAND, r.perCard.first { it.cardKey == "rangers" }.bookOfChangesSuit)
+        assertEquals(null, r.perCard.first { it.cardKey == "king" }.bookOfChangesSuit)
+        assertEquals(null, r.perCard.first { it.cardKey == "book_of_changes" }.bookOfChangesSuit)
     }
 
     @Test fun `shapeshifter copies suit only`() {

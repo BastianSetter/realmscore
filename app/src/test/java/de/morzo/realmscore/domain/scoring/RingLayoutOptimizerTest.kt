@@ -101,12 +101,17 @@ class RingLayoutOptimizerTest {
             perCard = listOf(
                 CardScoreResult(
                     cardKey = "king",
-                    effectiveName = "king",
+                    effectiveCardKey = "king",
                     contributedScore = 8,
                     isBlanked = false,
                     effects = listOf(
                         // base strength has no contributors -> no edge
-                        EffectApplication("king", "effect_base_strength", listOf("king"), 8),
+                        EffectApplication(
+                            sourceCardKey = "king",
+                            descriptionKey = "effect_base_strength",
+                            nameCardKey = "king",
+                            pointsDelta = 8,
+                        ),
                         // king's bonus is driven by queen (+6) and a foreign card (skipped)
                         EffectApplication(
                             sourceCardKey = "king",
@@ -118,7 +123,7 @@ class RingLayoutOptimizerTest {
                 ),
                 CardScoreResult(
                     cardKey = "queen",
-                    effectiveName = "queen",
+                    effectiveCardKey = "queen",
                     contributedScore = -3,
                     isBlanked = false,
                     effects = listOf(
@@ -154,7 +159,7 @@ class RingLayoutOptimizerTest {
             perCard = listOf(
                 CardScoreResult(
                     cardKey = "rangers",
-                    effectiveName = "rangers",
+                    effectiveCardKey = "rangers",
                     contributedScore = 30,
                     isBlanked = false,
                     effects = listOf(

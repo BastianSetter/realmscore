@@ -8,6 +8,9 @@ import de.morzo.realmscore.domain.model.CardDefinition
  * Indices reference the position in the `cards` list handed to [RingLayoutOptimizer] /
  * `HandRingView`. [weight] is the net point effect the source card exerts on the target card:
  * positive = bonus (green), negative = penalty (red).
+ *
+ * When [isBlanking] is true the edge represents `source blanks target`; its [weight] is 0 (a
+ * blanked card scores nothing) and it is rendered as a black line.
  */
 data class RingConnection(
     val fromCardIdx: Int,
@@ -47,10 +50,27 @@ fun buildRingConnections(
             }
         }
     }
-    return summed.mapNotNull { (pair, weight) ->
+    val edges = summed.mapNotNull { (pair, weight) ->
         if (weight == 0) null
         else RingConnection(fromCardIdx = pair.first, toCardIdx = pair.second, weight = weight)
+    }.toMutableList()
+
+    // Blanking edges (black line source → target). A blanked card has no other edges, so this is
+    // the only line that ties it back into the ring.
+    scoringResult.blankedBy.forEach { (targetKey, sourceKeys) ->
+        val toIdx = idxByKey[targetKey] ?: return@forEach
+        sourceKeys.forEach { sourceKey ->
+            val fromIdx = idxByKey[sourceKey] ?: return@forEach
+            if (fromIdx == toIdx) return@forEach
+            edges += RingConnection(
+                fromCardIdx = fromIdx,
+                toCardIdx = toIdx,
+                weight = 0,
+                isBlanking = true,
+            )
+        }
     }
+    return edges
 }
 
 /** Splits [total] into [parts] near-equal integer shares that sum back to [total]. */

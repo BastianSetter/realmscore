@@ -181,6 +181,7 @@
     <string name="breakdown_mode_list">Liste</string>
     <string name="ring_base_strength">Basisstärke: %1$d</string>
     <string name="ring_tap_hint">Tippe auf eine Karte, um ihre Verbindungen und Punkte zu sehen.</string>
+    <string name="ring_blanked_by">Geblankt von %1$s</string>
     <string name="sandbox_joker_section_title">Joker-Auflösung</string>
     <string name="sandbox_joker_target">Spiegelt</string>
     <string name="sandbox_joker_unset">— nicht gesetzt —</string>

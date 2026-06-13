@@ -32,6 +32,7 @@ import de.morzo.realmscore.domain.scoring.JokerAssignment
 import de.morzo.realmscore.domain.scoring.ResolvedCard
 import de.morzo.realmscore.domain.scoring.joker.JokerResolver
 import de.morzo.realmscore.ui.util.currentLocale
+import java.util.Locale
 
 private val MIRAGE_SUITS = setOf(Suit.ARMY, Suit.LAND, Suit.WEATHER, Suit.FLOOD, Suit.FLAME)
 private val SHAPESHIFTER_SUITS = setOf(Suit.ARTIFACT, Suit.LEADER, Suit.WIZARD, Suit.WEAPON, Suit.BEAST)
@@ -42,6 +43,10 @@ private val FOUNTAIN_SUITS = setOf(Suit.WEAPON, Suit.FLOOD, Suit.FLAME, Suit.LAN
 
 /** A pickable target: [key] is the physical hand card chosen, [label] the text shown to the user. */
 private data class TargetOption(val key: String, val label: String)
+
+/** Localized name of a resolved card's effective identity, falling back to the raw key. */
+private fun ResolvedCard.effectiveLabel(allCards: List<CardDefinition>, locale: Locale): String =
+    allCards.firstOrNull { it.key == effectiveCardKey }?.displayName(locale) ?: effectiveCardKey
 
 /**
  * One titled row per card that needs a player choice (Phase 23): the four substitution jokers plus
@@ -137,17 +142,19 @@ private fun JokerRow(
             JokerType.BOOK_OF_CHANGES ->
                 handCards.filter { it.key != joker.key }
                     .map { TargetOption(it.key, it.displayName(locale)) }
-            // Island/Fountain: candidates come from the RESOLVED hand, labelled by effective name,
-            // so a Doppelganger that became an eligible card is offered (and shown) correctly.
+            // Island/Fountain: candidates come from the RESOLVED hand, labelled by the effective
+            // card's localized name (a Doppelganger that became an eligible card is offered, and
+            // shown, correctly). The label resolves the effectiveCardKey against the full card set
+            // so it follows the active language (spec 25.7, Ursache B).
             JokerType.ISLAND ->
                 resolved.filter { it.originalKey != joker.key && it.effectiveSuit in ISLAND_SUITS }
-                    .map { TargetOption(it.originalKey, it.effectiveName) }
+                    .map { TargetOption(it.originalKey, it.effectiveLabel(allCards, locale)) }
             JokerType.FOUNTAIN_OF_LIFE ->
                 resolved.filter {
                     it.originalKey != joker.key &&
                         it.effectiveSuit in FOUNTAIN_SUITS &&
                         it.effectiveStrength > 0
-                }.map { TargetOption(it.originalKey, it.effectiveName) }
+                }.map { TargetOption(it.originalKey, it.effectiveLabel(allCards, locale)) }
             null -> emptyList()
         }
     }

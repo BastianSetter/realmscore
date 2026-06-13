@@ -17,6 +17,9 @@ import kotlin.math.abs
  */
 object RingLayoutOptimizer {
 
+    /** Nominal weight used for (weightless) blanking edges so blanker and blanked sit adjacent. */
+    private const val BLANK_LAYOUT_WEIGHT = 4
+
     /**
      * @param cards the hand cards.
      * @param scores `contributedScore` parallel to [cards]; used only to pick the top anchor.
@@ -53,7 +56,10 @@ object RingLayoutOptimizer {
 
             var cost = 0
             for (conn in connections) {
-                cost += abs(conn.weight) * arcDist(pos[conn.fromCardIdx], pos[conn.toCardIdx], n)
+                // Blanking edges carry weight 0; give them a nominal pull so a blanked card sits
+                // next to whoever blanks it.
+                val w = if (conn.isBlanking) BLANK_LAYOUT_WEIGHT else abs(conn.weight)
+                cost += w * arcDist(pos[conn.fromCardIdx], pos[conn.toCardIdx], n)
             }
 
             if (cost < bestCost) {

@@ -130,6 +130,7 @@ fun MultiHandScreen(
                     label = stringResource(R.string.multihand_left),
                     vm = vmLeft,
                     state = stateLeft,
+                    cardLookup = container.cardLookup::getByKey,
                 )
                 VerticalDivider()
                 SandboxHandColumn(
@@ -137,6 +138,7 @@ fun MultiHandScreen(
                     label = stringResource(R.string.multihand_right),
                     vm = vmRight,
                     state = stateRight,
+                    cardLookup = container.cardLookup::getByKey,
                 )
             }
         }
@@ -209,6 +211,7 @@ private fun SandboxHandColumn(
     label: String,
     vm: SandboxViewModel,
     state: SandboxUiState,
+    cardLookup: (String) -> CardDefinition?,
     modifier: Modifier = Modifier,
 ) {
     var pickerForSlot by remember { mutableStateOf<Int?>(null) }
@@ -236,6 +239,7 @@ private fun SandboxHandColumn(
                 slot = slot,
                 score = (slot as? CardSlot.Filled)?.let { perCard[it.card.key] },
                 onEdit = { pickerForSlot = index },
+                cardLookup = cardLookup,
             )
         }
 
@@ -300,10 +304,11 @@ private fun MultiHandSlot(
     slot: CardSlot,
     score: CardScoreResult?,
     onEdit: () -> Unit,
+    cardLookup: (String) -> CardDefinition?,
 ) {
     when (slot) {
         CardSlot.Empty -> EmptyMultiHandSlot(onEdit)
-        is CardSlot.Filled -> FilledMultiHandSlot(slot.card, score, onEdit)
+        is CardSlot.Filled -> FilledMultiHandSlot(slot.card, score, onEdit, cardLookup)
     }
 }
 
@@ -333,6 +338,7 @@ private fun FilledMultiHandSlot(
     card: CardDefinition,
     score: CardScoreResult?,
     onEdit: () -> Unit,
+    cardLookup: (String) -> CardDefinition?,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Surface(
@@ -370,7 +376,7 @@ private fun FilledMultiHandSlot(
             if (expanded && score != null && score.effects.isNotEmpty()) {
                 Box(Modifier.background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp))) {
                     Column(Modifier.fillMaxWidth().padding(8.dp)) {
-                        score.effects.forEach { effect -> BreakdownEffectRow(effect) }
+                        score.effects.forEach { effect -> BreakdownEffectRow(effect, cardLookup) }
                     }
                 }
             }

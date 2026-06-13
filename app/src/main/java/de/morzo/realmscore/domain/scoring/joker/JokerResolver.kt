@@ -41,7 +41,6 @@ class JokerResolver(
                 JokerType.DOPPELGANGER -> ResolvedCard(
                     originalKey = original.key,
                     effectiveCardKey = target.key,
-                    effectiveName = target.nameDe,
                     effectiveSuit = target.suit,
                     effectiveStrength = target.baseStrength,
                     bonusEnabled = false,
@@ -50,7 +49,6 @@ class JokerResolver(
                 JokerType.MIRAGE, JokerType.SHAPESHIFTER -> ResolvedCard(
                     originalKey = original.key,
                     effectiveCardKey = target.key,
-                    effectiveName = target.nameDe,
                     effectiveSuit = target.suit,
                     effectiveStrength = 0,
                     bonusEnabled = false,
@@ -83,7 +81,6 @@ class JokerResolver(
     private fun CardDefinition.toResolved(): ResolvedCard = ResolvedCard(
         originalKey = key,
         effectiveCardKey = key,
-        effectiveName = nameDe,
         effectiveSuit = suit,
         effectiveStrength = baseStrength,
         bonusEnabled = !isJoker, // unassigned jokers contribute nothing

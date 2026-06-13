@@ -24,7 +24,8 @@ data class PlayerReveal(
     val name: String,
     val colorArgb: Int,
     val finalScore: Int,
-    val topCards: List<String>,
+    /** Language-neutral keys of the top-scoring cards; the UI resolves them to localized names. */
+    val topCardKeys: List<String>,
 )
 
 data class RevealUiState(
@@ -60,7 +61,7 @@ class RevealViewModel(
                 val profile = profileRepo.getById(participant.profileId) ?: return@mapNotNull null
                 val saved = handCardRepo.getHand(roundId, participant.profileId)
                     ?: return@mapNotNull null
-                val topCards = withContext(Dispatchers.Default) {
+                val topCardKeys = withContext(Dispatchers.Default) {
                     computeTopCards(saved.cards)
                 }
                 PlayerReveal(
@@ -68,7 +69,7 @@ class RevealViewModel(
                     name = profile.name,
                     colorArgb = profile.colorArgb,
                     finalScore = saved.totalScore,
-                    topCards = topCards,
+                    topCardKeys = topCardKeys,
                 )
             }.sortedBy { it.finalScore }
 
@@ -92,6 +93,7 @@ class RevealViewModel(
         }
     }
 
+    /** Returns the language-neutral keys of the three top-scoring non-blanked cards. */
     private fun computeTopCards(
         cards: List<de.morzo.realmscore.domain.repository.HandCardEntry>,
     ): List<String> {
@@ -111,7 +113,7 @@ class RevealViewModel(
             .filter { !it.isBlanked }
             .sortedByDescending { it.contributedScore }
             .take(3)
-            .map { it.effectiveName }
+            .map { it.effectiveCardKey }
     }
 
     class Factory(

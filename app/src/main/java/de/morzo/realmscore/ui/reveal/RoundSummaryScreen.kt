@@ -187,6 +187,7 @@ fun RoundSummaryScreen(
             HandBreakdownSheet(
                 cards = handCards,
                 result = it,
+                cardLookup = container.cardLookup::getByKey,
                 onDismiss = { breakdownProfileId = null },
             )
         }

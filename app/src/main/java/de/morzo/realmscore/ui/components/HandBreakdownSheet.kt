@@ -37,6 +37,7 @@ private enum class BreakdownMode { RING, LIST }
 fun HandBreakdownSheet(
     cards: List<CardDefinition>,
     result: ScoringResult,
+    cardLookup: (String) -> CardDefinition?,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -67,9 +68,14 @@ fun HandBreakdownSheet(
                 )
             }
             when (mode) {
-                BreakdownMode.RING -> HandRingView(cards = cards, scoringResult = result)
+                BreakdownMode.RING -> HandRingView(
+                    handCards = cards,
+                    scoringResult = result,
+                    cardLookup = cardLookup,
+                )
                 BreakdownMode.LIST -> CardBreakdownList(
                     result = result,
+                    cardLookup = cardLookup,
                     modifier = Modifier.heightIn(max = 480.dp),
                 )
             }

@@ -257,6 +257,7 @@ fun SandboxScreen(
         HandBreakdownSheet(
             cards = state.filledCards,
             result = result,
+            cardLookup = container.cardLookup::getByKey,
             onDismiss = viewModel::closeBreakdown,
         )
     }
