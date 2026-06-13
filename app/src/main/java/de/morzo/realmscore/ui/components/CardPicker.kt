@@ -67,38 +67,15 @@ fun CardPicker(
     // continuous-fill capture of a hand/Mittelfeld so the user sees how many cards are already in.
     scannedCount: Int? = null,
     totalCount: Int? = null,
+    // Highlights the card with this key in the list (e.g. the card currently held in the slot being
+    // corrected), so the user sees which entry they are about to replace.
+    highlightedKey: String? = null,
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-    // Single-select suit filter. null = "Alle" (no filter).
-    // See docs/ui-decisions/cardpicker-suit-filter.md for the rationale and the
-    // future option to toggle back to multi-select behaviour.
-    var selectedSuit by rememberSaveable { mutableStateOf<Suit?>(null) }
-
-    // Only offer suit filters that actually have selectable cards (e.g. the Necromancer picker
-    // receives a pre-filtered Army/Wizard/Leader/Beast list, so the other suits are hidden).
-    val availableSuits = remember(allCards, excludedKeys) {
-        Suit.entries.filter { suit -> allCards.any { it.suit == suit && it.key !in excludedKeys } }
-    }
-    // A previously selected suit may no longer be offered after the card set changes → treat as "Alle".
-    val effectiveSuit = selectedSuit?.takeIf { it in availableSuits }
-
-    val filtered = remember(query, effectiveSuit, allCards, excludedKeys) {
-        val normalizedQuery = query.trim().lowercase()
-        allCards
-            .asSequence()
-            .filter { it.key !in excludedKeys }
-            .filter { effectiveSuit == null || it.suit == effectiveSuit }
-            .filter {
-                normalizedQuery.isEmpty() ||
-                    it.nameDe.lowercase().contains(normalizedQuery) ||
-                    it.nameEn?.lowercase()?.contains(normalizedQuery) == true
-            }
-            .toList()
-    }
-
     // Full-screen dialog (Phase 18.2): the picker used to be a ModalBottomSheet "pull-up". A
     // full-screen Dialog keeps the existing search / suit-column / card-list content intact while
-    // giving it the whole screen. Back press maps to onDismiss via the Dialog.
+    // giving it the whole screen. Back press maps to onDismiss via the Dialog. The picker body
+    // itself lives in [CardPickerContent], which the embedded KartenPick flow (spec 25.5) reuses
+    // without this Dialog wrapper.
     Dialog(
         onDismissRequest = onDismiss,
         // decorFitsSystemWindows = false makes this dialog's own window dispatch IME insets
@@ -135,58 +112,123 @@ fun CardPicker(
                 )
             },
         ) { padding ->
-            Column(
+            CardPickerContent(
+                allCards = allCards,
+                onCardChosen = onCardChosen,
+                excludedKeys = excludedKeys,
+                showClearButton = showClearButton,
+                onClear = onClear,
+                highlightedKey = highlightedKey,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .imePadding()
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 16.dp),
-            ) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    label = { Text(stringResource(R.string.card_picker_search)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (showClearButton && onClear != null) {
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = onClear,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(imageVector = Icons.Default.Delete, contentDescription = null)
-                        Spacer(Modifier.size(8.dp))
-                        Text(stringResource(R.string.sandbox_remove_card))
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider()
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    SuitColumn(
-                        suits = availableSuits,
-                        selected = effectiveSuit,
-                        onSelect = { selectedSuit = it },
-                        modifier = Modifier
-                            .width(128.dp)
-                            .fillMaxHeight(),
-                    )
-                    CardColumn(
-                        cards = filtered,
-                        onCardClick = onCardChosen,
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .weight(1f),
-                    )
-                }
+            )
+        }
+    }
+}
+
+/**
+ * The picker body — search field, suit column and card list — without any Dialog/Scaffold wrapper.
+ * Used full-screen inside [CardPicker] (corrections, multi-hand sandbox) and embedded inline in the
+ * KartenPick stage (spec 25.5). Holds its own query/suit-filter state.
+ *
+ * The card list keeps `weight(1f)`, so an embedding caller must give [modifier] a bounded height
+ * (e.g. `Modifier.weight(1f)` within a column) and is responsible for `imePadding()`.
+ *
+ * @param showSearch hide the text-search field (driven by the picker-search setting).
+ * @param highlightedKey card to highlight in the list (the slot's current card during a correction).
+ */
+@Composable
+fun CardPickerContent(
+    allCards: List<CardDefinition>,
+    onCardChosen: (CardDefinition) -> Unit,
+    modifier: Modifier = Modifier,
+    excludedKeys: Set<String> = emptySet(),
+    showClearButton: Boolean = false,
+    onClear: (() -> Unit)? = null,
+    showSearch: Boolean = true,
+    highlightedKey: String? = null,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    // Single-select suit filter. null = "Alle" (no filter).
+    // See docs/ui-decisions/cardpicker-suit-filter.md for the rationale and the
+    // future option to toggle back to multi-select behaviour.
+    var selectedSuit by rememberSaveable { mutableStateOf<Suit?>(null) }
+
+    // Only offer suit filters that actually have selectable cards (e.g. the Necromancer picker
+    // receives a pre-filtered Army/Wizard/Leader/Beast list, so the other suits are hidden).
+    val availableSuits = remember(allCards, excludedKeys) {
+        Suit.entries.filter { suit -> allCards.any { it.suit == suit && it.key !in excludedKeys } }
+    }
+    // A previously selected suit may no longer be offered after the card set changes → treat as "Alle".
+    val effectiveSuit = selectedSuit?.takeIf { it in availableSuits }
+
+    // When the search field is hidden the query must not silently keep filtering the list.
+    val effectiveQuery = if (showSearch) query else ""
+
+    val filtered = remember(effectiveQuery, effectiveSuit, allCards, excludedKeys) {
+        val normalizedQuery = effectiveQuery.trim().lowercase()
+        allCards
+            .asSequence()
+            .filter { it.key !in excludedKeys }
+            .filter { effectiveSuit == null || it.suit == effectiveSuit }
+            .filter {
+                normalizedQuery.isEmpty() ||
+                    it.nameDe.lowercase().contains(normalizedQuery) ||
+                    it.nameEn?.lowercase()?.contains(normalizedQuery) == true
             }
+            .toList()
+    }
+
+    Column(modifier = modifier) {
+        if (showSearch) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text(stringResource(R.string.card_picker_search)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+        if (showClearButton && onClear != null) {
+            OutlinedButton(
+                onClick = onClear,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(imageVector = Icons.Default.Delete, contentDescription = null)
+                Spacer(Modifier.size(8.dp))
+                Text(stringResource(R.string.sandbox_remove_card))
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+        HorizontalDivider()
+        Spacer(Modifier.height(8.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SuitColumn(
+                suits = availableSuits,
+                selected = effectiveSuit,
+                onSelect = { selectedSuit = it },
+                modifier = Modifier
+                    .width(128.dp)
+                    .fillMaxHeight(),
+            )
+            CardColumn(
+                cards = filtered,
+                onCardClick = onCardChosen,
+                highlightedKey = highlightedKey,
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .weight(1f),
+            )
         }
     }
 }
@@ -273,6 +315,7 @@ private fun CardColumn(
     cards: List<CardDefinition>,
     onCardClick: (CardDefinition) -> Unit,
     modifier: Modifier = Modifier,
+    highlightedKey: String? = null,
 ) {
     if (cards.isEmpty()) {
         Box(
@@ -293,20 +336,34 @@ private fun CardColumn(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(cards, key = { it.key }) { card ->
-            CardPickerItem(card = card, onClick = { onCardClick(card) })
+            CardPickerItem(
+                card = card,
+                onClick = { onCardClick(card) },
+                highlighted = card.key == highlightedKey,
+            )
         }
     }
 }
 
 @Composable
-private fun CardPickerItem(card: CardDefinition, onClick: () -> Unit) {
+private fun CardPickerItem(card: CardDefinition, onClick: () -> Unit, highlighted: Boolean = false) {
     val onColor = suitOnColor(card.suit)
+    val highlightModifier = if (highlighted) {
+        Modifier.border(
+            width = 3.dp,
+            color = MaterialTheme.colorScheme.primary,
+            shape = RoundedCornerShape(12.dp),
+        )
+    } else {
+        Modifier
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(suitColor(card.suit))
+            .then(highlightModifier)
             .clickable(onClick = onClick)
             .padding(PaddingValues(horizontal = 12.dp)),
         verticalAlignment = Alignment.CenterVertically,

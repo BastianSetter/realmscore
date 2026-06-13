@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -127,6 +130,7 @@ fun SettingsScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars)
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(vertical = 16.dp),
@@ -160,6 +164,13 @@ fun SettingsScreen(
                 label = stringResource(R.string.settings_discard_capture_enabled),
                 checked = state.discardCaptureEnabled,
                 onCheckedChange = viewModel::setDiscardCaptureEnabled,
+            )
+        }
+        item {
+            ToggleRow(
+                label = stringResource(R.string.settings_picker_search_enabled),
+                checked = state.pickerSearchEnabled,
+                onCheckedChange = viewModel::setPickerSearchEnabled,
             )
         }
 

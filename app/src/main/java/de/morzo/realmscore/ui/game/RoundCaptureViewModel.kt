@@ -42,12 +42,14 @@ private const val DISCARD_COLOR = 0xFF607D8B.toInt()
 private const val DISCARD_SLOTS_TWO_PLAYERS = 10
 private const val DISCARD_SLOTS_MULTI_PLAYER = 12
 
-/** One player chip in the capture dropdown. */
+/** One player chip in the capture dropdown, with its "(x/y)" capture progress. */
 data class CapturePlayer(
     val profileId: String,
     val name: String,
     val colorArgb: Int,
     val captured: Boolean,
+    val cardsCount: Int,
+    val requiredCount: Int,
 )
 
 data class RoundCaptureUiState(
@@ -55,6 +57,8 @@ data class RoundCaptureUiState(
     val roundNumber: Int = 0,
     val orderedPlayers: List<CapturePlayer> = emptyList(),
     val currentProfileId: String? = null,
+    /** Whether the embedded KartenPick picker shows its text-search field (spec 25.5). */
+    val pickerSearchEnabled: Boolean = true,
     /** UI shape consumed by the shared PlayerHandCaptureContent for the current entry. */
     val current: PlayerHandEntryUiState = PlayerHandEntryUiState(isLoading = false),
 ) {
@@ -134,6 +138,7 @@ class RoundCaptureViewModel(
             val playerIds = ordered.map { it.profileId }.filter { drafts.containsKey(it) }
 
             discardEnabled = settingsRepo.discardCaptureEnabled.first()
+            val pickerSearchEnabled = settingsRepo.pickerSearchEnabled.first()
             discardSlotCount =
                 if (playerIds.size <= 2) DISCARD_SLOTS_TWO_PLAYERS else DISCARD_SLOTS_MULTI_PLAYER
 
@@ -160,6 +165,7 @@ class RoundCaptureViewModel(
                     isLoading = false,
                     roundNumber = round.roundNumber,
                     currentProfileId = first,
+                    pickerSearchEnabled = pickerSearchEnabled,
                 )
             }
             rebuild()
@@ -221,11 +227,14 @@ class RoundCaptureViewModel(
     private fun rebuild() {
         val currentId = _uiState.value.currentProfileId
         val players = orderedIds.map { id ->
+            val draft = drafts[id] ?: Draft()
             CapturePlayer(
                 profileId = id,
                 name = nameById[id] ?: "",
                 colorArgb = colorById[id] ?: 0,
                 captured = id in captured,
+                cardsCount = draft.slots.count { it is CardSlot.Filled },
+                requiredCount = requiredCountFor(id),
             )
         }
         _uiState.update { it.copy(orderedPlayers = players, current = buildCurrent(currentId)) }

@@ -373,6 +373,7 @@
     <string name="settings_default_round_count">Default number of rounds</string>
     <string name="settings_discard_capture_enabled">Capture discard pile</string>
     <string name="settings_discard_capture_enabled_desc">When enabled, the discard pile is captured like a player (mandatory before the reveal).</string>
+    <string name="settings_picker_search_enabled">Show search in picker</string>
 
     <!-- Language switcher (Phase 19) -->
     <string name="settings_language">Language</string>

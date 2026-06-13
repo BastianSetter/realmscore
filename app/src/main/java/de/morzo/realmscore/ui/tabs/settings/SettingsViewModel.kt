@@ -44,6 +44,7 @@ data class SettingsUiState(
     val defaultPointLimit: Int = SettingsRepository.DEFAULT_POINT_LIMIT,
     val defaultRoundCount: Int = SettingsRepository.DEFAULT_ROUND_COUNT,
     val discardCaptureEnabled: Boolean = false,
+    val pickerSearchEnabled: Boolean = true,
     val dataInfo: DataInfo = DataInfo(),
 )
 
@@ -92,7 +93,8 @@ class SettingsViewModel(
         preferencesFlow,
         dataInfoFlow,
         settings.appLanguage,
-    ) { owner, prefs, dataInfo, language ->
+        settings.pickerSearchEnabled,
+    ) { owner, prefs, dataInfo, language, pickerSearch ->
         SettingsUiState(
             ownerProfile = owner,
             appLanguage = language,
@@ -101,6 +103,7 @@ class SettingsViewModel(
             defaultPointLimit = prefs.defaultPointLimit,
             defaultRoundCount = prefs.defaultRoundCount,
             discardCaptureEnabled = prefs.discardCaptureEnabled,
+            pickerSearchEnabled = pickerSearch,
             dataInfo = dataInfo,
         )
     }.stateIn(
@@ -131,6 +134,10 @@ class SettingsViewModel(
 
     fun setDiscardCaptureEnabled(value: Boolean) {
         viewModelScope.launch { settings.setDiscardCaptureEnabled(value) }
+    }
+
+    fun setPickerSearchEnabled(value: Boolean) {
+        viewModelScope.launch { settings.setPickerSearchEnabled(value) }
     }
 
     /**

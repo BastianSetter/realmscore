@@ -1,6 +1,8 @@
 package de.morzo.realmscore.ui.nav
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -79,11 +81,19 @@ fun MainScaffold(container: AppContainer) {
     val tabNavController = rememberNavController()
     Scaffold(
         bottomBar = { AppBottomNavigation(tabNavController) },
+        // The outer scaffold owns only the bottom-nav inset. The status-bar (top) inset is left to
+        // each screen — those with a TopAppBar let it draw under the status bar, the bare tab screens
+        // (Home/Settings) add it back themselves. Passing it down here too would double it, leaving an
+        // empty band above every TopAppBar. consumeWindowInsets(padding) stops the inner scaffolds
+        // from re-applying the bottom inset already covered by the nav bar.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         NavHost(
             navController = tabNavController,
             startDestination = Routes.TAB_HOME,
-            modifier = Modifier.padding(padding),
+            modifier = Modifier
+                .padding(padding)
+                .consumeWindowInsets(padding),
         ) {
             composable(Routes.TAB_HOME) {
                 val vm: HomeViewModel = viewModel(

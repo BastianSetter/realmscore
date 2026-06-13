@@ -78,6 +78,13 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
         dataStore.edit { prefs -> prefs[KEY_DISCARD_CAPTURE_ENABLED] = value }
     }
 
+    override val pickerSearchEnabled: Flow<Boolean> =
+        dataStore.data.map { prefs -> prefs[KEY_PICKER_SEARCH_ENABLED] ?: true }
+
+    override suspend fun setPickerSearchEnabled(value: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_PICKER_SEARCH_ENABLED] = value }
+    }
+
     override suspend fun clearAll() {
         dataStore.edit { it.clear() }
     }
@@ -90,5 +97,6 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
         private val KEY_DEFAULT_POINT_LIMIT = intPreferencesKey("default_point_limit")
         private val KEY_DEFAULT_ROUND_COUNT = intPreferencesKey("default_round_count")
         private val KEY_DISCARD_CAPTURE_ENABLED = booleanPreferencesKey("discard_capture_enabled")
+        private val KEY_PICKER_SEARCH_ENABLED = booleanPreferencesKey("picker_search_enabled")
     }
 }

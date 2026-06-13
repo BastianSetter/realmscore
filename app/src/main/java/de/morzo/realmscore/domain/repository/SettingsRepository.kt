@@ -28,6 +28,10 @@ interface SettingsRepository {
     val discardCaptureEnabled: Flow<Boolean>
     suspend fun setDiscardCaptureEnabled(value: Boolean)
 
+    /** When true, the embedded KartenPick card picker shows its text-search field (default on). */
+    val pickerSearchEnabled: Flow<Boolean>
+    suspend fun setPickerSearchEnabled(value: Boolean)
+
     suspend fun clearAll()
 
     companion object {

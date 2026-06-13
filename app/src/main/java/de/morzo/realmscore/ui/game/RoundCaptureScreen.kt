@@ -125,6 +125,7 @@ fun RoundCaptureScreen(
                 stringResource(R.string.round_capture_submit)
             },
             autoOpenKey = state.currentProfileId,
+            searchEnabled = state.pickerSearchEnabled,
         )
     }
 }
@@ -146,7 +147,8 @@ private fun PlayerDropdown(
         ) {
             ColorDot(colorArgb = current?.colorArgb ?: 0)
             Text(
-                text = current?.name ?: stringResource(R.string.round_capture_switch_player),
+                text = current?.let { "${it.name} (${it.cardsCount}/${it.requiredCount})" }
+                    ?: stringResource(R.string.round_capture_switch_player),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -165,7 +167,7 @@ private fun PlayerDropdown(
                         ) {
                             ColorDot(colorArgb = player.colorArgb)
                             Text(
-                                text = player.name,
+                                text = "${player.name} (${player.cardsCount}/${player.requiredCount})",
                                 fontWeight = if (player.profileId == currentProfileId) {
                                     FontWeight.SemiBold
                                 } else {

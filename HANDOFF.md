@@ -1,6 +1,22 @@
-# Handoff – Fantasy Realms Scoring App, Phase 01 Onboarding
+# Handoff – Fantasy Realms Scoring App
 
-## Zweck dieses Dokuments
+> ⚠️ **Der Rest dieses Dokuments ist veraltet** (Stand Phase 01). Aktueller Paketname ist
+> `de.morzo.realmscore`, nicht `de.basti.fantasyrealms`. Nur dieser Status-Block wird gepflegt.
+
+## Phasen-Status
+
+- MVP (01–16) + Phasen 17–24 umgesetzt.
+- **Spec 25.4 (Joker-Auswertung / Totenbeschwörer als Joker): ✅ erledigt** (2026-06-13).
+  Totenbeschwörer ist ein echter `JokerType.NECROMANCER`, läuft durch dieselbe
+  Resolve-/Optimizer-/Persistenz-Pipeline; Joker-Auflösung folgt der Berechnungsreihenfolge
+  (Buch der Veränderung kann die geholte 8. Karte umfärben, Insel hebt deren Strafe auf).
+  Keine DB-Migration nötig. Build + Unit-Tests grün.
+- 25.1/25.2/25.3/25.7 ebenfalls erledigt (siehe git log). Offen: 25.5 (Erfassungs-Flow),
+  25.6 (Sandbox-UI).
+
+---
+
+## Zweck dieses Dokuments (veraltet)
 
 Übergabe an eine neue Claude-Session. Beschreibt den **Code-Stand** (Phase 01 implementiert, Build grün) und das **aktuelle Problem** (User kann die App nicht im Android-Studio-Emulator testen, weil Gradle Sync nicht durchläuft / Module nicht erkannt wird).
 
