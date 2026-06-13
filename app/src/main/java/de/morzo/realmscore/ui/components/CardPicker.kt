@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -100,7 +101,14 @@ fun CardPicker(
     // giving it the whole screen. Back press maps to onDismiss via the Dialog.
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        // decorFitsSystemWindows = false makes this dialog's own window dispatch IME insets
+        // (the Activity's adjustResize does not reach child dialog windows), so imePadding()
+        // below can lift the suit/card lists above the keyboard. The Scaffold re-applies the
+        // system-bar insets, keeping the edge-to-edge layout visually unchanged.
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
     ) {
         Scaffold(
             modifier = modifier.fillMaxSize(),
@@ -131,6 +139,7 @@ fun CardPicker(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .imePadding()
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 16.dp),
             ) {

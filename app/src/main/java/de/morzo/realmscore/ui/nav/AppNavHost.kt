@@ -40,7 +40,10 @@ fun AppNavHost(container: AppContainer) {
         }
         composable(Routes.ONBOARDING) {
             val vm: OnboardingViewModel = viewModel(
-                factory = OnboardingViewModel.Factory(container.profileRepository)
+                factory = OnboardingViewModel.Factory(
+                    profileRepo = container.profileRepository,
+                    settingsRepo = container.settingsRepository,
+                )
             )
             OnboardingScreen(
                 viewModel = vm,

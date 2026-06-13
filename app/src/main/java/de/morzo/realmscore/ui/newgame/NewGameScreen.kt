@@ -2,6 +2,7 @@ package de.morzo.realmscore.ui.newgame
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,9 +11,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +59,7 @@ import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.domain.model.GameMode
 import de.morzo.realmscore.domain.model.Profile
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,8 +94,9 @@ fun NewGameScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         ) {
             ModeSection(state.mode, onModeChange = vm::setMode)
             Spacer(Modifier.height(16.dp))
@@ -260,6 +267,7 @@ private fun ParticipantItem(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AddPlayerField(
     query: String,
@@ -270,6 +278,8 @@ private fun AddPlayerField(
     onAddNew: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
     Column {
         OutlinedTextField(
             value = query,
@@ -278,7 +288,15 @@ private fun AddPlayerField(
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .onFocusChanged { focused = it.isFocused },
+                .bringIntoViewRequester(bringIntoViewRequester)
+                .onFocusChanged {
+                    focused = it.isFocused
+                    // Pull the field above the keyboard when it gains focus so neither
+                    // the field nor the "start game" button below stays hidden.
+                    if (it.isFocused) {
+                        scope.launch { bringIntoViewRequester.bringIntoView() }
+                    }
+                },
             isError = error != null,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Words,

@@ -6,6 +6,7 @@
     <string name="onboarding_name_label">Dein Name</string>
     <string name="onboarding_continue">Weiter</string>
     <string name="onboarding_error_empty">Bitte gib einen Namen ein.</string>
+    <string name="onboarding_language_label">Sprache / Language</string>
 
     <string name="home_greeting">Hallo %1$s!</string>
     <string name="home_new_game">Neues Spiel</string>
