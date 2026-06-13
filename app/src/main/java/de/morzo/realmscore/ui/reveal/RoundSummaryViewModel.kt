@@ -7,14 +7,13 @@ import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.Game
 import de.morzo.realmscore.domain.model.GameMode
-import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.RoundRepository
-import de.morzo.realmscore.domain.scoring.JokerAssignment
 import de.morzo.realmscore.domain.scoring.ScoringEngine
 import de.morzo.realmscore.domain.scoring.ScoringInput
+import de.morzo.realmscore.domain.scoring.toScoringChoices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -151,16 +150,16 @@ class RoundSummaryViewModel(
     ): Breakdown {
         val hand = cards.mapNotNull { cardLookup.getByKey(it.cardKey) }
         if (hand.size != cards.size) return Breakdown(0, 0, 0)
-        val assignments: Map<String, JokerAssignment> = cards.mapNotNull { entry ->
-            val target = entry.jokerTargetCardKey ?: return@mapNotNull null
-            val suit = entry.jokerTargetSuit?.let { runCatching { Suit.valueOf(it) }.getOrNull() }
-            entry.cardKey to JokerAssignment(
-                jokerKey = entry.cardKey,
-                targetCardKey = target,
-                targetSuit = suit,
+        // Single reconstruction path: joker / Island / Fountain targets → jokerAssignments,
+        // Necromancer pick → playerChoices, matching how the hand was scored at capture time.
+        val choices = cards.toScoringChoices()
+        val result = engine.score(
+            ScoringInput(
+                hand = hand,
+                jokerAssignments = choices.jokerAssignments,
+                playerChoices = choices.playerChoices,
             )
-        }.toMap()
-        val result = engine.score(ScoringInput(hand = hand, jokerAssignments = assignments))
+        )
         val positive = result.perCard.filter { !it.isBlanked && it.contributedScore > 0 }
             .sumOf { it.contributedScore }
         val negative = -result.perCard.filter { !it.isBlanked && it.contributedScore < 0 }

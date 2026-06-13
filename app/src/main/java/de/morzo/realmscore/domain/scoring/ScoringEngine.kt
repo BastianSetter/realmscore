@@ -43,6 +43,7 @@ class ScoringEngine(
             playerChoices = input.playerChoices,
             discardPile = input.discardPile,
             cardLookup = cardLookup,
+            jokerAssignments = input.jokerAssignments,
             penaltyContext = null,
         )
 

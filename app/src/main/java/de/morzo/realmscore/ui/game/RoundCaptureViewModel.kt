@@ -32,8 +32,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val NECROMANCER_KEY = "necromancer"
-private const val ISLAND_KEY = "island"
-private const val FOUNTAIN_KEY = "fountain_of_life"
 
 /** Sentinel id for the synthetic Mittelfeld (discard) entry in the capture rotation. */
 private const val DISCARD_ID = "__discard__"
@@ -152,9 +150,10 @@ class RoundCaptureViewModel(
             }
 
             // Already fully recorded entries count as captured (e.g. when re-entering to correct).
+            // Mirror the full submit validity (canSubmit), not just slot count, so an entry with all
+            // slots filled but an unassigned joker is not wrongly treated as done and skipped (L6).
             orderedIds.forEach { id ->
-                val filled = drafts.getValue(id).slots.count { it is CardSlot.Filled }
-                if (filled == requiredCountFor(id)) captured += id
+                if (canSubmit(id)) captured += id
             }
             val first = orderedIds.firstOrNull { it !in captured } ?: orderedIds.firstOrNull()
 
@@ -175,6 +174,13 @@ class RoundCaptureViewModel(
                     .collect { (scanned, keys) ->
                         discardScanned = scanned
                         discardCards = keys.mapNotNull { cardLookup.getByKey(it) }
+                        // Keep the Mittelfeld draft in sync with the persisted pile, except while it is
+                        // the entry currently being edited (don't clobber in-progress input). This VM
+                        // is the only writer, so in practice this re-hydration is a no-op after our own
+                        // save — but it stops the draft from going stale against the DB (L5).
+                        if (discardEnabled && _uiState.value.currentProfileId != DISCARD_ID) {
+                            drafts[DISCARD_ID] = loadDiscardDraft()
+                        }
                         rebuild()
                     }
             }
@@ -299,18 +305,6 @@ class RoundCaptureViewModel(
         }
     }
 
-    fun setIslandTarget(cardKey: String?) {
-        updateCurrentDraft { draft ->
-            draft.copy(playerChoices = draft.playerChoices.copy(islandTargetKey = cardKey))
-        }
-    }
-
-    fun setFountainSource(cardKey: String?) {
-        updateCurrentDraft { draft ->
-            draft.copy(playerChoices = draft.playerChoices.copy(fountainSourceKey = cardKey))
-        }
-    }
-
     fun applyOptimal() {
         val id = _uiState.value.currentProfileId ?: return
         if (id == DISCARD_ID) return
@@ -373,6 +367,10 @@ class RoundCaptureViewModel(
 
     private suspend fun saveHand(profileId: String, draft: Draft) {
         val filled = draft.slots.mapNotNull { (it as? CardSlot.Filled)?.card }
+        // discardPile/discardScanned are intentionally omitted: the ScoringEngine resolves the
+        // Necromancer pick via cardLookup and never reads ctx.discardPile (only the OptimalSolver
+        // does). The reveal and stats re-scoring paths omit it the same way, so the persisted score
+        // here matches what those recompute. Keep all three canonical paths identical (L2).
         val input = ScoringInput(
             hand = filled,
             jokerAssignments = draft.jokerAssignments,
@@ -382,14 +380,14 @@ class RoundCaptureViewModel(
         val entries = draft.slots.mapIndexedNotNull { idx, slot ->
             val card = (slot as? CardSlot.Filled)?.card ?: return@mapIndexedNotNull null
             val assignment = draft.jokerAssignments[card.key]
-            // Necromancer pick + Island/Fountain choices reuse the jokerTargetCardKey column on
-            // their own card entry so the reconstruction path (BreakdownViewModel/RevealViewModel
-            // via toScoringChoices) can rebuild playerChoices without a schema change.
-            val targetCardKey = when (card.key) {
-                NECROMANCER_KEY -> draft.playerChoices.necromancerPickKey
-                ISLAND_KEY -> draft.playerChoices.islandTargetKey
-                FOUNTAIN_KEY -> draft.playerChoices.fountainSourceKey
-                else -> assignment?.targetCardKey
+            // The Necromancer pulls a discard-pile card, so its pick lives in playerChoices and is
+            // persisted on its own entry's jokerTargetCardKey column. Every other target (jokers,
+            // Island, Fountain) is already a jokerAssignment keyed by the card. The reconstruction
+            // path (toScoringChoices) sorts them back apart.
+            val targetCardKey = if (card.key == NECROMANCER_KEY) {
+                draft.playerChoices.necromancerPickKey
+            } else {
+                assignment?.targetCardKey
             }
             HandCardEntry(
                 cardKey = card.key,
@@ -417,11 +415,12 @@ class RoundCaptureViewModel(
 
     private fun Draft.pruned(): Draft {
         val handKeys = slots.mapNotNull { (it as? CardSlot.Filled)?.card?.key }.toSet()
+        // Joker/Island/Fountain assignments are keyed by their (hand) card, so they prune away
+        // automatically once that card leaves the hand. Only the Necromancer pick — a discard-pile
+        // card — needs the explicit "still in hand?" guard.
         val newAssignments = jokerAssignments.filterKeys { it in handKeys }
         val necromancerStillInHand = NECROMANCER_KEY in handKeys
         val newChoices = playerChoices.copy(
-            islandTargetKey = playerChoices.islandTargetKey?.takeIf { it in handKeys },
-            fountainSourceKey = playerChoices.fountainSourceKey?.takeIf { it in handKeys },
             necromancerPickKey = playerChoices.necromancerPickKey?.takeIf { necromancerStillInHand },
         )
         return copy(jokerAssignments = newAssignments, playerChoices = newChoices)

@@ -15,6 +15,9 @@ interface RoundDao {
     @Query("SELECT * FROM rounds WHERE id = :id")
     suspend fun getById(id: String): RoundEntity?
 
+    @Query("SELECT * FROM rounds")
+    suspend fun getAll(): List<RoundEntity>
+
     @Query("SELECT * FROM rounds WHERE id = :id")
     fun observeById(id: String): Flow<RoundEntity?>
 
@@ -44,6 +47,10 @@ interface RoundDao {
 
     @Query("SELECT COUNT(*) FROM rounds")
     fun observeRoundCount(): Flow<Int>
+
+    /** Phase 24 M1: cheap signal for the stats-snapshot cache fingerprint. */
+    @Query("SELECT COUNT(*) FROM rounds WHERE completedAt IS NOT NULL")
+    suspend fun getCompletedRoundCount(): Int
 
     @Query("DELETE FROM rounds")
     suspend fun deleteAll()

@@ -5,6 +5,7 @@ import androidx.room.Room
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.data.datastore.DeviceUuidProvider
 import de.morzo.realmscore.data.db.AppDatabase
+import de.morzo.realmscore.data.repository.BackupRepositoryImpl
 import de.morzo.realmscore.data.repository.GameRepositoryImpl
 import de.morzo.realmscore.data.repository.HandCardRepositoryImpl
 import de.morzo.realmscore.data.repository.ProfileRepositoryImpl
@@ -12,6 +13,7 @@ import de.morzo.realmscore.data.repository.RoundRepositoryImpl
 import de.morzo.realmscore.data.repository.SandboxFavoriteRepositoryImpl
 import de.morzo.realmscore.data.repository.SettingsRepositoryImpl
 import de.morzo.realmscore.data.repository.StatsRepositoryImpl
+import de.morzo.realmscore.domain.repository.BackupRepository
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
@@ -45,6 +47,13 @@ class AppContainer(private val applicationContext: Context) {
             AppDatabase::class.java,
             AppDatabase.DB_NAME,
         )
+            // ⚠️ Phase 24 M3 — TODO before the first public release:
+            // This destructive fallback WIPES ALL USER DATA on any schema change without a migration
+            // (every version bump so far has dropped the DB). That is acceptable pre-release, but once
+            // the app is shipped (versionCode > 1 in users' hands) a single un-migrated schema change
+            // would destroy their games/profiles/stats. Replace this with real Migration objects (or
+            // Room auto-migrations; exportSchema is already on) and remove the destructive fallback —
+            // at minimum gate it behind a debug check. Decision deferred: documenting only for now.
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -160,6 +169,14 @@ class AppContainer(private val applicationContext: Context) {
         PickRandomStatUseCase(
             providers = randomStatProviders,
             settings = settingsRepository,
+        )
+    }
+
+    val backupRepository: BackupRepository by lazy {
+        BackupRepositoryImpl(
+            db = database,
+            deviceUuidProvider = deviceUuidProvider,
+            clock = clock,
         )
     }
 

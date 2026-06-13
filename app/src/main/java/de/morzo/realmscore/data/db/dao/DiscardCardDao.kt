@@ -15,6 +15,9 @@ interface DiscardCardDao {
     @Query("SELECT cardKey FROM discard_cards WHERE roundId = :roundId ORDER BY position ASC")
     suspend fun getCardKeysForRound(roundId: String): List<String>
 
+    @Query("SELECT * FROM discard_cards")
+    suspend fun getAll(): List<DiscardCardEntity>
+
     @Query("SELECT cardKey FROM discard_cards WHERE roundId = :roundId ORDER BY position ASC")
     fun observeCardKeysForRound(roundId: String): Flow<List<String>>
 

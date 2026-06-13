@@ -8,17 +8,21 @@ import de.morzo.realmscore.domain.scoring.ScoringContext
 
 /**
  * Quelle des Lebens: adds base strength of one chosen Weapon/Flood/Flame/Land/Weather
- * (from non-blanked hand). Player picks via playerChoices.fountainSourceKey.
+ * (from non-blanked hand). The player's pick is the Fountain's joker target ([FOUNTAIN_KEY]); the
+ * source is matched against the *resolved* hand, so a Doppelganger/Book-of-Changes card that has
+ * become an eligible suit/strength is a valid source.
  *
  * When no choice is set, OptimalSolver will iterate; if neither set nor optimised,
  * we just contribute 0.
  */
 object FountainOfLifeRule : CardScoringRule {
 
+    const val FOUNTAIN_KEY = "fountain_of_life"
+
     val eligibleSuits: Set<Suit> = setOf(Suit.WEAPON, Suit.FLOOD, Suit.FLAME, Suit.LAND, Suit.WEATHER)
 
     override fun bonuses(self: ResolvedCard, ctx: ScoringContext): List<EffectApplication> {
-        val pickKey = ctx.playerChoices.fountainSourceKey ?: return emptyList()
+        val pickKey = ctx.jokerAssignments[FOUNTAIN_KEY]?.targetCardKey ?: return emptyList()
         if (pickKey == self.originalKey) return emptyList()
         val source = ctx.nonBlankedHand().firstOrNull { it.originalKey == pickKey } ?: return emptyList()
         if (source.effectiveSuit !in eligibleSuits) return emptyList()

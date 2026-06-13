@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -59,6 +60,11 @@ private fun LocalizedContent(
     content: @Composable () -> Unit,
 ) {
     val baseContext = LocalContext.current
+    // Resolve the registry owner while the context chain still leads back to the
+    // ComponentActivity. The localized context below is a fresh createConfigurationContext()
+    // that no longer wraps the Activity, which would otherwise break
+    // rememberLauncherForActivityResult() in descendants (e.g. the Settings import picker).
+    val activityResultRegistryOwner = LocalActivityResultRegistryOwner.current
     val localizedContext = remember(language, baseContext) {
         val locale = when (language) {
             AppLanguage.GERMAN -> Locale.forLanguageTag("de")
@@ -70,9 +76,12 @@ private fun LocalizedContent(
         }
         baseContext.createConfigurationContext(config)
     }
-    CompositionLocalProvider(
-        LocalContext provides localizedContext,
-        LocalConfiguration provides localizedContext.resources.configuration,
-        content = content,
-    )
+    val providedValues = buildList {
+        add(LocalContext provides localizedContext)
+        add(LocalConfiguration provides localizedContext.resources.configuration)
+        activityResultRegistryOwner?.let {
+            add(LocalActivityResultRegistryOwner provides it)
+        }
+    }.toTypedArray()
+    CompositionLocalProvider(values = providedValues, content = content)
 }

@@ -8,7 +8,8 @@ import kotlin.math.abs
  *
  * Strategy (Phase 18 spec):
  *  1. The highest-scoring card is anchored at position 0 (12 o'clock).
- *  2. The remaining positions are filled by brute-forcing all permutations (≤ 6! = 720).
+ *  2. The remaining positions are filled by brute-forcing all permutations of the rest
+ *     (6! = 720 for a normal 7-card hand; up to 7! = 5040 once the Necromancer adds an 8th card).
  *  3. A permutation's cost is `Σ |weight| × arcDist(posSource, posTarget)` over all connections,
  *     where `arcDist` is the smallest hop count between two ring positions.
  *  4. The minimum-cost permutation wins; ties break on the lexicographically smallest sequence of

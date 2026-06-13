@@ -11,6 +11,8 @@ import de.morzo.realmscore.domain.scoring.penalty.PenaltyContext
  * - cardLookup gives access to immutable card metadata (base strength of any card in the game).
  * - penaltyContext is populated before penalty phase; null during the cancellation-collection
  *   phase (rules' cancellations() method is called before any penalty context exists).
+ * - jokerAssignments carries the player's joker/Island/Fountain target picks so target-driven rules
+ *   (Island cancel, Fountain of Life) can read their chosen card key.
  */
 data class ScoringContext(
     val hand: List<ResolvedCard>,
@@ -18,6 +20,7 @@ data class ScoringContext(
     val playerChoices: PlayerChoices,
     val discardPile: List<CardDefinition>,
     val cardLookup: (String) -> CardDefinition?,
+    val jokerAssignments: Map<String, JokerAssignment> = emptyMap(),
     val penaltyContext: PenaltyContext? = null,
 ) {
     fun isBlanked(card: ResolvedCard): Boolean = card.originalKey in blankedKeys

@@ -188,7 +188,7 @@
       "baseStrength": 1,
       "ruleTextDe": "Bonus: Addiere die Basisstärke einer beliebigen Waffe, Flut, Flamme, Land oder Wetter",
       "isJoker": false,
-      "jokerType": null
+      "jokerType": "FOUNTAIN_OF_LIFE"
     },
     {
       "key": "water_elemental",
@@ -206,7 +206,7 @@
       "baseStrength": 14,
       "ruleTextDe": "Bonus: hebt die Strafe einer beliebigen Flut oder Flamme auf",
       "isJoker": false,
-      "jokerType": null
+      "jokerType": "ISLAND"
     },
     {
       "key": "swamp",

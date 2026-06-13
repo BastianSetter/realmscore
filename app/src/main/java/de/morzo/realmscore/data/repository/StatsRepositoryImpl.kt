@@ -10,11 +10,10 @@ import de.morzo.realmscore.domain.model.HandCard
 import de.morzo.realmscore.domain.model.Profile
 import de.morzo.realmscore.domain.model.Round
 import de.morzo.realmscore.domain.model.RoundResult
-import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.domain.repository.StatsRepository
-import de.morzo.realmscore.domain.scoring.JokerAssignment
 import de.morzo.realmscore.domain.scoring.ScoringEngine
 import de.morzo.realmscore.domain.scoring.ScoringInput
+import de.morzo.realmscore.domain.scoring.toScoringChoices
 import de.morzo.realmscore.domain.stats.CardStats
 import de.morzo.realmscore.domain.stats.CardStatsRow
 import de.morzo.realmscore.domain.stats.CardStatsSort
@@ -26,7 +25,10 @@ import de.morzo.realmscore.domain.stats.PlayerStats
 import de.morzo.realmscore.domain.stats.StatsCalculator
 import de.morzo.realmscore.domain.stats.StatsOverview
 import de.morzo.realmscore.domain.stats.StatsSnapshot
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class StatsRepositoryImpl(
@@ -38,6 +40,33 @@ class StatsRepositoryImpl(
     private val cardLookup: CardLookup,
     private val scoringEngine: ScoringEngine,
 ) : StatsRepository {
+
+    // --- Phase 24 M1: snapshot cache ---
+    // buildSnapshot() reads the whole history and re-scores every hand; the stats screen plus the 7
+    // RandomStatProviders would otherwise rebuild it many times per open. We memoise the last snapshot
+    // and only rebuild when a cheap fingerprint (counts + max updatedAt over the inputs) changes, i.e.
+    // when a game closes, a round/result is added, a score is edited, or a profile is renamed.
+    private val snapshotMutex = Mutex()
+    private var cachedSnapshot: StatsSnapshot? = null
+    private var cachedFingerprint: String? = null
+
+    private suspend fun snapshot(): StatsSnapshot = snapshotMutex.withLock {
+        val fingerprint = computeFingerprint()
+        cachedSnapshot?.let { if (cachedFingerprint == fingerprint) return@withLock it }
+        buildSnapshot().also {
+            cachedSnapshot = it
+            cachedFingerprint = fingerprint
+        }
+    }
+
+    private suspend fun computeFingerprint(): String = listOf(
+        gameDao.getClosedGameCount(),
+        roundDao.getCompletedRoundCount(),
+        roundResultDao.getResultCount(),
+        roundResultDao.getMaxUpdatedAt() ?: 0L,
+        profileDao.getProfileCount(),
+        profileDao.getMaxUpdatedAt() ?: 0L,
+    ).joinToString("|")
 
     private suspend fun buildSnapshot(): StatsSnapshot = withContext(Dispatchers.Default) {
         val games = gameDao.getClosedGames().map { it.toDomain() }
@@ -102,24 +131,23 @@ class StatsRepositoryImpl(
         for ((rrId, cards) in handCardsByResultId) {
             val hand = cards.mapNotNull { cardsByKey[it.cardKey] }
             if (hand.size != cards.size) continue
-            val assignments = cards.mapNotNull { entry ->
-                val target = entry.jokerTargetCardKey ?: return@mapNotNull null
-                val suit = entry.jokerTargetSuit
-                    ?.let { runCatching { Suit.valueOf(it) }.getOrNull() }
-                entry.cardKey to JokerAssignment(
-                    jokerKey = entry.cardKey,
-                    targetCardKey = target,
-                    targetSuit = suit,
-                )
-            }.toMap()
+            // Use the shared reconstruction so the Necromancer pick lands in playerChoices (not as a
+            // bogus joker assignment); otherwise the pulled 8th card and its suit-bonus knock-on would
+            // be dropped here, making per-card contributions disagree with the stored total (H1/L1).
+            val choices = cards.toScoringChoices()
             try {
                 val scoring = scoringEngine.score(
-                    ScoringInput(hand = hand, jokerAssignments = assignments),
+                    ScoringInput(
+                        hand = hand,
+                        jokerAssignments = choices.jokerAssignments,
+                        playerChoices = choices.playerChoices,
+                    ),
                 )
                 result[rrId] = scoring.perCard.associate { it.cardKey to it.contributedScore }
             } catch (e: Exception) {
-                // If scoring fails for any reason, skip this hand silently —
-                // stats should never crash because of a malformed legacy row.
+                // If scoring fails for any reason, skip this hand — stats should never crash because
+                // of a malformed legacy row. Log it so a real regression doesn't stay invisible (L4).
+                Log.w(TAG, "Skipping per-card scoring for round result $rrId", e)
                 continue
             }
         }
@@ -127,32 +155,36 @@ class StatsRepositoryImpl(
     }
 
     override suspend fun getGlobalStats(): GlobalStats =
-        StatsCalculator.computeGlobalStats(buildSnapshot())
+        StatsCalculator.computeGlobalStats(snapshot())
 
     override suspend fun getOverview(): StatsOverview =
-        StatsCalculator.computeOverview(buildSnapshot())
+        StatsCalculator.computeOverview(snapshot())
 
     override suspend fun getPlayerStats(profileId: String): PlayerStats? =
-        StatsCalculator.computePlayerStats(buildSnapshot(), profileId)
+        StatsCalculator.computePlayerStats(snapshot(), profileId)
 
     override suspend fun getCardStats(cardKey: String): CardStats? =
-        StatsCalculator.computeCardStats(buildSnapshot(), cardKey)
+        StatsCalculator.computeCardStats(snapshot(), cardKey)
 
     override suspend fun getCardStatsOverview(sortBy: CardStatsSort): List<CardStatsRow> =
-        StatsCalculator.computeCardStatsOverview(buildSnapshot(), sortBy)
+        StatsCalculator.computeCardStatsOverview(snapshot(), sortBy)
 
     override suspend fun getHeadToHeadStats(
         profileIdA: String,
         profileIdB: String,
     ): HeadToHeadStats? = StatsCalculator.computeHeadToHead(
-        buildSnapshot(),
+        snapshot(),
         profileIdA,
         profileIdB,
     )
 
     override suspend fun getClosestRoundEver(): ClosestRoundInfo? =
-        StatsCalculator.computeClosestRound(buildSnapshot())
+        StatsCalculator.computeClosestRound(snapshot())
 
     override suspend fun getMostPlayedPair(): PlayerPairInfo? =
-        StatsCalculator.computeMostPlayedPair(buildSnapshot())
+        StatsCalculator.computeMostPlayedPair(snapshot())
+
+    private companion object {
+        const val TAG = "StatsRepository"
+    }
 }

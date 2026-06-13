@@ -156,15 +156,11 @@ fun SandboxScreen(
             )
 
             JokerSection(
-                jokers = state.jokersInHand,
+                jokers = state.jokerCardsInHand,
                 assignments = state.jokerAssignments,
                 allCards = viewModel.allCards,
                 handCards = state.filledCards,
                 onAssignmentChange = viewModel::setJokerAssignment,
-                islandTargetKey = state.playerChoices.islandTargetKey,
-                fountainSourceKey = state.playerChoices.fountainSourceKey,
-                onIslandChange = viewModel::setIslandTarget,
-                onFountainChange = viewModel::setFountainSource,
             )
 
             if (state.necromancerInHand) {

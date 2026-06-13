@@ -24,6 +24,8 @@ class JokerResolver(
         val resolved = hand.map { it.toResolved() }.toMutableList()
 
         // Step 1: name/suit/strength substitutions (everything except Book of Changes).
+        // Island/Fountain carry a jokerType too, but isJoker is false (they keep their own value),
+        // so they are skipped here and resolved purely as scoring-time choices by their rules.
         for (i in resolved.indices) {
             val original = hand[i]
             if (!original.isJoker || original.jokerType == JokerType.BOOK_OF_CHANGES) continue
@@ -54,7 +56,10 @@ class JokerResolver(
                     bonusEnabled = false,
                     penaltyEnabled = false,
                 )
-                JokerType.BOOK_OF_CHANGES -> resolved[i] // handled in step 2
+                // Not reachable (gated out above) but kept for exhaustiveness.
+                JokerType.BOOK_OF_CHANGES,
+                JokerType.ISLAND,
+                JokerType.FOUNTAIN_OF_LIFE -> resolved[i]
             }
         }
 

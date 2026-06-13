@@ -118,8 +118,6 @@ fun RoundCaptureScreen(
             onApplyOptimal = vm::applyOptimal,
             onSetNecromancerPick = vm::setNecromancerPick,
             onClearNecromancerPick = vm::clearNecromancerPick,
-            onSetIslandTarget = vm::setIslandTarget,
-            onSetFountainSource = vm::setFountainSource,
             onSubmit = { vm.submitCurrentAndAdvance(onAllPlayersCaptured) },
             submitLabel = if (state.current.isDiscard) {
                 stringResource(R.string.discard_capture_submit)

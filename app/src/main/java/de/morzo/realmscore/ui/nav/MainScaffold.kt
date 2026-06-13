@@ -425,6 +425,7 @@ fun MainScaffold(container: AppContainer) {
                         settings = container.settingsRepository,
                         profileRepo = container.profileRepository,
                         resetUseCase = container.resetUseCase,
+                        backupRepo = container.backupRepository,
                         db = container.database,
                     ),
                 )

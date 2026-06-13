@@ -240,15 +240,11 @@ private fun SandboxHandColumn(
         }
 
         JokerSection(
-            jokers = state.jokersInHand,
+            jokers = state.jokerCardsInHand,
             assignments = state.jokerAssignments,
             allCards = vm.allCards,
             handCards = state.filledCards,
             onAssignmentChange = vm::setJokerAssignment,
-            islandTargetKey = state.playerChoices.islandTargetKey,
-            fountainSourceKey = state.playerChoices.fountainSourceKey,
-            onIslandChange = vm::setIslandTarget,
-            onFountainChange = vm::setFountainSource,
         )
 
         if (state.necromancerInHand) {

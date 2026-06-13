@@ -64,8 +64,19 @@ interface ProfileDao {
     @Query("SELECT * FROM profile WHERE id = :id")
     suspend fun getById(id: String): ProfileEntity?
 
+    @Query("SELECT * FROM profile")
+    suspend fun getAll(): List<ProfileEntity>
+
     @Query("SELECT COUNT(*) FROM profile")
     fun observeProfileCount(): Flow<Int>
+
+    // --- Phase 24 M1: cheap signals for the stats-snapshot cache fingerprint (catches renames) ---
+
+    @Query("SELECT COUNT(*) FROM profile")
+    suspend fun getProfileCount(): Int
+
+    @Query("SELECT MAX(updatedAt) FROM profile")
+    suspend fun getMaxUpdatedAt(): Long?
 
     @Query("UPDATE profile SET name = :name, updatedAt = :ts WHERE id = :id")
     suspend fun updateName(id: String, name: String, ts: Long)

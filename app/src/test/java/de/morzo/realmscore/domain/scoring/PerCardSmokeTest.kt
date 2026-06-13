@@ -174,7 +174,7 @@ class PerCardSmokeTest {
         // with choice = 9 + 18 = 27
         val input = ScoringInput(
             hand = TestFixture.hand("fountain_of_life", "dragon", "swamp"),
-            playerChoices = PlayerChoices(fountainSourceKey = "swamp"),
+            jokerAssignments = mapOf("fountain_of_life" to JokerAssignment("fountain_of_life", "swamp")),
         )
         val r = TestFixture.engine.score(input)
         assertEquals(27, r.totalScore)
@@ -194,7 +194,7 @@ class PerCardSmokeTest {
         // total = 18+14+10+2+5 = 49
         val input = ScoringInput(
             hand = TestFixture.hand("swamp", "island", "elven_archers", "candle"),
-            playerChoices = PlayerChoices(islandTargetKey = "swamp"),
+            jokerAssignments = mapOf("island" to JokerAssignment("island", "swamp")),
         )
         val r = TestFixture.engine.score(input)
         assertEquals(49, r.totalScore)

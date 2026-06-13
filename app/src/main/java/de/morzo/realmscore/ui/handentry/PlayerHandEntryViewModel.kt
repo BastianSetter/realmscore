@@ -49,8 +49,13 @@ data class PlayerHandEntryUiState(
 
     val cardsCount: Int get() = filledCards.size
 
+    /** Wild substitution jokers only — these are mandatory to resolve before submit. */
     val jokersInHand: List<CardDefinition>
         get() = filledCards.filter { it.isJoker }
+
+    /** Every card needing a choice row (substitution jokers + Island/Fountain). */
+    val jokerCardsInHand: List<CardDefinition>
+        get() = filledCards.filter { it.jokerType != null }
 
     val necromancerInHand: Boolean
         get() = filledCards.any { it.key == NECROMANCER_KEY }
@@ -230,13 +235,12 @@ class PlayerHandEntryViewModel(
 
     private fun PlayerHandEntryUiState.pruneStaleSelections(): PlayerHandEntryUiState {
         val handKeys = filledCards.map { it.key }.toSet()
+        // Joker/Island/Fountain assignments are keyed by their hand card, so dropping cards not in
+        // the hand prunes them too. Only the Necromancer pick (a discard-pile card) needs the
+        // explicit guard.
         val newAssignments = jokerAssignments.filterKeys { it in handKeys }
-        // The Necromancer pick is a discard-pile card (never in hand): keep it as long as a
-        // Necromancer is still in the hand, unlike Island/Fountain targets which must be hand cards.
         val necromancerStillInHand = NECROMANCER_KEY in handKeys
         val newChoices = playerChoices.copy(
-            islandTargetKey = playerChoices.islandTargetKey?.takeIf { it in handKeys },
-            fountainSourceKey = playerChoices.fountainSourceKey?.takeIf { it in handKeys },
             necromancerPickKey = playerChoices.necromancerPickKey?.takeIf { necromancerStillInHand },
         )
         return copy(jokerAssignments = newAssignments, playerChoices = newChoices)

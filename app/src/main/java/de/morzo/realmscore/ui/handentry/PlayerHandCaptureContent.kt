@@ -56,10 +56,6 @@ fun PlayerHandCaptureContent(
     onApplyOptimal: () -> Unit,
     onSetNecromancerPick: (String) -> Unit,
     onClearNecromancerPick: () -> Unit,
-    // Defaulted so the orphaned PlayerHandEntryScreen (whose VM has no choice handlers) still
-    // compiles; the live RoundCaptureScreen always passes the real handlers.
-    onSetIslandTarget: (String?) -> Unit = {},
-    onSetFountainSource: (String?) -> Unit = {},
     onSubmit: () -> Unit,
     submitLabel: String,
     modifier: Modifier = Modifier,
@@ -108,23 +104,16 @@ fun PlayerHandCaptureContent(
             },
         )
 
-        // Jokers plus the Island / Fountain choices share one section + the "Optimal" button
-        // (Phase 18.2): the solver brute-forces all of them, so they are treated alike here.
-        val choiceCardInHand = state.filledCards.any {
-            it.key == "island" || it.key == "fountain_of_life"
-        }
-        if (!state.isDiscard && (state.jokersInHand.isNotEmpty() || choiceCardInHand)) {
+        // Substitution jokers and the Island / Fountain choices share one section + the "Optimal"
+        // button (Phase 23): all are JokerType targets, brute-forced alike by the solver.
+        if (!state.isDiscard && state.jokerCardsInHand.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))
             JokerSection(
-                jokers = state.jokersInHand,
+                jokers = state.jokerCardsInHand,
                 assignments = state.jokerAssignments,
                 allCards = allCards,
                 handCards = state.filledCards,
                 onAssignmentChange = onSetJokerAssignment,
-                islandTargetKey = state.playerChoices.islandTargetKey,
-                fountainSourceKey = state.playerChoices.fountainSourceKey,
-                onIslandChange = onSetIslandTarget,
-                onFountainChange = onSetFountainSource,
                 onOptimal = onApplyOptimal,
                 optimalRunning = state.isOptimalRunning,
             )

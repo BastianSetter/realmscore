@@ -64,8 +64,8 @@ class OptimalSolver(
             card.key to candidates
         }
 
-        val islandPresent = hand.any { it.key == "island" }
-        val fountainPresent = hand.any { it.key == "fountain_of_life" }
+        val islandPresent = hand.any { it.key == ISLAND_KEY }
+        val fountainPresent = hand.any { it.key == FOUNTAIN_KEY }
         val necromancerPresent = hand.any { it.key == NECROMANCER_KEY }
 
         // Necromancer candidates don't depend on joker assignments (they come from the discard
@@ -83,18 +83,22 @@ class OptimalSolver(
         var best: OptimalResult? = null
 
         forEachJokerCombo(jokerCandidates) { jokerAssignments ->
+            // Island/Fountain candidates depend on the substitution jokers, so they are enumerated
+            // from the *resolved* hand of THIS combo (e.g. a Doppelganger that has become a Flame
+            // card is then a valid Fountain source). Their pick is written back as a JokerAssignment
+            // keyed by the card itself, exactly like every other joker target.
             val resolved = jokerResolver.resolve(hand, jokerAssignments)
 
             val islandOptions: List<String?> = if (islandPresent) {
                 listOf<String?>(null) + resolved
-                    .filter { it.originalKey != "island" && it.effectiveSuit in ISLAND_SUITS }
+                    .filter { it.originalKey != ISLAND_KEY && it.effectiveSuit in ISLAND_SUITS }
                     .map { it.originalKey }
             } else listOf(null)
 
             val fountainOptions: List<String?> = if (fountainPresent) {
                 listOf<String?>(null) + resolved
                     .filter {
-                        it.originalKey != "fountain_of_life" &&
+                        it.originalKey != FOUNTAIN_KEY &&
                             it.effectiveSuit in FountainOfLifeRule.eligibleSuits &&
                             it.effectiveStrength > 0
                     }
@@ -104,13 +108,16 @@ class OptimalSolver(
             for (islandTgt in islandOptions) {
                 for (fountainSrc in fountainOptions) {
                     for (necroPick in necromancerOptions) {
+                        val assignments = jokerAssignments.toMutableMap()
+                        if (islandTgt != null) {
+                            assignments[ISLAND_KEY] = JokerAssignment(ISLAND_KEY, islandTgt)
+                        }
+                        if (fountainSrc != null) {
+                            assignments[FOUNTAIN_KEY] = JokerAssignment(FOUNTAIN_KEY, fountainSrc)
+                        }
                         val candidateInput = seed.copy(
-                            jokerAssignments = jokerAssignments,
-                            playerChoices = PlayerChoices(
-                                islandTargetKey = islandTgt,
-                                fountainSourceKey = fountainSrc,
-                                necromancerPickKey = necroPick,
-                            ),
+                            jokerAssignments = assignments,
+                            playerChoices = PlayerChoices(necromancerPickKey = necroPick),
                         )
                         val result = engine.score(candidateInput)
                         val better = when {
@@ -138,11 +145,14 @@ class OptimalSolver(
         return best!!
     }
 
-    /** Number of filled-in selections — used to break score ties toward concrete values. */
+    /**
+     * Number of filled-in selections — used to break score ties toward concrete values, so a
+     * joker / Island / Fountain / Necromancer pick whose effect is irrelevant still gets a valid
+     * value instead of being left "unset". Island/Fountain now live in [jokerAssignments], so they
+     * are counted there; only the Necromancer pick remains a separate [PlayerChoices] field.
+     */
     private fun ScoringInput.selectionCount(): Int =
         jokerAssignments.size +
-            (if (playerChoices.islandTargetKey != null) 1 else 0) +
-            (if (playerChoices.fountainSourceKey != null) 1 else 0) +
             (if (playerChoices.necromancerPickKey != null) 1 else 0)
 
     private inline fun forEachJokerCombo(
@@ -179,6 +189,8 @@ class OptimalSolver(
 
     companion object {
         private const val NECROMANCER_KEY = "necromancer"
+        private const val ISLAND_KEY = "island"
+        private const val FOUNTAIN_KEY = "fountain_of_life"
         private val MIRAGE_SUITS = setOf(Suit.ARMY, Suit.LAND, Suit.WEATHER, Suit.FLOOD, Suit.FLAME)
         private val SHAPESHIFTER_SUITS = setOf(Suit.ARTIFACT, Suit.LEADER, Suit.WIZARD, Suit.WEAPON, Suit.BEAST)
         private val ISLAND_SUITS = setOf(Suit.FLOOD, Suit.FLAME)

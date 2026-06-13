@@ -71,7 +71,7 @@ class PenaltyCancellationTest {
         // total = 18+14+5+2 = 39
         val input = ScoringInput(
             hand = TestFixture.hand("swamp", "island", "rangers", "candle"),
-            playerChoices = PlayerChoices(islandTargetKey = "swamp"),
+            jokerAssignments = mapOf("island" to JokerAssignment("island", "swamp")),
         )
         val r = TestFixture.engine.score(input)
         assertEquals(39, r.totalScore)

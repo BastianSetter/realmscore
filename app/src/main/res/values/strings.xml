@@ -392,6 +392,20 @@
     <string name="settings_confirm_delete">Löschen</string>
     <string name="settings_cancel">Abbrechen</string>
 
+    <!-- Datenexport / Backup (Phase 23) -->
+    <string name="settings_export_backup">Backup exportieren</string>
+    <string name="settings_import_backup">Backup importieren</string>
+    <string name="backup_import_confirm_title">Backup importieren?</string>
+    <string name="backup_import_confirm_body">Die Backup-Daten werden zu deinen bestehenden Daten hinzugefügt. Duplikate werden übersprungen.</string>
+    <string name="backup_import_confirm_action">Importieren</string>
+    <string name="backup_import_result">Import abgeschlossen: %1$d neue Spiele, %2$d neue Runden, %3$d bereits vorhanden</string>
+    <string name="backup_import_missing_profile">%1$d Runden wegen fehlender Profile übersprungen.</string>
+    <string name="backup_import_error_schema">Dieses Backup wurde mit einer neueren App-Version erstellt. Bitte zuerst die App aktualisieren.</string>
+    <string name="backup_import_error_invalid">Die Datei konnte nicht gelesen werden.</string>
+    <string name="backup_export_error">Das Backup konnte nicht erstellt werden.</string>
+    <string name="backup_share_title">Backup teilen</string>
+    <string name="backup_filename">realmscore_backup_%1$s.json</string>
+
     <!-- Profilverwaltung (Phase 17) -->
     <string name="settings_manage_profiles">Profile verwalten</string>
     <string name="profile_management_title">Profile</string>

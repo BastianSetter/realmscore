@@ -2,6 +2,7 @@ package de.morzo.realmscore.data.db.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import de.morzo.realmscore.data.db.entity.GameEntity
@@ -16,6 +17,13 @@ interface GameDao {
 
     @Insert
     suspend fun insertParticipants(participants: List<GameParticipantEntity>)
+
+    /**
+     * Phase 24 M2: ergänzt fehlende Teilnehmer beim Backup-Import in ein bereits existierendes Spiel,
+     * ohne bei vorhandenen `(gameId, profileId)`-Schlüsseln eine PK-Verletzung auszulösen.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertParticipantsIgnore(participants: List<GameParticipantEntity>)
 
     @Transaction
     suspend fun insertGameWithParticipants(
@@ -82,6 +90,10 @@ interface GameDao {
 
     @Query("SELECT COUNT(*) FROM games WHERE closedAt IS NOT NULL")
     fun observeClosedGameCount(): Flow<Int>
+
+    /** Phase 24 M1: cheap signal for the stats-snapshot cache fingerprint. */
+    @Query("SELECT COUNT(*) FROM games WHERE closedAt IS NOT NULL")
+    suspend fun getClosedGameCount(): Int
 
     @Query("DELETE FROM games")
     suspend fun deleteAll()

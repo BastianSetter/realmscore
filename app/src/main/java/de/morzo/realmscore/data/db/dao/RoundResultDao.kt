@@ -41,6 +41,14 @@ interface RoundResultDao {
     @Query("SELECT * FROM round_results WHERE roundId IN (:roundIds)")
     suspend fun getResultsForRounds(roundIds: List<String>): List<RoundResultEntity>
 
+    // --- Phase 24 M1: cheap signals for the stats-snapshot cache fingerprint ---
+
+    @Query("SELECT COUNT(*) FROM round_results")
+    suspend fun getResultCount(): Int
+
+    @Query("SELECT MAX(updatedAt) FROM round_results")
+    suspend fun getMaxUpdatedAt(): Long?
+
     @Query("DELETE FROM round_results")
     suspend fun deleteAll()
 }

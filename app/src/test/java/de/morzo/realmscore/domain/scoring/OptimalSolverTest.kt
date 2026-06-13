@@ -18,7 +18,7 @@ class OptimalSolverTest {
             hand = TestFixture.hand("swamp", "elven_archers", "candle", "island"),
         )
         val best = TestFixture.solver.findOptimal(seed)
-        assertEquals("swamp", best.bestInput.playerChoices.islandTargetKey)
+        assertEquals("swamp", best.bestInput.jokerAssignments["island"]?.targetCardKey)
         assertEquals(49, best.bestResult.totalScore)
     }
 
@@ -72,7 +72,7 @@ class OptimalSolverTest {
             hand = TestFixture.hand("island", "water_elemental"),
         )
         val best = TestFixture.solver.findOptimal(seed)
-        assertEquals("water_elemental", best.bestInput.playerChoices.islandTargetKey)
+        assertEquals("water_elemental", best.bestInput.jokerAssignments["island"]?.targetCardKey)
     }
 
     @Test fun `solver picks highest-strength fountain source`() {
@@ -83,7 +83,7 @@ class OptimalSolverTest {
             hand = TestFixture.hand("fountain_of_life", "warship", "sword_of_keth", "air_elemental"),
         )
         val best = TestFixture.solver.findOptimal(seed)
-        assertEquals("warship", best.bestInput.playerChoices.fountainSourceKey)
+        assertEquals("warship", best.bestInput.jokerAssignments["fountain_of_life"]?.targetCardKey)
     }
 
     @Test fun `solver picks best necromancer card when discard is scanned`() {
@@ -118,6 +118,30 @@ class OptimalSolverTest {
             hand = TestFixture.hand("fountain_of_life", "smoke", "air_elemental"),
         )
         val best = TestFixture.solver.findOptimal(seed)
-        assertEquals("air_elemental", best.bestInput.playerChoices.fountainSourceKey)
+        assertEquals("air_elemental", best.bestInput.jokerAssignments["fountain_of_life"]?.targetCardKey)
+    }
+
+    @Test fun `solver lets fountain draw from a doppelganger-resolved card`() {
+        // Regression (Phase 23): Doppelganger→wildfire makes a Flame-40 card; the Fountain then
+        // legally draws from that copy. The pick must surface as a jokerAssignment keyed by the
+        // fountain (so the UI row resolves it via the effective hand) rather than being left unset.
+        val seed = ScoringInput(
+            hand = TestFixture.hand(
+                "doppelganger",
+                "protection_rune",
+                "fountain_of_life",
+                "mountain",
+                "smoke",
+                "lightning",
+                "wildfire",
+            ),
+        )
+        val best = TestFixture.solver.findOptimal(seed)
+        assertEquals(219, best.bestResult.totalScore)
+        assertEquals("wildfire", best.bestInput.jokerAssignments["doppelganger"]?.targetCardKey)
+        assertEquals(
+            "doppelganger",
+            best.bestInput.jokerAssignments["fountain_of_life"]?.targetCardKey,
+        )
     }
 }

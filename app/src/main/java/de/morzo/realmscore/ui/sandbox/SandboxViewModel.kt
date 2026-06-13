@@ -78,14 +78,9 @@ data class SandboxUiState(
     val canSaveFavorite: Boolean
         get() = filledCards.size == SANDBOX_SLOT_COUNT
 
-    val jokersInHand: List<CardDefinition>
-        get() = filledCards.filter { it.isJoker }
-
-    val islandInHand: Boolean
-        get() = filledCards.any { it.key == "island" }
-
-    val fountainInHand: Boolean
-        get() = filledCards.any { it.key == "fountain_of_life" }
+    /** Every card needing a choice row (substitution jokers + Island/Fountain). */
+    val jokerCardsInHand: List<CardDefinition>
+        get() = filledCards.filter { it.jokerType != null }
 
     val necromancerInHand: Boolean
         get() = filledCards.any { it.key == "necromancer" }
@@ -294,18 +289,6 @@ class SandboxViewModel(
         }
     }
 
-    fun setIslandTarget(key: String?) {
-        _uiState.update { state ->
-            state.copy(playerChoices = state.playerChoices.copy(islandTargetKey = key)).recomputeScore()
-        }
-    }
-
-    fun setFountainSource(key: String?) {
-        _uiState.update { state ->
-            state.copy(playerChoices = state.playerChoices.copy(fountainSourceKey = key)).recomputeScore()
-        }
-    }
-
     fun setNecromancerPick(cardKey: String) {
         _uiState.update { state ->
             state.copy(playerChoices = state.playerChoices.copy(necromancerPickKey = cardKey)).recomputeScore()
@@ -367,13 +350,12 @@ class SandboxViewModel(
      */
     private fun SandboxUiState.pruneStaleSelections(): SandboxUiState {
         val handKeys = filledCards.map { it.key }.toSet()
+        // Joker/Island/Fountain assignments are keyed by their hand card and prune away with it.
+        // The Necromancer pick is a discard-pile card, so it is kept as long as a Necromancer
+        // remains in the hand.
         val newJokerAssignments = jokerAssignments.filterKeys { it in handKeys }
-        // The Necromancer pick is a discard-pile card (never in hand), so it is kept as long as a
-        // Necromancer remains in the hand — not gated on handKeys like Island/Fountain targets.
         val necromancerStillInHand = "necromancer" in handKeys
         val newChoices = playerChoices.copy(
-            islandTargetKey = playerChoices.islandTargetKey?.takeIf { it in handKeys },
-            fountainSourceKey = playerChoices.fountainSourceKey?.takeIf { it in handKeys },
             necromancerPickKey = playerChoices.necromancerPickKey?.takeIf { necromancerStillInHand },
         )
         return copy(jokerAssignments = newJokerAssignments, playerChoices = newChoices)

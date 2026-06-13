@@ -35,7 +35,12 @@
       "Bash(xargs grep -ln \"findOptimal\\\\|OptimalResult\\\\|ScoringInput\\\\|discardScanned\\\\|necromancer\")",
       "Bash(pip show *)",
       "PowerShell(git stash *)",
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Bash(where adb *)",
+      "Bash(\"%LOCALAPPDATA%\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" version *)",
+      "Bash(%LOCALAPPDATA%\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe devices *)",
+      "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; if \\(Test-Path $adb\\) { & $adb version } else { \"adb not found at $adb\" })",
+      "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb devices -l)"
     ]
   }
 }

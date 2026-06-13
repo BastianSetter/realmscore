@@ -17,16 +17,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +45,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.content.Intent
+import android.net.Uri
 import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.AppLanguage
 import de.morzo.realmscore.domain.model.Profile
@@ -53,10 +60,70 @@ fun SettingsScreen(
     onAppReset: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     var showClearGameDataDialog by remember { mutableStateOf(false) }
     var showResetAppDialog by remember { mutableStateOf(false) }
+    var pendingImportUri by rememberSaveable { mutableStateOf<String?>(null) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // String templates resolved here so the event collector can format messages without a Composable.
+    val importResultTemplate = stringResource(R.string.backup_import_result)
+    val importMissingProfileTemplate = stringResource(R.string.backup_import_missing_profile)
+    val exportErrorMsg = stringResource(R.string.backup_export_error)
+    val importSchemaErrorMsg = stringResource(R.string.backup_import_error_schema)
+    val importInvalidMsg = stringResource(R.string.backup_import_error_invalid)
+    val shareTitle = stringResource(R.string.backup_share_title)
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is BackupEvent.ShareFile -> {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/json"
+                        putExtra(Intent.EXTRA_STREAM, event.uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    val chooser = Intent.createChooser(shareIntent, shareTitle)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(chooser)
+                }
+                BackupEvent.ExportFailed ->
+                    snackbarHostState.showSnackbar(exportErrorMsg)
+                is BackupEvent.ImportSucceeded -> {
+                    val r = event.result
+                    val base = String.format(
+                        importResultTemplate,
+                        r.gamesCreated,
+                        r.roundsAdded,
+                        r.roundsSkipped,
+                    )
+                    val message = if (r.roundsSkippedMissingProfile > 0) {
+                        base + " " + String.format(
+                            importMissingProfileTemplate,
+                            r.roundsSkippedMissingProfile,
+                        )
+                    } else {
+                        base
+                    }
+                    snackbarHostState.showSnackbar(message)
+                }
+                BackupEvent.ImportSchemaTooNew ->
+                    snackbarHostState.showSnackbar(importSchemaErrorMsg)
+                BackupEvent.ImportInvalid ->
+                    snackbarHostState.showSnackbar(importInvalidMsg)
+            }
+        }
+    }
+
+    val importPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent(),
+    ) { uri: Uri? ->
+        if (uri != null) pendingImportUri = uri.toString()
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -121,6 +188,8 @@ fun SettingsScreen(
         item {
             DataSection(
                 info = state.dataInfo,
+                onExportBackup = { viewModel.exportBackup(context) },
+                onImportBackup = { importPicker.launch("application/json") },
                 onClearGameData = { showClearGameDataDialog = true },
                 onResetApp = { showResetAppDialog = true },
             )
@@ -128,6 +197,34 @@ fun SettingsScreen(
 
         item { SectionHeader(stringResource(R.string.settings_about)) }
         item { AboutSection() }
+    }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+        )
+    }
+
+    pendingImportUri?.let { uriString ->
+        AlertDialog(
+            onDismissRequest = { pendingImportUri = null },
+            title = { Text(stringResource(R.string.backup_import_confirm_title)) },
+            text = { Text(stringResource(R.string.backup_import_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingImportUri = null
+                    viewModel.importBackup(context, Uri.parse(uriString))
+                }) {
+                    Text(stringResource(R.string.backup_import_confirm_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingImportUri = null }) {
+                    Text(stringResource(R.string.settings_cancel))
+                }
+            },
+        )
     }
 
     if (showClearGameDataDialog) {
@@ -342,6 +439,8 @@ private fun ThemeModeRadioGroup(
 @Composable
 private fun DataSection(
     info: DataInfo,
+    onExportBackup: () -> Unit,
+    onImportBackup: () -> Unit,
     onClearGameData: () -> Unit,
     onResetApp: () -> Unit,
 ) {
@@ -352,6 +451,20 @@ private fun DataSection(
             Text(stringResource(R.string.settings_data_rounds, info.totalRoundsCount))
             Text(stringResource(R.string.settings_data_profiles, info.profilesCount))
             Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = onExportBackup,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.settings_export_backup))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onImportBackup,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.settings_import_backup))
+            }
+            Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = onClearGameData,
                 modifier = Modifier.fillMaxWidth(),
