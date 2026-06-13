@@ -131,16 +131,15 @@ class StatsRepositoryImpl(
         for ((rrId, cards) in handCardsByResultId) {
             val hand = cards.mapNotNull { cardsByKey[it.cardKey] }
             if (hand.size != cards.size) continue
-            // Use the shared reconstruction so the Necromancer pick lands in playerChoices (not as a
-            // bogus joker assignment); otherwise the pulled 8th card and its suit-bonus knock-on would
-            // be dropped here, making per-card contributions disagree with the stored total (H1/L1).
+            // Use the shared reconstruction so every target (incl. the Necromancer pull) rebuilds as
+            // a joker assignment; otherwise the pulled 8th card and its suit-bonus knock-on would be
+            // dropped here, making per-card contributions disagree with the stored total (H1/L1).
             val choices = cards.toScoringChoices()
             try {
                 val scoring = scoringEngine.score(
                     ScoringInput(
                         hand = hand,
                         jokerAssignments = choices.jokerAssignments,
-                        playerChoices = choices.playerChoices,
                     ),
                 )
                 result[rrId] = scoring.perCard.associate { it.cardKey to it.contributedScore }

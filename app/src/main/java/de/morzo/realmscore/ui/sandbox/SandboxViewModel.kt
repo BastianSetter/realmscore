@@ -15,7 +15,6 @@ import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.RoundRepository
 import de.morzo.realmscore.domain.repository.SandboxFavoriteRepository
 import de.morzo.realmscore.domain.scoring.JokerAssignment
-import de.morzo.realmscore.domain.scoring.PlayerChoices
 import de.morzo.realmscore.domain.scoring.ScoringEngine
 import de.morzo.realmscore.domain.scoring.ScoringInput
 import de.morzo.realmscore.domain.scoring.ScoringResult
@@ -33,6 +32,8 @@ import kotlinx.coroutines.withContext
 
 const val SANDBOX_SLOT_COUNT = 7
 
+private const val NECROMANCER_KEY = "necromancer"
+
 sealed class CardSlot {
     data object Empty : CardSlot()
     data class Filled(val card: CardDefinition) : CardSlot()
@@ -48,19 +49,17 @@ data class OriginBanner(
 
 /**
  * Serializable-by-value snapshot of a Sandbox hand (Phase 22). Carries only card keys plus joker
- * assignments and player choices, so it can pre-fill another [SandboxViewModel] (Multi-Hand left
- * column) or be turned into a [FavoriteCard] list.
+ * assignments (which now include the Necromancer pull), so it can pre-fill another [SandboxViewModel]
+ * (Multi-Hand left column) or be turned into a [FavoriteCard] list.
  */
 data class HandSnapshot(
     val slotKeys: List<String?>,
     val jokerAssignments: Map<String, JokerAssignment>,
-    val playerChoices: PlayerChoices,
 )
 
 data class SandboxUiState(
     val slots: List<CardSlot> = List(SANDBOX_SLOT_COUNT) { CardSlot.Empty },
     val jokerAssignments: Map<String, JokerAssignment> = emptyMap(),
-    val playerChoices: PlayerChoices = PlayerChoices(),
     val scoringResult: ScoringResult? = null,
     val optimalRunning: Boolean = false,
     val breakdownOpen: Boolean = false,
@@ -78,12 +77,16 @@ data class SandboxUiState(
     val canSaveFavorite: Boolean
         get() = filledCards.size == SANDBOX_SLOT_COUNT
 
-    /** Every card needing a choice row (substitution jokers + Island/Fountain). */
+    /**
+     * Every card needing a generic joker choice row (substitution jokers + Island/Fountain). The
+     * Necromancer is a JokerType too but renders as its own dedicated row in the joker section
+     * (with a full card picker), so it is excluded here.
+     */
     val jokerCardsInHand: List<CardDefinition>
-        get() = filledCards.filter { it.jokerType != null }
+        get() = filledCards.filter { it.jokerType != null && it.key != NECROMANCER_KEY }
 
     val necromancerInHand: Boolean
-        get() = filledCards.any { it.key == "necromancer" }
+        get() = filledCards.any { it.key == NECROMANCER_KEY }
 }
 
 class SandboxViewModel(
@@ -145,10 +148,11 @@ class SandboxViewModel(
             if (idx < SANDBOX_SLOT_COUNT) slots[idx] = CardSlot.Filled(card)
         }
 
-        // The Necromancer is not a joker; it persists its pulled card on its own HandCard via the
-        // reused jokerTargetCardKey field. Exclude it here and restore it as the necromancer pick.
+        // Every chosen target — substitution jokers, Island/Fountain and the Necromancer pull — is
+        // persisted on its own HandCard's jokerTargetCardKey column, so they all rebuild uniformly
+        // into joker assignments keyed by their card.
         val jokerAssignments: Map<String, JokerAssignment> = orderedEntries
-            .filter { it.jokerTargetCardKey != null && it.cardKey != "necromancer" }
+            .filter { it.jokerTargetCardKey != null }
             .associate { entry ->
                 entry.cardKey to JokerAssignment(
                     jokerKey = entry.cardKey,
@@ -157,10 +161,6 @@ class SandboxViewModel(
                         ?.let { runCatching { Suit.valueOf(it) }.getOrNull() },
                 )
             }
-
-        val necromancerPickKey = orderedEntries
-            .firstOrNull { it.cardKey == "necromancer" }
-            ?.jokerTargetCardKey
 
         val banner = OriginBanner(
             gameId = data.gameId,
@@ -174,7 +174,6 @@ class SandboxViewModel(
             state.copy(
                 slots = slots,
                 jokerAssignments = jokerAssignments,
-                playerChoices = PlayerChoices(necromancerPickKey = necromancerPickKey),
                 discardCards = discardCards,
                 discardScanned = round.discardScanned,
                 originBanner = banner,
@@ -220,7 +219,6 @@ class SandboxViewModel(
     private fun SandboxUiState.toSnapshot(): HandSnapshot = HandSnapshot(
         slotKeys = slots.map { (it as? CardSlot.Filled)?.card?.key },
         jokerAssignments = jokerAssignments,
-        playerChoices = playerChoices,
     )
 
     private fun SandboxUiState.toFavoriteCards(): List<FavoriteCard> =
@@ -248,7 +246,7 @@ class SandboxViewModel(
                 )
             }
         }
-        return HandSnapshot(slotKeys, assignments, PlayerChoices())
+        return HandSnapshot(slotKeys, assignments)
     }
 
     private fun SandboxUiState.applySnapshot(snapshot: HandSnapshot): SandboxUiState {
@@ -260,7 +258,6 @@ class SandboxViewModel(
         return copy(
             slots = padded,
             jokerAssignments = snapshot.jokerAssignments,
-            playerChoices = snapshot.playerChoices,
             originBanner = null,
         ).pruneStaleSelections().recomputeScore()
     }
@@ -289,17 +286,10 @@ class SandboxViewModel(
         }
     }
 
-    fun setNecromancerPick(cardKey: String) {
-        _uiState.update { state ->
-            state.copy(playerChoices = state.playerChoices.copy(necromancerPickKey = cardKey)).recomputeScore()
-        }
-    }
+    fun setNecromancerPick(cardKey: String) =
+        setJokerAssignment(NECROMANCER_KEY, JokerAssignment(NECROMANCER_KEY, cardKey))
 
-    fun clearNecromancerPick() {
-        _uiState.update { state ->
-            state.copy(playerChoices = state.playerChoices.copy(necromancerPickKey = null)).recomputeScore()
-        }
-    }
+    fun clearNecromancerPick() = setJokerAssignment(NECROMANCER_KEY, null)
 
     fun applyOptimal() {
         val current = _uiState.value
@@ -310,7 +300,6 @@ class SandboxViewModel(
             _uiState.update {
                 it.copy(
                     jokerAssignments = best.bestInput.jokerAssignments,
-                    playerChoices = best.bestInput.playerChoices,
                     scoringResult = best.bestResult,
                     optimalRunning = false,
                 )
@@ -333,7 +322,6 @@ class SandboxViewModel(
     private fun SandboxUiState.toScoringInput(): ScoringInput = ScoringInput(
         hand = filledCards,
         jokerAssignments = jokerAssignments,
-        playerChoices = playerChoices,
         discardPile = discardCards,
         discardScanned = discardScanned,
     )
@@ -350,15 +338,9 @@ class SandboxViewModel(
      */
     private fun SandboxUiState.pruneStaleSelections(): SandboxUiState {
         val handKeys = filledCards.map { it.key }.toSet()
-        // Joker/Island/Fountain assignments are keyed by their hand card and prune away with it.
-        // The Necromancer pick is a discard-pile card, so it is kept as long as a Necromancer
-        // remains in the hand.
-        val newJokerAssignments = jokerAssignments.filterKeys { it in handKeys }
-        val necromancerStillInHand = "necromancer" in handKeys
-        val newChoices = playerChoices.copy(
-            necromancerPickKey = playerChoices.necromancerPickKey?.takeIf { necromancerStillInHand },
-        )
-        return copy(jokerAssignments = newJokerAssignments, playerChoices = newChoices)
+        // Every assignment (jokers, Island, Fountain, Necromancer) is keyed by its hand card and
+        // prunes away once that card leaves the hand.
+        return copy(jokerAssignments = jokerAssignments.filterKeys { it in handKeys })
     }
 
     class Factory(

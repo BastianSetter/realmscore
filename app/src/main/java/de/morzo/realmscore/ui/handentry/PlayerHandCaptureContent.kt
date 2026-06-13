@@ -28,7 +28,7 @@ import de.morzo.realmscore.ui.components.CardPicker
 import de.morzo.realmscore.ui.sandbox.CardSlot
 import de.morzo.realmscore.ui.sandbox.components.HandSlotsRow
 import de.morzo.realmscore.ui.sandbox.components.JokerSection
-import de.morzo.realmscore.ui.sandbox.components.NecromancerSection
+import de.morzo.realmscore.ui.sandbox.components.NecromancerRowData
 
 private sealed interface PickerMode {
     data class SingleEdit(val slotIndex: Int) : PickerMode
@@ -104,9 +104,10 @@ fun PlayerHandCaptureContent(
             },
         )
 
-        // Substitution jokers and the Island / Fountain choices share one section + the "Optimal"
-        // button (Phase 23): all are JokerType targets, brute-forced alike by the solver.
-        if (!state.isDiscard && state.jokerCardsInHand.isNotEmpty()) {
+        // The Necromancer, substitution jokers and the Island / Fountain choices share one section +
+        // the "Optimal" button (Phase 23, spec 25.4): all are JokerType targets, brute-forced alike
+        // by the solver. The Necromancer leads the section as the first card to resolve.
+        if (!state.isDiscard && (state.jokerCardsInHand.isNotEmpty() || state.necromancerInHand)) {
             Spacer(Modifier.height(24.dp))
             JokerSection(
                 jokers = state.jokerCardsInHand,
@@ -116,16 +117,15 @@ fun PlayerHandCaptureContent(
                 onAssignmentChange = onSetJokerAssignment,
                 onOptimal = onApplyOptimal,
                 optimalRunning = state.isOptimalRunning,
-            )
-        }
-
-        if (!state.isDiscard && state.necromancerInHand) {
-            Spacer(Modifier.height(24.dp))
-            NecromancerSection(
-                pickedCard = state.playerChoices.necromancerPickKey
-                    ?.let { key -> allCards.firstOrNull { it.key == key } },
-                onPickCard = { necromancerPickerOpen = true },
-                onClearPick = onClearNecromancerPick,
+                necromancer = if (state.necromancerInHand) {
+                    NecromancerRowData(
+                        card = allCards.first { it.key == "necromancer" },
+                        pickedCard = state.jokerAssignments["necromancer"]?.targetCardKey
+                            ?.let { key -> allCards.firstOrNull { it.key == key } },
+                        onPick = { necromancerPickerOpen = true },
+                        onClear = onClearNecromancerPick,
+                    )
+                } else null,
             )
         }
 

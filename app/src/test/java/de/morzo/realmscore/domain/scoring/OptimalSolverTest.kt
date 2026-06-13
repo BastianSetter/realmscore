@@ -1,6 +1,8 @@
 package de.morzo.realmscore.domain.scoring
 
+import de.morzo.realmscore.domain.model.Suit
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -96,7 +98,7 @@ class OptimalSolverTest {
             discardScanned = true,
         )
         val best = TestFixture.solver.findOptimal(seed)
-        assertEquals("unicorn", best.bestInput.playerChoices.necromancerPickKey)
+        assertEquals("unicorn", best.bestInput.jokerAssignments["necromancer"]?.targetCardKey)
         assertEquals(30, best.bestResult.totalScore)
     }
 
@@ -108,7 +110,7 @@ class OptimalSolverTest {
             discardScanned = false,
         )
         val best = TestFixture.solver.findOptimal(seed)
-        assertEquals(null, best.bestInput.playerChoices.necromancerPickKey)
+        assertEquals(null, best.bestInput.jokerAssignments["necromancer"]?.targetCardKey)
     }
 
     @Test fun `solver skips blanked fountain source`() {
@@ -119,6 +121,27 @@ class OptimalSolverTest {
         )
         val best = TestFixture.solver.findOptimal(seed)
         assertEquals("air_elemental", best.bestInput.jokerAssignments["fountain_of_life"]?.targetCardKey)
+    }
+
+    @Test fun `solver finds the Necromancer-Book-Island chain on the pulled card (spec 25_4)`() {
+        // Reference chain: pull the Basilisk, Book turns it Beast→Flood, Island cancels its penalty
+        // so the two armies it would otherwise blank survive. This is the ONLY way to protect both
+        // armies (a single Book can't re-suit both, and the Island needs a Flood/Flame target — which
+        // only exists once Book has re-suited the pulled Basilisk). Proves the optimiser offers the
+        // pulled 8th card to Book of Changes and to the Island.
+        val seed = ScoringInput(
+            hand = TestFixture.hand("necromancer", "book_of_changes", "island", "rangers", "elven_archers"),
+            discardPile = TestFixture.hand("basilisk"),
+            discardScanned = true,
+        )
+        val best = TestFixture.solver.findOptimal(seed)
+        val a = best.bestInput.jokerAssignments
+        assertEquals("basilisk", a["necromancer"]?.targetCardKey)
+        assertEquals("basilisk", a["book_of_changes"]?.targetCardKey)
+        assertTrue(a["book_of_changes"]?.targetSuit in setOf(Suit.FLOOD, Suit.FLAME))
+        assertEquals("basilisk", a["island"]?.targetCardKey)
+        assertFalse("rangers" in best.bestResult.blankedKeys)
+        assertFalse("elven_archers" in best.bestResult.blankedKeys)
     }
 
     @Test fun `solver lets fountain draw from a doppelganger-resolved card`() {

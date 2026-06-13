@@ -183,9 +183,17 @@
     <string name="ring_tap_hint">Tap a card to see its connections and points.</string>
     <string name="ring_blanked_by">Blanked by %1$s</string>
     <string name="sandbox_joker_section_title">Joker resolution</string>
-    <string name="sandbox_joker_target">Mirrors</string>
+    <!-- Action verb in the joker row, read as a sentence "<Joker> <verb> <card>" (spec 25.4) -->
+    <string name="joker_action_doppelganger">copies</string>
+    <string name="joker_action_mirage">mirrors</string>
+    <string name="joker_action_shapeshifter">becomes</string>
+    <string name="joker_action_book">changes</string>
+    <string name="joker_action_island">cancels</string>
+    <string name="joker_action_fountain">copies strength</string>
+    <string name="joker_action_necromancer">summons</string>
+    <!-- Connects the two Book of Changes fields: "changes <card> to <suit>" -->
+    <string name="joker_book_to">to</string>
     <string name="sandbox_joker_unset">— not set —</string>
-    <string name="sandbox_book_new_suit">New suit</string>
     <string name="sandbox_choice_section_title">Card choices</string>
     <string name="sandbox_choice_island">Island clears penalty of <!-- NEEDS REVIEW --></string>
     <string name="sandbox_choice_fountain">Fountain copies <!-- NEEDS REVIEW --></string>

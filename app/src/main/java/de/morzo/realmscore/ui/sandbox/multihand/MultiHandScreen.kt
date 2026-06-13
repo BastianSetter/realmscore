@@ -58,7 +58,7 @@ import de.morzo.realmscore.ui.sandbox.SandboxUiState
 import de.morzo.realmscore.ui.sandbox.SandboxViewModel
 import de.morzo.realmscore.ui.sandbox.components.BreakdownEffectRow
 import de.morzo.realmscore.ui.sandbox.components.JokerSection
-import de.morzo.realmscore.ui.sandbox.components.NecromancerSection
+import de.morzo.realmscore.ui.sandbox.components.NecromancerRowData
 import de.morzo.realmscore.ui.sandbox.components.formatDelta
 import de.morzo.realmscore.ui.util.displayName
 
@@ -249,16 +249,16 @@ private fun SandboxHandColumn(
             allCards = vm.allCards,
             handCards = state.filledCards,
             onAssignmentChange = vm::setJokerAssignment,
+            necromancer = if (state.necromancerInHand) {
+                NecromancerRowData(
+                    card = vm.allCards.first { it.key == "necromancer" },
+                    pickedCard = state.jokerAssignments["necromancer"]?.targetCardKey
+                        ?.let { key -> vm.allCards.firstOrNull { it.key == key } },
+                    onPick = { necromancerPickerOpen = true },
+                    onClear = vm::clearNecromancerPick,
+                )
+            } else null,
         )
-
-        if (state.necromancerInHand) {
-            NecromancerSection(
-                pickedCard = state.playerChoices.necromancerPickKey
-                    ?.let { key -> vm.allCards.firstOrNull { it.key == key } },
-                onPickCard = { necromancerPickerOpen = true },
-                onClearPick = vm::clearNecromancerPick,
-            )
-        }
     }
 
     pickerForSlot?.let { slotIdx ->

@@ -183,9 +183,17 @@
     <string name="ring_tap_hint">Tippe auf eine Karte, um ihre Verbindungen und Punkte zu sehen.</string>
     <string name="ring_blanked_by">Geblankt von %1$s</string>
     <string name="sandbox_joker_section_title">Joker-Auflösung</string>
-    <string name="sandbox_joker_target">Spiegelt</string>
+    <!-- Aktions-Verb in der Joker-Zeile, gelesen als Satz "<Joker> <Verb> <Karte>" (spec 25.4) -->
+    <string name="joker_action_doppelganger">kopiert</string>
+    <string name="joker_action_mirage">spiegelt</string>
+    <string name="joker_action_shapeshifter">wird zu</string>
+    <string name="joker_action_book">ändert</string>
+    <string name="joker_action_island">hebt auf</string>
+    <string name="joker_action_fountain">kopiert Stärke</string>
+    <string name="joker_action_necromancer">beschwört</string>
+    <!-- Verbindet die beiden Buch-der-Veränderung-Felder: "ändert <Karte> zu <Farbe>" -->
+    <string name="joker_book_to">zu</string>
     <string name="sandbox_joker_unset">— nicht gesetzt —</string>
-    <string name="sandbox_book_new_suit">Neue Farbe</string>
     <string name="sandbox_choice_section_title">Karten-Auswahl</string>
     <string name="sandbox_choice_island">Insel hebt Strafe auf</string>
     <string name="sandbox_choice_fountain">Quelle kopiert</string>

@@ -10,7 +10,6 @@ import de.morzo.realmscore.domain.repository.HandCardEntry
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.scoring.JokerAssignment
-import de.morzo.realmscore.domain.scoring.PlayerChoices
 import de.morzo.realmscore.domain.scoring.ScoringEngine
 import de.morzo.realmscore.domain.scoring.ScoringInput
 import de.morzo.realmscore.domain.scoring.solver.OptimalSolver
@@ -32,7 +31,6 @@ data class PlayerHandEntryUiState(
     val playerName: String = "",
     val slots: List<CardSlot> = List(PLAYER_HAND_SLOT_COUNT) { CardSlot.Empty },
     val jokerAssignments: Map<String, JokerAssignment> = emptyMap(),
-    val playerChoices: PlayerChoices = PlayerChoices(),
     val cardsUsedByOthers: Set<String> = emptySet(),
     val isOptimalRunning: Boolean = false,
     val isSaving: Boolean = false,
@@ -53,9 +51,13 @@ data class PlayerHandEntryUiState(
     val jokersInHand: List<CardDefinition>
         get() = filledCards.filter { it.isJoker }
 
-    /** Every card needing a choice row (substitution jokers + Island/Fountain). */
+    /**
+     * Every card needing a generic joker choice row (substitution jokers + Island/Fountain). The
+     * Necromancer is a JokerType too, but renders as its own dedicated row in the joker section
+     * (with a full card picker), so it is excluded here.
+     */
     val jokerCardsInHand: List<CardDefinition>
-        get() = filledCards.filter { it.jokerType != null }
+        get() = filledCards.filter { it.jokerType != null && it.key != NECROMANCER_KEY }
 
     val necromancerInHand: Boolean
         get() = filledCards.any { it.key == NECROMANCER_KEY }
@@ -100,10 +102,10 @@ class PlayerHandEntryViewModel(
                         }
                     }
                 }
-            // The Necromancer is not a joker; we persist its pull on the Necromancer HandCard via
-            // the reused jokerTargetCardKey field. Exclude it from joker assignments on load.
+            // Every chosen target — substitution jokers, Island/Fountain and the Necromancer pull —
+            // is persisted on its own card entry's jokerTargetCardKey column, so they all rebuild
+            // uniformly into joker assignments keyed by their card.
             val jokerAssignments = existing?.cards
-                ?.filter { it.cardKey != NECROMANCER_KEY }
                 ?.mapNotNull { entry ->
                     val target = entry.jokerTargetCardKey ?: return@mapNotNull null
                     val suit = entry.jokerTargetSuit?.let { runCatching { Suit.valueOf(it) }.getOrNull() }
@@ -115,17 +117,12 @@ class PlayerHandEntryViewModel(
                 }?.toMap()
                 ?: emptyMap()
 
-            val necromancerPickKey = existing?.cards
-                ?.firstOrNull { it.cardKey == NECROMANCER_KEY }
-                ?.jokerTargetCardKey
-
             _uiState.update {
                 it.copy(
                     isLoading = false,
                     playerName = profile.name,
                     slots = slots,
                     jokerAssignments = jokerAssignments,
-                    playerChoices = PlayerChoices(necromancerPickKey = necromancerPickKey),
                 )
             }
 
@@ -162,17 +159,10 @@ class PlayerHandEntryViewModel(
         }
     }
 
-    fun setNecromancerPick(cardKey: String) {
-        _uiState.update { state ->
-            state.copy(playerChoices = state.playerChoices.copy(necromancerPickKey = cardKey))
-        }
-    }
+    fun setNecromancerPick(cardKey: String) =
+        setJokerAssignment(NECROMANCER_KEY, JokerAssignment(NECROMANCER_KEY, cardKey))
 
-    fun clearNecromancerPick() {
-        _uiState.update { state ->
-            state.copy(playerChoices = state.playerChoices.copy(necromancerPickKey = null))
-        }
-    }
+    fun clearNecromancerPick() = setJokerAssignment(NECROMANCER_KEY, null)
 
     fun applyOptimal() {
         val current = _uiState.value
@@ -180,7 +170,6 @@ class PlayerHandEntryViewModel(
         val seed = ScoringInput(
             hand = current.filledCards,
             jokerAssignments = current.jokerAssignments,
-            playerChoices = current.playerChoices,
         )
         _uiState.update { it.copy(isOptimalRunning = true) }
         viewModelScope.launch {
@@ -188,7 +177,6 @@ class PlayerHandEntryViewModel(
             _uiState.update {
                 it.copy(
                     jokerAssignments = best.bestInput.jokerAssignments,
-                    playerChoices = best.bestInput.playerChoices,
                     isOptimalRunning = false,
                 )
             }
@@ -203,22 +191,17 @@ class PlayerHandEntryViewModel(
             val input = ScoringInput(
                 hand = current.filledCards,
                 jokerAssignments = current.jokerAssignments,
-                playerChoices = current.playerChoices,
             )
             val totalScore = withContext(Dispatchers.Default) { engine.score(input).totalScore }
             val entries = current.slots.mapIndexedNotNull { idx, slot ->
                 val card = (slot as? CardSlot.Filled)?.card ?: return@mapIndexedNotNull null
+                // Every target — jokers, Island, Fountain and the Necromancer pull — lives in
+                // jokerAssignments keyed by the card and persists to its own jokerTargetCardKey.
                 val assignment = current.jokerAssignments[card.key]
-                // Necromancer reuses jokerTargetCardKey to persist its pulled card (the "target").
-                val targetCardKey = if (card.key == NECROMANCER_KEY) {
-                    current.playerChoices.necromancerPickKey
-                } else {
-                    assignment?.targetCardKey
-                }
                 HandCardEntry(
                     cardKey = card.key,
                     position = idx,
-                    jokerTargetCardKey = targetCardKey,
+                    jokerTargetCardKey = assignment?.targetCardKey,
                     jokerTargetSuit = assignment?.targetSuit?.name,
                 )
             }
@@ -235,15 +218,9 @@ class PlayerHandEntryViewModel(
 
     private fun PlayerHandEntryUiState.pruneStaleSelections(): PlayerHandEntryUiState {
         val handKeys = filledCards.map { it.key }.toSet()
-        // Joker/Island/Fountain assignments are keyed by their hand card, so dropping cards not in
-        // the hand prunes them too. Only the Necromancer pick (a discard-pile card) needs the
-        // explicit guard.
-        val newAssignments = jokerAssignments.filterKeys { it in handKeys }
-        val necromancerStillInHand = NECROMANCER_KEY in handKeys
-        val newChoices = playerChoices.copy(
-            necromancerPickKey = playerChoices.necromancerPickKey?.takeIf { necromancerStillInHand },
-        )
-        return copy(jokerAssignments = newAssignments, playerChoices = newChoices)
+        // Every assignment (jokers, Island, Fountain, Necromancer) is keyed by its hand card, so
+        // dropping cards no longer in the hand prunes them all uniformly.
+        return copy(jokerAssignments = jokerAssignments.filterKeys { it in handKeys })
     }
 
     class Factory(

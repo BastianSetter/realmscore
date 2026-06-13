@@ -4,7 +4,6 @@ import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.JokerType
 import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.domain.scoring.JokerAssignment
-import de.morzo.realmscore.domain.scoring.PlayerChoices
 import de.morzo.realmscore.domain.scoring.ScoringEngine
 import de.morzo.realmscore.domain.scoring.ScoringInput
 import de.morzo.realmscore.domain.scoring.ScoringResult
@@ -31,13 +30,35 @@ class OptimalSolver(
     private val gameCards: List<CardDefinition>,
 ) {
 
-    private val mirageTargets = gameCards.filter { it.suit in MIRAGE_SUITS && !it.isJoker }
-    private val shapeshifterTargets = gameCards.filter { it.suit in SHAPESHIFTER_SUITS && !it.isJoker }
+    private val mirageTargets = gameCards.filter { it.suit in JokerType.MIRAGE_SUITS && !it.isJoker }
+    private val shapeshifterTargets =
+        gameCards.filter { it.suit in JokerType.SHAPESHIFTER_SUITS && !it.isJoker }
     private val bookSuits = Suit.entries.filter { it != Suit.WILD }
 
     fun findOptimal(seed: ScoringInput): OptimalResult {
         val hand = seed.hand
         val handKeys = hand.map { it.key }.toSet()
+
+        val islandPresent = hand.any { it.key == ISLAND_KEY }
+        val fountainPresent = hand.any { it.key == FOUNTAIN_KEY }
+        val necromancerPresent = hand.any { it.key == NECROMANCER_KEY }
+
+        // The Necromancer's pulled card is materialised as an extra resolved card, so it is also a
+        // legal target for Book of Changes (re-suit the 8th card) and for Island/Fountain. Enumerate
+        // the possible pull keys up front so they can be offered to Book of Changes. Only
+        // mit-optimized when the middle was scanned (small candidate set → brute-force is sane);
+        // otherwise the user's manual pick is the single candidate, carried through (spec 25.4).
+        val necromancerPullKeys: List<String> =
+            if (necromancerPresent && seed.discardScanned) {
+                seed.discardPile
+                    .filter { it.suit in NECROMANCER_SUITS && !it.isJoker && it.key !in handKeys }
+                    .map { it.key }
+            } else {
+                listOfNotNull(seed.jokerAssignments[NECROMANCER_KEY]?.targetCardKey)
+            }
+        val necromancerOptions: List<JokerAssignment?> =
+            listOf<JokerAssignment?>(null) +
+                necromancerPullKeys.map { JokerAssignment(NECROMANCER_KEY, it) }
 
         // Build per-joker target candidate lists (including "no assignment").
         val jokerCandidates = hand.mapNotNull { card ->
@@ -52,73 +73,59 @@ class OptimalSolver(
                 JokerType.SHAPESHIFTER -> listOf<JokerAssignment?>(null) +
                     shapeshifterTargets.filter { it.key !in handKeys }
                         .map { JokerAssignment(card.key, it.key) }
-                JokerType.BOOK_OF_CHANGES -> listOf<JokerAssignment?>(null) +
-                    hand.filter { it.key != card.key }
-                        .flatMap { tgt ->
-                            bookSuits.map { suit ->
-                                JokerAssignment(card.key, tgt.key, targetSuit = suit)
-                            }
-                        }
+                JokerType.BOOK_OF_CHANGES -> {
+                    // Hand cards plus any card the Necromancer might pull (the 8th card). A target
+                    // that is not actually present in a given combo just resolves to a no-op.
+                    val targetKeys = hand.filter { it.key != card.key }.map { it.key } +
+                        necromancerPullKeys
+                    listOf<JokerAssignment?>(null) + targetKeys.flatMap { tgtKey ->
+                        bookSuits.map { suit -> JokerAssignment(card.key, tgtKey, targetSuit = suit) }
+                    }
+                }
                 else -> listOf(null)
             }
             card.key to candidates
         }
 
-        val islandPresent = hand.any { it.key == ISLAND_KEY }
-        val fountainPresent = hand.any { it.key == FOUNTAIN_KEY }
-        val necromancerPresent = hand.any { it.key == NECROMANCER_KEY }
-
-        // Necromancer candidates don't depend on joker assignments (they come from the discard
-        // pile, never the hand), so enumerate them once. Only when the middle was scanned; else
-        // keep the user's manual pick untouched.
-        val necromancerOptions: List<String?> =
-            if (necromancerPresent && seed.discardScanned) {
-                listOf<String?>(null) + seed.discardPile
-                    .filter { it.suit in NECROMANCER_SUITS && !it.isJoker && it.key !in handKeys }
-                    .map { it.key }
-            } else {
-                listOf(seed.playerChoices.necromancerPickKey)
-            }
-
         var best: OptimalResult? = null
 
         forEachJokerCombo(jokerCandidates) { jokerAssignments ->
-            // Island/Fountain candidates depend on the substitution jokers, so they are enumerated
-            // from the *resolved* hand of THIS combo (e.g. a Doppelganger that has become a Flame
-            // card is then a valid Fountain source). Their pick is written back as a JokerAssignment
-            // keyed by the card itself, exactly like every other joker target.
-            val resolved = jokerResolver.resolve(hand, jokerAssignments)
+            for (necroAssignment in necromancerOptions) {
+                // Set the Necromancer pull first, then resolve, so the materialised 8th card — and any
+                // Book-of-Changes re-suit applied to it — is visible to the Island/Fountain candidate
+                // lists below. Island/Fountain candidates therefore come from the *resolved* hand of
+                // THIS combo (e.g. a Doppelganger or a pulled card that has become a Flood is a valid
+                // Island target). Each pick is written back as a JokerAssignment keyed by its card.
+                val baseAssignments = jokerAssignments.toMutableMap()
+                if (necroAssignment != null) baseAssignments[NECROMANCER_KEY] = necroAssignment
+                val resolved = jokerResolver.resolve(hand, baseAssignments)
 
-            val islandOptions: List<String?> = if (islandPresent) {
-                listOf<String?>(null) + resolved
-                    .filter { it.originalKey != ISLAND_KEY && it.effectiveSuit in ISLAND_SUITS }
-                    .map { it.originalKey }
-            } else listOf(null)
+                val islandOptions: List<String?> = if (islandPresent) {
+                    listOf<String?>(null) + resolved
+                        .filter { it.originalKey != ISLAND_KEY && it.effectiveSuit in ISLAND_SUITS }
+                        .map { it.originalKey }
+                } else listOf(null)
 
-            val fountainOptions: List<String?> = if (fountainPresent) {
-                listOf<String?>(null) + resolved
-                    .filter {
-                        it.originalKey != FOUNTAIN_KEY &&
-                            it.effectiveSuit in FountainOfLifeRule.eligibleSuits &&
-                            it.effectiveStrength > 0
-                    }
-                    .map { it.originalKey }
-            } else listOf(null)
+                val fountainOptions: List<String?> = if (fountainPresent) {
+                    listOf<String?>(null) + resolved
+                        .filter {
+                            it.originalKey != FOUNTAIN_KEY &&
+                                it.effectiveSuit in FountainOfLifeRule.eligibleSuits &&
+                                it.effectiveStrength > 0
+                        }
+                        .map { it.originalKey }
+                } else listOf(null)
 
-            for (islandTgt in islandOptions) {
-                for (fountainSrc in fountainOptions) {
-                    for (necroPick in necromancerOptions) {
-                        val assignments = jokerAssignments.toMutableMap()
+                for (islandTgt in islandOptions) {
+                    for (fountainSrc in fountainOptions) {
+                        val assignments = baseAssignments.toMutableMap()
                         if (islandTgt != null) {
                             assignments[ISLAND_KEY] = JokerAssignment(ISLAND_KEY, islandTgt)
                         }
                         if (fountainSrc != null) {
                             assignments[FOUNTAIN_KEY] = JokerAssignment(FOUNTAIN_KEY, fountainSrc)
                         }
-                        val candidateInput = seed.copy(
-                            jokerAssignments = assignments,
-                            playerChoices = PlayerChoices(necromancerPickKey = necroPick),
-                        )
+                        val candidateInput = seed.copy(jokerAssignments = assignments)
                         val result = engine.score(candidateInput)
                         val better = when {
                             best == null -> true
@@ -148,12 +155,9 @@ class OptimalSolver(
     /**
      * Number of filled-in selections — used to break score ties toward concrete values, so a
      * joker / Island / Fountain / Necromancer pick whose effect is irrelevant still gets a valid
-     * value instead of being left "unset". Island/Fountain now live in [jokerAssignments], so they
-     * are counted there; only the Necromancer pick remains a separate [PlayerChoices] field.
+     * value instead of being left "unset". All of them now live in [jokerAssignments].
      */
-    private fun ScoringInput.selectionCount(): Int =
-        jokerAssignments.size +
-            (if (playerChoices.necromancerPickKey != null) 1 else 0)
+    private fun ScoringInput.selectionCount(): Int = jokerAssignments.size
 
     private inline fun forEachJokerCombo(
         candidates: List<Pair<String, List<JokerAssignment?>>>,
@@ -191,8 +195,6 @@ class OptimalSolver(
         private const val NECROMANCER_KEY = "necromancer"
         private const val ISLAND_KEY = "island"
         private const val FOUNTAIN_KEY = "fountain_of_life"
-        private val MIRAGE_SUITS = setOf(Suit.ARMY, Suit.LAND, Suit.WEATHER, Suit.FLOOD, Suit.FLAME)
-        private val SHAPESHIFTER_SUITS = setOf(Suit.ARTIFACT, Suit.LEADER, Suit.WIZARD, Suit.WEAPON, Suit.BEAST)
         private val ISLAND_SUITS = setOf(Suit.FLOOD, Suit.FLAME)
 
         // Mirrors CardLookup.NECROMANCER_SUITS so "Optimal" offers the same candidates as the

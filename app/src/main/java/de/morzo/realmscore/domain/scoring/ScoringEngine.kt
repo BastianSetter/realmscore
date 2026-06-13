@@ -10,10 +10,11 @@ import de.morzo.realmscore.domain.scoring.rules.CardRuleRegistry
  * Pure-Kotlin scoring pipeline. No Android imports.
  *
  * Order of operations (mirrors the rulebook: jokers → Book of Changes → clearing → penalties):
- *  1) Joker substitution (Doppelganger/Mirage/Shapeshifter → name+suit; Book of Changes → suit)
- *  1b) Necromancer pick: if the hand holds a Necromancer and an eligible discard card was chosen
- *      (Army/Wizard/Leader/Beast), append it as an extra 8th card BEFORE bonuses/penalties.
- *      It interacts fully with the hand (counts for per-suit bonuses, can be blanked, can blank).
+ *  1) Joker resolution (Doppelganger/Mirage/Shapeshifter → name+suit; Necromancer materialises the
+ *     pulled discard card as an extra 8th card; Book of Changes → suit, applied last so it can
+ *     re-suit even the pulled card). All of this happens in the JokerResolver, in calculation order
+ *     so each joker sees the previous ones. The 8th card interacts fully with the hand (counts for
+ *     per-suit bonuses, can be blanked, can blank).
  *  2) Collect penalty cancellations from all rules (full pre-blanking hand). Clearing is
  *     permanent, so this is the final PenaltyContext — a blanked canceller still cleared.
  *  3) Blanking fixpoint (incl. self-blanks); a card whose penalty is cleared blanks nothing,
@@ -29,18 +30,14 @@ class ScoringEngine(
 ) {
 
     fun score(input: ScoringInput): ScoringResult {
-        // 1) Joker auflösen
-        val jokerResolved = jokerResolver.resolve(input.hand, input.jokerAssignments)
-
-        // 1b) Totenbeschwörer: geholte Karte als zusätzliche (8.) Karte einfügen.
-        // Nur wenn ein Totenbeschwörer in der Hand liegt und eine Karte gewählt wurde.
-        val resolved = jokerResolved + buildNecromancerPick(input)
+        // 1) Joker auflösen — inkl. Totenbeschwörer-Pull (8. Karte) und Buch der Veränderung, alles
+        // in Berechnungsreihenfolge im JokerResolver.
+        val resolved = jokerResolver.resolve(input.hand, input.jokerAssignments)
 
         // Working context (no blanking, no penaltyContext yet)
         val workingCtx = ScoringContext(
             hand = resolved,
             blankedKeys = emptySet(),
-            playerChoices = input.playerChoices,
             discardPile = input.discardPile,
             cardLookup = cardLookup,
             jokerAssignments = input.jokerAssignments,
@@ -76,7 +73,10 @@ class ScoringEngine(
             penaltyContext = penaltyContext,
         )
 
-        val necromancerPickKey = effectiveNecromancerPickKey(input)
+        // The Necromancer's pulled card is the only resolved card whose originalKey is not a hand
+        // card; flag it for the breakdown UI. Guard against a stale pick when no Necromancer is held.
+        val necromancerPickKey = input.jokerAssignments[NECROMANCER_KEY]?.targetCardKey
+            ?.takeIf { input.hand.any { c -> c.key == NECROMANCER_KEY } }
 
         // 5)+6) Boni & Strafen je Karte
         val perCard = resolved.map { card ->
@@ -140,42 +140,6 @@ class ScoringEngine(
             blankedKeys = blankedKeys,
             blankedBy = blankingOutcome.blankedBy,
         )
-    }
-
-    /**
-     * The Necromancer's pulled card, resolved as a plain extra card (or empty if not applicable).
-     *
-     * Defensive modelling per spec: the pulled card is scored with its BASE effect only. The UI
-     * already restricts picks to Army/Wizard/Leader/Beast suits, so WILD jokers
-     * (Mirage/Shapeshifter/Doppelganger) can't be chosen — but if a joker-like card were ever fed
-     * in, it contributes only its base strength and triggers NO nested joker selection (no "joker
-     * pulls joker" recursion). Concretely we never feed it back through the JokerResolver and gate
-     * its bonus/penalty rules off when it is itself a joker.
-     */
-    private fun buildNecromancerPick(input: ScoringInput): List<ResolvedCard> {
-        val pickKey = effectiveNecromancerPickKey(input) ?: return emptyList()
-        val picked = cardLookup(pickKey) ?: return emptyList()
-        // Pulled card is from the discard pile, so its key never collides with a hand key.
-        return listOf(
-            ResolvedCard(
-                originalKey = picked.key,
-                effectiveCardKey = picked.key,
-                effectiveSuit = picked.suit,
-                effectiveStrength = picked.baseStrength,
-                bonusEnabled = !picked.isJoker,
-                penaltyEnabled = !picked.isJoker,
-            )
-        )
-    }
-
-    /**
-     * The chosen pick key, but only honored when a Necromancer is actually in the hand. Returns
-     * null if there is no Necromancer (so a stale pick from a prior hand can't leak into scoring).
-     */
-    private fun effectiveNecromancerPickKey(input: ScoringInput): String? {
-        val pickKey = input.playerChoices.necromancerPickKey ?: return null
-        if (input.hand.none { it.key == NECROMANCER_KEY }) return null
-        return pickKey
     }
 
     private companion object {

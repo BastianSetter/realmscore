@@ -440,7 +440,7 @@
       "baseStrength": 3,
       "ruleTextDe": "Bonus: Du darfst am Spielende eine Armee, Anführer, Zauberer oder Bestie aus dem Ablagebereich nehmen und sie als deine 8. Karte werten.",
       "isJoker": false,
-      "jokerType": null
+      "jokerType": "NECROMANCER"
     },
     {
       "key": "enchantress",

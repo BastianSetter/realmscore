@@ -13,7 +13,6 @@ import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.RoundRepository
 import de.morzo.realmscore.domain.repository.SettingsRepository
 import de.morzo.realmscore.domain.scoring.JokerAssignment
-import de.morzo.realmscore.domain.scoring.PlayerChoices
 import de.morzo.realmscore.domain.scoring.ScoringEngine
 import de.morzo.realmscore.domain.scoring.ScoringInput
 import de.morzo.realmscore.domain.scoring.solver.OptimalSolver
@@ -92,7 +91,6 @@ class RoundCaptureViewModel(
     private data class Draft(
         val slots: List<CardSlot> = List(PLAYER_HAND_SLOT_COUNT) { CardSlot.Empty },
         val jokerAssignments: Map<String, JokerAssignment> = emptyMap(),
-        val playerChoices: PlayerChoices = PlayerChoices(),
     )
 
     private var gameId: String = ""
@@ -200,12 +198,11 @@ class RoundCaptureViewModel(
             }
         }
         // Necromancer pick and Island/Fountain choices are persisted on their own card entry's
-        // jokerTargetCardKey column; the shared mapper sorts them back into playerChoices.
+        // jokerTargetCardKey column; the shared mapper rebuilds them all as joker assignments.
         val reconstructed = existing.cards.toScoringChoices()
         return Draft(
             slots = slots,
             jokerAssignments = reconstructed.jokerAssignments,
-            playerChoices = reconstructed.playerChoices,
         )
     }
 
@@ -249,7 +246,6 @@ class RoundCaptureViewModel(
             playerName = nameById[profileId] ?: "",
             slots = draft.slots,
             jokerAssignments = draft.jokerAssignments,
-            playerChoices = draft.playerChoices,
             cardsUsedByOthers = usedByOthers,
             isOptimalRunning = isOptimalRunning,
             isSaving = isSaving,
@@ -293,17 +289,10 @@ class RoundCaptureViewModel(
         }
     }
 
-    fun setNecromancerPick(cardKey: String) {
-        updateCurrentDraft { draft ->
-            draft.copy(playerChoices = draft.playerChoices.copy(necromancerPickKey = cardKey))
-        }
-    }
+    fun setNecromancerPick(cardKey: String) =
+        setJokerAssignment(NECROMANCER_KEY, JokerAssignment(NECROMANCER_KEY, cardKey))
 
-    fun clearNecromancerPick() {
-        updateCurrentDraft { draft ->
-            draft.copy(playerChoices = draft.playerChoices.copy(necromancerPickKey = null))
-        }
-    }
+    fun clearNecromancerPick() = setJokerAssignment(NECROMANCER_KEY, null)
 
     fun applyOptimal() {
         val id = _uiState.value.currentProfileId ?: return
@@ -314,7 +303,6 @@ class RoundCaptureViewModel(
         val seed = ScoringInput(
             hand = filled,
             jokerAssignments = draft.jokerAssignments,
-            playerChoices = draft.playerChoices,
             discardPile = discardCards,
             discardScanned = discardScanned,
         )
@@ -324,7 +312,6 @@ class RoundCaptureViewModel(
             val best = withContext(Dispatchers.Default) { optimalSolver.findOptimal(seed) }
             drafts[id] = (drafts[id] ?: draft).copy(
                 jokerAssignments = best.bestInput.jokerAssignments,
-                playerChoices = best.bestInput.playerChoices,
             )
             isOptimalRunning = false
             rebuild()
@@ -374,25 +361,17 @@ class RoundCaptureViewModel(
         val input = ScoringInput(
             hand = filled,
             jokerAssignments = draft.jokerAssignments,
-            playerChoices = draft.playerChoices,
         )
         val totalScore = withContext(Dispatchers.Default) { engine.score(input).totalScore }
         val entries = draft.slots.mapIndexedNotNull { idx, slot ->
             val card = (slot as? CardSlot.Filled)?.card ?: return@mapIndexedNotNull null
+            // Every target — jokers, Island, Fountain and the Necromancer pull — is a jokerAssignment
+            // keyed by the card and persists to its own entry's jokerTargetCardKey column.
             val assignment = draft.jokerAssignments[card.key]
-            // The Necromancer pulls a discard-pile card, so its pick lives in playerChoices and is
-            // persisted on its own entry's jokerTargetCardKey column. Every other target (jokers,
-            // Island, Fountain) is already a jokerAssignment keyed by the card. The reconstruction
-            // path (toScoringChoices) sorts them back apart.
-            val targetCardKey = if (card.key == NECROMANCER_KEY) {
-                draft.playerChoices.necromancerPickKey
-            } else {
-                assignment?.targetCardKey
-            }
             HandCardEntry(
                 cardKey = card.key,
                 position = idx,
-                jokerTargetCardKey = targetCardKey,
+                jokerTargetCardKey = assignment?.targetCardKey,
                 jokerTargetSuit = assignment?.targetSuit?.name,
             )
         }
@@ -415,15 +394,9 @@ class RoundCaptureViewModel(
 
     private fun Draft.pruned(): Draft {
         val handKeys = slots.mapNotNull { (it as? CardSlot.Filled)?.card?.key }.toSet()
-        // Joker/Island/Fountain assignments are keyed by their (hand) card, so they prune away
-        // automatically once that card leaves the hand. Only the Necromancer pick — a discard-pile
-        // card — needs the explicit "still in hand?" guard.
-        val newAssignments = jokerAssignments.filterKeys { it in handKeys }
-        val necromancerStillInHand = NECROMANCER_KEY in handKeys
-        val newChoices = playerChoices.copy(
-            necromancerPickKey = playerChoices.necromancerPickKey?.takeIf { necromancerStillInHand },
-        )
-        return copy(jokerAssignments = newAssignments, playerChoices = newChoices)
+        // Every assignment (jokers, Island, Fountain, Necromancer) is keyed by its hand card, so they
+        // all prune away automatically once that card leaves the hand.
+        return copy(jokerAssignments = jokerAssignments.filterKeys { it in handKeys })
     }
 
     fun necromancerCandidates(handKeys: Set<String>): List<CardDefinition> =

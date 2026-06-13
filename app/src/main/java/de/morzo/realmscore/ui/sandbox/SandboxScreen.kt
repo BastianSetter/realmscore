@@ -51,7 +51,7 @@ import de.morzo.realmscore.ui.components.CardPicker
 import de.morzo.realmscore.ui.components.HandBreakdownSheet
 import de.morzo.realmscore.ui.sandbox.components.HandSlotsRow
 import de.morzo.realmscore.ui.sandbox.components.JokerSection
-import de.morzo.realmscore.ui.sandbox.components.NecromancerSection
+import de.morzo.realmscore.ui.sandbox.components.NecromancerRowData
 import de.morzo.realmscore.ui.sandbox.components.ScoreFooter
 import de.morzo.realmscore.ui.sandbox.multihand.MultiHandScreen
 import de.morzo.realmscore.ui.util.formatShortDate
@@ -161,16 +161,16 @@ fun SandboxScreen(
                 allCards = viewModel.allCards,
                 handCards = state.filledCards,
                 onAssignmentChange = viewModel::setJokerAssignment,
+                necromancer = if (state.necromancerInHand) {
+                    NecromancerRowData(
+                        card = viewModel.allCards.first { it.key == "necromancer" },
+                        pickedCard = state.jokerAssignments["necromancer"]?.targetCardKey
+                            ?.let { key -> viewModel.allCards.firstOrNull { it.key == key } },
+                        onPick = { necromancerPickerOpen = true },
+                        onClear = viewModel::clearNecromancerPick,
+                    )
+                } else null,
             )
-
-            if (state.necromancerInHand) {
-                NecromancerSection(
-                    pickedCard = state.playerChoices.necromancerPickKey
-                        ?.let { key -> viewModel.allCards.firstOrNull { it.key == key } },
-                    onPickCard = { necromancerPickerOpen = true },
-                    onClearPick = viewModel::clearNecromancerPick,
-                )
-            }
 
             Spacer(Modifier.height(8.dp))
 

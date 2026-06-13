@@ -150,14 +150,13 @@ class RoundSummaryViewModel(
     ): Breakdown {
         val hand = cards.mapNotNull { cardLookup.getByKey(it.cardKey) }
         if (hand.size != cards.size) return Breakdown(0, 0, 0)
-        // Single reconstruction path: joker / Island / Fountain targets → jokerAssignments,
-        // Necromancer pick → playerChoices, matching how the hand was scored at capture time.
+        // Single reconstruction path: every target (jokers, Island, Fountain, Necromancer pull) →
+        // jokerAssignments, matching how the hand was scored at capture time.
         val choices = cards.toScoringChoices()
         val result = engine.score(
             ScoringInput(
                 hand = hand,
                 jokerAssignments = choices.jokerAssignments,
-                playerChoices = choices.playerChoices,
             )
         )
         val positive = result.perCard.filter { !it.isBlanked && it.contributedScore > 0 }

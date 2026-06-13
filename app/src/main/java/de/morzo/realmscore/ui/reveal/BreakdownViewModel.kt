@@ -37,16 +37,14 @@ class BreakdownViewModel(
             val hand = saved.cards.mapNotNull { cardLookup.getByKey(it.cardKey) }
             if (hand.size != saved.cards.size) return@launch
             _handCards.value = hand
-            // Reconstruct jokers AND playerChoices (Necromancer pick, Island, Fountain) so the
-            // breakdown matches the Sandbox for the same hand. Previously only jokerAssignments were
-            // rebuilt, so the Necromancer-pulled card was missing from the breakdown.
+            // Reconstruct all joker assignments (Necromancer pull, Island, Fountain included) so the
+            // breakdown matches the Sandbox for the same hand.
             val reconstructed = saved.cards.toScoringChoices()
             val result = withContext(Dispatchers.Default) {
                 engine.score(
                     ScoringInput(
                         hand = hand,
                         jokerAssignments = reconstructed.jokerAssignments,
-                        playerChoices = reconstructed.playerChoices,
                     ),
                 )
             }

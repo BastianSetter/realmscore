@@ -16,7 +16,9 @@ class NecromancerScoringTest {
         TestFixture.engine.score(
             ScoringInput(
                 hand = TestFixture.hand(*hand),
-                playerChoices = PlayerChoices(necromancerPickKey = pick),
+                jokerAssignments = pick
+                    ?.let { mapOf("necromancer" to JokerAssignment("necromancer", it)) }
+                    ?: emptyMap(),
             )
         )
 
@@ -78,5 +80,47 @@ class NecromancerScoringTest {
         assertTrue(eligible.any { it.suit == Suit.WIZARD })
         assertFalse(eligible.any { it.suit == Suit.WILD })
         assertTrue(eligible.all { it.suit in eligibleSuits })
+    }
+
+    // ───────────── Spec 25.4: Necromancer is a regular joker in the resolution pipeline ──────────
+
+    @Test fun `Book of Changes re-suits the Necromancer's pulled card (jokers see earlier results)`() {
+        // Reference chain: Necromancer pulls the Basilisk, then the later-resolving Book of Changes
+        // turns it Beast→Flood. The pull must already be in the resolved hand for Book to find it.
+        val r = TestFixture.engine.score(
+            ScoringInput(
+                hand = TestFixture.hand("necromancer", "book_of_changes"),
+                jokerAssignments = mapOf(
+                    "necromancer" to JokerAssignment("necromancer", "basilisk"),
+                    "book_of_changes" to JokerAssignment("book_of_changes", "basilisk", Suit.FLOOD),
+                ),
+            )
+        )
+        val basilisk = r.perCard.first { it.cardKey == "basilisk" }
+        assertEquals(Suit.FLOOD, basilisk.bookOfChangesSuit)
+    }
+
+    @Test fun `Island clears the pulled Basilisk's penalty so it blanks nothing (reference chain)`() {
+        // Full reference example: Necromancer→Basilisk, Book Beast→Flood, Island cancels the now-Flood
+        // Basilisk's penalty (its blanking), so the army Rangers survives.
+        val hand = arrayOf("necromancer", "book_of_changes", "island", "rangers")
+        val assignments = mapOf(
+            "necromancer" to JokerAssignment("necromancer", "basilisk"),
+            "book_of_changes" to JokerAssignment("book_of_changes", "basilisk", Suit.FLOOD),
+            "island" to JokerAssignment("island", "basilisk"),
+        )
+        val withIsland = TestFixture.engine.score(
+            ScoringInput(hand = TestFixture.hand(*hand), jokerAssignments = assignments)
+        )
+        assertFalse("basilisk" in withIsland.blankedKeys)
+        assertFalse("rangers" in withIsland.blankedKeys)
+        assertTrue(withIsland.perCard.first { it.cardKey == "rangers" }.contributedScore > 0)
+
+        // Drop the Island assignment: the pulled Basilisk now blanks the army Rangers, proving the
+        // pull runs through the same cancellation/blanking pipeline as a normal hand card.
+        val withoutIsland = TestFixture.engine.score(
+            ScoringInput(hand = TestFixture.hand(*hand), jokerAssignments = assignments - "island")
+        )
+        assertTrue("rangers" in withoutIsland.blankedKeys)
     }
 }

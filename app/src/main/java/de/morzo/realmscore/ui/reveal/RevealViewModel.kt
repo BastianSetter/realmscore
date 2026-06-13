@@ -99,14 +99,13 @@ class RevealViewModel(
     ): List<String> {
         val hand = cards.mapNotNull { cardLookup.getByKey(it.cardKey) }
         if (hand.size != cards.size) return emptyList()
-        // Rebuild jokers AND playerChoices so the Necromancer pick / Island / Fountain effects are
-        // reflected here exactly as in the Sandbox (shared toScoringChoices mapper).
+        // Rebuild all joker assignments (incl. the Necromancer pull, Island, Fountain) so the effects
+        // are reflected here exactly as in the Sandbox (shared toScoringChoices mapper).
         val reconstructed = cards.toScoringChoices()
         val result = engine.score(
             ScoringInput(
                 hand = hand,
                 jokerAssignments = reconstructed.jokerAssignments,
-                playerChoices = reconstructed.playerChoices,
             ),
         )
         return result.perCard
