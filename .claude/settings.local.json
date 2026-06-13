@@ -21,7 +21,6 @@
       "Bash(python *)",
       "Bash(curl -fsSL https://www.gnu.org/licenses/gpl-3.0.txt -o /tmp/gpl-3.0.txt)",
       "Read(//tmp/**)",
-      "PowerShell(Stop-Process *)",
       "WebSearch",
       "WebFetch(domain:boardgamegeek.com)",
       "WebFetch(domain:www.boardgameswizard.com)",
@@ -36,11 +35,17 @@
       "Bash(pip show *)",
       "PowerShell(git stash *)",
       "Bash(git reset *)",
-      "Bash(where adb *)",
-      "Bash(\"%LOCALAPPDATA%\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" version *)",
-      "Bash(%LOCALAPPDATA%\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe devices *)",
-      "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; if \\(Test-Path $adb\\) { & $adb version } else { \"adb not found at $adb\" })",
-      "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb devices -l)"
+      "PowerShell(Out-Null *)",
+      "PowerShell(git status*)",
+      "PowerShell(git add*)",
+      "PowerShell(git commit*)",
+      "PowerShell(git pull*)",
+      "PowerShell(git fetch*)",
+      "PowerShell(git diff*)",
+      "PowerShell(git log*)",
+      "PowerShell(git show*)",
+      "PowerShell(git branch*)",
+      "PowerShell(git rev-parse*)"
     ]
   }
 }
