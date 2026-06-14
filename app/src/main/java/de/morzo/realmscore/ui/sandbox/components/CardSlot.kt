@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
@@ -43,10 +44,36 @@ fun CardSlotView(
     slot: CardSlot,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    highlighted: Boolean = false,
 ) {
+    // The slot currently being filled gets a soft primary-tinted halo — a radial glow centred on the
+    // card and radiating outward past its edges — instead of a hard outline. Drawn before the clip so
+    // it can spill beyond the card bounds, behind the card content.
+    val haloColor = MaterialTheme.colorScheme.primary
     Box(
         modifier = modifier
             .aspectRatio(CardAspectRatio)
+            .then(
+                if (highlighted) {
+                    Modifier.drawBehind {
+                        val radius = size.maxDimension * 0.85f
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    haloColor.copy(alpha = 0f),
+                                    haloColor.copy(alpha = 0f),
+                                ),
+                                center = center,
+                                radius = radius,
+                            ),
+                            radius = radius,
+                            center = center,
+                        )
+                    }
+                } else {
+                    Modifier
+                },
+            )
             .clip(SlotShape)
             .clickable(onClick = onClick),
     ) {

@@ -71,16 +71,51 @@ fun CardBreakdownList(
     }
 }
 
+/**
+ * Single per-card breakdown card, resolving name and "blanked by" labels from [result] for one
+ * [cardResult]. Shared so the ring's detail mode (Phase 18) shows the exact same box as the "Liste"
+ * tab instead of a parallel, simpler one. [initiallyExpanded] starts the effect list open, which the
+ * ring uses since tapping a node already expresses the intent to inspect that card.
+ */
+@Composable
+fun CardBreakdownDetail(
+    result: ScoringResult,
+    cardResult: CardScoreResult,
+    cardLookup: (String) -> CardDefinition?,
+    modifier: Modifier = Modifier,
+    initiallyExpanded: Boolean = false,
+) {
+    val locale = currentLocale()
+    val displayName = remember(cardResult, locale, cardLookup) {
+        cardLookup(cardResult.effectiveCardKey)?.displayName(locale) ?: cardResult.effectiveCardKey
+    }
+    val blockedBy = remember(result, cardResult, locale, cardLookup) {
+        result.blankedBy[cardResult.cardKey]
+            .orEmpty()
+            .mapNotNull { cardLookup(it)?.displayName(locale) }
+    }
+    CardBreakdownItem(
+        result = cardResult,
+        displayName = displayName,
+        blockedBy = blockedBy,
+        cardLookup = cardLookup,
+        modifier = modifier,
+        initiallyExpanded = initiallyExpanded,
+    )
+}
+
 @Composable
 private fun CardBreakdownItem(
     result: CardScoreResult,
     displayName: String,
     blockedBy: List<String>,
     cardLookup: (String) -> CardDefinition?,
+    modifier: Modifier = Modifier,
+    initiallyExpanded: Boolean = false,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         onClick = { expanded = !expanded },
     ) {
         Column(Modifier.padding(12.dp)) {

@@ -46,10 +46,9 @@ import de.morzo.realmscore.domain.scoring.buildRingConnections
 import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.displayName
 import de.morzo.realmscore.ui.theme.SuitColors
-import de.morzo.realmscore.ui.sandbox.components.BreakdownEffectRow
+import de.morzo.realmscore.ui.sandbox.components.CardBreakdownDetail
 import de.morzo.realmscore.ui.sandbox.components.formatDelta
 import de.morzo.realmscore.ui.util.currentLocale
-import de.morzo.realmscore.ui.util.displayName as displayNameComposable
 import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.abs
@@ -291,15 +290,14 @@ fun HandRingView(
         }
 
         val selected = tappedCardIdx
-        if (selected != null) {
-            val card = cards[selected]
-            val res = resultByKey[card.key]
-            CardDetailCard(
-                card = card,
-                contributedScore = res?.contributedScore ?: 0,
-                isBlanked = res?.isBlanked == true,
-                effects = res?.effects.orEmpty(),
+        val selectedRes = selected?.let { resultByKey[cards[it].key] }
+        if (selectedRes != null) {
+            CardBreakdownDetail(
+                result = scoringResult,
+                cardResult = selectedRes,
                 cardLookup = cardLookup,
+                modifier = Modifier.padding(top = 8.dp),
+                initiallyExpanded = true,
             )
         } else {
             Text(
@@ -308,47 +306,6 @@ fun HandRingView(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             )
-        }
-    }
-}
-
-@Composable
-private fun CardDetailCard(
-    card: CardDefinition,
-    contributedScore: Int,
-    isBlanked: Boolean,
-    effects: List<de.morzo.realmscore.domain.scoring.EffectApplication>,
-    cardLookup: (String) -> CardDefinition?,
-) {
-    androidx.compose.material3.Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(
-                text = card.displayNameComposable(),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = androidx.compose.ui.res.stringResource(
-                    de.morzo.realmscore.R.string.ring_base_strength,
-                    card.baseStrength,
-                ),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (isBlanked) {
-                Text(
-                    text = androidx.compose.ui.res.stringResource(
-                        de.morzo.realmscore.R.string.sandbox_breakdown_blanked,
-                    ),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            effects.forEach { effect -> BreakdownEffectRow(effect, cardLookup) }
         }
     }
 }
