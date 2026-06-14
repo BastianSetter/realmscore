@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -25,12 +26,69 @@ import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.scoring.ScoringResult
 import de.morzo.realmscore.ui.sandbox.components.CardBreakdownList
 
-private enum class BreakdownMode { RING, LIST }
+/** Ring vs. textual-list view of a hand's score breakdown (Phase 18). */
+enum class BreakdownMode { RING, LIST }
+
+/**
+ * The Ring/Liste toggle, extracted (spec 25.6) so the bottom sheet (round summary) and the inline
+ * Sandbox points section can share the exact same control.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BreakdownModeChips(
+    mode: BreakdownMode,
+    onModeChange: (BreakdownMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = mode == BreakdownMode.RING,
+            onClick = { onModeChange(BreakdownMode.RING) },
+            label = { Text(stringResource(R.string.breakdown_mode_ring)) },
+        )
+        FilterChip(
+            selected = mode == BreakdownMode.LIST,
+            onClick = { onModeChange(BreakdownMode.LIST) },
+            label = { Text(stringResource(R.string.breakdown_mode_list)) },
+        )
+    }
+}
+
+/**
+ * The breakdown body for the selected [mode] — ring visualization or textual per-card list —
+ * shared (spec 25.6) by [HandBreakdownSheet] and the inline Sandbox points section.
+ */
+@Composable
+fun HandBreakdownBody(
+    mode: BreakdownMode,
+    cards: List<CardDefinition>,
+    result: ScoringResult,
+    cardLookup: (String) -> CardDefinition?,
+    modifier: Modifier = Modifier,
+    listMaxHeight: androidx.compose.ui.unit.Dp = 480.dp,
+) {
+    when (mode) {
+        BreakdownMode.RING -> HandRingView(
+            handCards = cards,
+            scoringResult = result,
+            cardLookup = cardLookup,
+            modifier = modifier,
+        )
+        BreakdownMode.LIST -> CardBreakdownList(
+            result = result,
+            cardLookup = cardLookup,
+            modifier = modifier.heightIn(max = listMaxHeight),
+        )
+    }
+}
 
 /**
  * Score breakdown shown as a large bottom sheet (Phase 18). Offers a toggle between the ring
- * visualization (default) and the textual per-card list. Replaces the old list-only
- * `ScoreBreakdownSheet` for both the Sandbox and the round summary.
+ * visualization (default) and the textual per-card list. Still used by the round summary; the
+ * Sandbox now embeds the same content inline (spec 25.6) instead of opening this sheet.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +99,7 @@ fun HandBreakdownSheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var mode by remember { mutableStateOf(BreakdownMode.RING) }
+    var mode by rememberSaveable { mutableStateOf(BreakdownMode.RING) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -52,33 +110,17 @@ fun HandBreakdownSheet(
                 text = stringResource(R.string.sandbox_breakdown_title, result.totalScore),
                 style = MaterialTheme.typography.titleLarge,
             )
-            Row(
+            BreakdownModeChips(
+                mode = mode,
+                onModeChange = { mode = it },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FilterChip(
-                    selected = mode == BreakdownMode.RING,
-                    onClick = { mode = BreakdownMode.RING },
-                    label = { Text(stringResource(R.string.breakdown_mode_ring)) },
-                )
-                FilterChip(
-                    selected = mode == BreakdownMode.LIST,
-                    onClick = { mode = BreakdownMode.LIST },
-                    label = { Text(stringResource(R.string.breakdown_mode_list)) },
-                )
-            }
-            when (mode) {
-                BreakdownMode.RING -> HandRingView(
-                    handCards = cards,
-                    scoringResult = result,
-                    cardLookup = cardLookup,
-                )
-                BreakdownMode.LIST -> CardBreakdownList(
-                    result = result,
-                    cardLookup = cardLookup,
-                    modifier = Modifier.heightIn(max = 480.dp),
-                )
-            }
+            )
+            HandBreakdownBody(
+                mode = mode,
+                cards = cards,
+                result = result,
+                cardLookup = cardLookup,
+            )
         }
     }
 }

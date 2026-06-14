@@ -34,6 +34,11 @@ class SandboxFavoritesViewModel(
         viewModelScope.launch { repo.delete(id) }
     }
 
+    /** Renames a favorite (spec 25.6); blank clears the name back to the numbered default. */
+    fun rename(id: String, name: String?) {
+        viewModelScope.launch { repo.updateName(id, name) }
+    }
+
     class Factory(
         private val repo: SandboxFavoriteRepository,
     ) : ViewModelProvider.Factory {

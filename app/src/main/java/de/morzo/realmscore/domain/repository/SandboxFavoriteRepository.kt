@@ -12,10 +12,14 @@ interface SandboxFavoriteRepository {
     suspend fun getById(id: String): SandboxFavorite?
 
     /**
-     * Persists [cards] as the next favorite (number = current max + 1) and returns its number,
-     * for the "Saved as favorite #N" confirmation.
+     * Persists [cards] as the next favorite (number = current max + 1) with an optional free-text
+     * [name] and returns the stored favorite, so the caller can keep the star toggle linked to it
+     * (spec 25.6) and show the "Saved as favorite #N" confirmation.
      */
-    suspend fun save(cards: List<FavoriteCard>): Int
+    suspend fun save(cards: List<FavoriteCard>, name: String?): SandboxFavorite
+
+    /** Renames a favorite (free text, no uniqueness constraint; null/blank → falls back to number). */
+    suspend fun updateName(id: String, name: String?)
 
     suspend fun delete(id: String)
 }

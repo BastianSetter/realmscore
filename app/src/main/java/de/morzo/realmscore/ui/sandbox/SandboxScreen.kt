@@ -9,15 +9,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,10 +30,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,14 +55,23 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
+import de.morzo.realmscore.domain.model.CardDefinition
+import de.morzo.realmscore.domain.scoring.ScoringResult
+import de.morzo.realmscore.ui.components.BreakdownMode
+import de.morzo.realmscore.ui.components.BreakdownModeChips
 import de.morzo.realmscore.ui.components.CardPicker
-import de.morzo.realmscore.ui.components.HandBreakdownSheet
+import de.morzo.realmscore.ui.components.CardPickerContent
+import de.morzo.realmscore.ui.components.HandBreakdownBody
+import de.morzo.realmscore.ui.handentry.OverlappingHandStack
 import de.morzo.realmscore.ui.sandbox.components.HandSlotsRow
 import de.morzo.realmscore.ui.sandbox.components.JokerSection
 import de.morzo.realmscore.ui.sandbox.components.NecromancerRowData
-import de.morzo.realmscore.ui.sandbox.components.ScoreFooter
 import de.morzo.realmscore.ui.sandbox.multihand.MultiHandScreen
 import de.morzo.realmscore.ui.util.formatShortDate
+
+/** The single-hand Sandbox has two stages (spec 25.6): the KartenPick fill flow (only for a fresh,
+ *  bottom-bar entry) and the main hand-tweaking screen. "Move to Sandbox" skips straight to Main. */
+private enum class SandboxStage { CardPick, Main }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +97,7 @@ fun SandboxScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var pickerForSlot by rememberSaveable { mutableStateOf<Int?>(null) }
     var necromancerPickerOpen by rememberSaveable { mutableStateOf(false) }
+    var renameOpen by rememberSaveable { mutableStateOf(false) }
     var compareSnapshot by remember { mutableStateOf<HandSnapshot?>(null) }
 
     compareSnapshot?.let { snapshot ->
@@ -90,6 +108,23 @@ fun SandboxScreen(
         )
         return
     }
+
+    // A fresh (bottom-bar) entry starts in the KartenPick fill flow; every other launch path arrives
+    // with cards already known and goes straight to the main screen.
+    var stage by rememberSaveable {
+        mutableStateOf(
+            if (launchData is SandboxLaunchData.Empty) SandboxStage.CardPick else SandboxStage.Main,
+        )
+    }
+    // Auto-advance to the main screen once the hand is full (mirrors the capture flow, spec 25.5).
+    LaunchedEffect(state.filledCards.size, stage) {
+        if (stage == SandboxStage.CardPick && state.filledCards.size == SANDBOX_SLOT_COUNT) {
+            stage = SandboxStage.Main
+        }
+    }
+
+    val searchEnabled by container.settingsRepository.pickerSearchEnabled
+        .collectAsStateWithLifecycle(initialValue = true)
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -108,24 +143,28 @@ fun SandboxScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.sandbox_title)) },
-                actions = {
-                    IconButton(onClick = onOpenFavorites) {
-                        Icon(
-                            imageVector = Icons.Outlined.BookmarkBorder,
-                            contentDescription = stringResource(R.string.sandbox_favorites_title),
-                        )
-                    }
-                },
-            )
+            if (stage == SandboxStage.CardPick) {
+                CardPickTopBar(onOpenFavorites = onOpenFavorites)
+            } else {
+                MainTopBar(
+                    handLabel = handLabel(state),
+                    isFavorite = state.isFavorite,
+                    starEnabled = state.canSaveFavorite || state.isFavorite,
+                    onRename = { renameOpen = true },
+                    onToggleFavorite = viewModel::toggleFavorite,
+                    onOpenFavorites = onOpenFavorites,
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            ScoreFooter(
-                score = state.score,
-                onBreakdownClick = if (state.scoringResult != null) viewModel::openBreakdown else null,
-            )
+            if (stage == SandboxStage.Main) {
+                SandboxActionBar(
+                    onReset = viewModel::reset,
+                    onCompare = { compareSnapshot = viewModel.currentSnapshot() },
+                    compareEnabled = state.filledCards.isNotEmpty(),
+                )
+            }
         },
     ) { padding ->
         if (state.isLoadingLaunchData) {
@@ -138,73 +177,77 @@ fun SandboxScreen(
             return@Scaffold
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            state.originBanner?.let { banner ->
-                OriginBannerCard(banner = banner, onDismiss = viewModel::reset)
+        when (stage) {
+            SandboxStage.CardPick -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .imePadding()
+                    .padding(16.dp),
+            ) {
+                OverlappingHandStack(
+                    slots = state.slots,
+                    onSlotTap = { idx -> pickerForSlot = idx },
+                )
+                Spacer(Modifier.height(16.dp))
+                CardPickerContent(
+                    allCards = viewModel.allCards,
+                    excludedKeys = placedKeys,
+                    showSearch = searchEnabled,
+                    onCardChosen = { card ->
+                        val nextEmpty = state.slots.indexOfFirst { it is CardSlot.Empty }
+                        if (nextEmpty >= 0) viewModel.setCardInSlot(nextEmpty, card)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                )
             }
 
-            HandSlotsRow(
-                slots = state.slots,
-                onSlotTap = { idx -> pickerForSlot = idx },
-            )
+            SandboxStage.Main -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                state.originBanner?.let { banner ->
+                    OriginBannerCard(banner = banner, onDismiss = viewModel::reset)
+                }
 
-            JokerSection(
-                jokers = state.jokerCardsInHand,
-                assignments = state.jokerAssignments,
-                allCards = viewModel.allCards,
-                handCards = state.filledCards,
-                onAssignmentChange = viewModel::setJokerAssignment,
-                necromancer = if (state.necromancerInHand) {
-                    NecromancerRowData(
-                        card = viewModel.allCards.first { it.key == "necromancer" },
-                        pickedCard = state.jokerAssignments["necromancer"]?.targetCardKey
-                            ?.let { key -> viewModel.allCards.firstOrNull { it.key == key } },
-                        onPick = { necromancerPickerOpen = true },
-                        onClear = viewModel::clearNecromancerPick,
-                    )
-                } else null,
-            )
+                HandSlotsRow(
+                    slots = state.slots,
+                    onSlotTap = { idx -> pickerForSlot = idx },
+                )
 
-            Spacer(Modifier.height(8.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = viewModel::applyOptimal,
-                    enabled = !state.optimalRunning && state.filledCards.isNotEmpty(),
-                ) {
-                    if (state.optimalRunning) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
+                JokerSection(
+                    jokers = state.jokerCardsInHand,
+                    assignments = state.jokerAssignments,
+                    allCards = viewModel.allCards,
+                    handCards = state.filledCards,
+                    onAssignmentChange = viewModel::setJokerAssignment,
+                    onOptimal = viewModel::applyOptimal,
+                    optimalRunning = state.optimalRunning,
+                    necromancer = if (state.necromancerInHand) {
+                        NecromancerRowData(
+                            card = viewModel.allCards.first { it.key == "necromancer" },
+                            pickedCard = state.jokerAssignments["necromancer"]?.targetCardKey
+                                ?.let { key -> viewModel.allCards.firstOrNull { it.key == key } },
+                            onPick = { necromancerPickerOpen = true },
+                            onClear = viewModel::clearNecromancerPick,
                         )
-                    } else {
-                        Text(stringResource(R.string.sandbox_optimal))
-                    }
-                }
-                OutlinedButton(onClick = viewModel::reset) {
-                    Text(stringResource(R.string.sandbox_reset))
-                }
-            }
+                    } else null,
+                )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = viewModel::saveFavorite,
-                    enabled = state.canSaveFavorite,
-                ) {
-                    Text(stringResource(R.string.sandbox_save_favorite))
-                }
-                OutlinedButton(
-                    onClick = { compareSnapshot = viewModel.currentSnapshot() },
-                    enabled = state.filledCards.isNotEmpty(),
-                ) {
-                    Text(stringResource(R.string.sandbox_compare))
+                val result = state.scoringResult
+                if (result != null) {
+                    SandboxScoreSection(
+                        score = state.score,
+                        cards = state.filledCards,
+                        result = result,
+                        cardLookup = container.cardLookup::getByKey,
+                    )
                 }
             }
         }
@@ -217,6 +260,7 @@ fun SandboxScreen(
         CardPicker(
             allCards = viewModel.allCards,
             excludedKeys = excluded,
+            highlightedKey = (currentSlot as? CardSlot.Filled)?.card?.key,
             onCardChosen = { card ->
                 viewModel.setCardInSlot(slotIdx, card)
                 pickerForSlot = null
@@ -252,15 +296,177 @@ fun SandboxScreen(
         )
     }
 
-    val result = state.scoringResult
-    if (state.breakdownOpen && result != null) {
-        HandBreakdownSheet(
-            cards = state.filledCards,
-            result = result,
-            cardLookup = container.cardLookup::getByKey,
-            onDismiss = viewModel::closeBreakdown,
+    if (renameOpen) {
+        RenameHandDialog(
+            initialName = state.handName.orEmpty(),
+            onConfirm = { name ->
+                viewModel.renameHand(name)
+                renameOpen = false
+            },
+            onDismiss = { renameOpen = false },
         )
     }
+}
+
+/** The header name shown in the main stage: the free-text name, else the favorite number, else a
+ *  generic default for an unsaved hand (spec 25.6). */
+@Composable
+private fun handLabel(state: SandboxUiState): String =
+    state.handName
+        ?: state.favoriteNumber?.let { stringResource(R.string.sandbox_favorite_number, it) }
+        ?: stringResource(R.string.sandbox_hand_default_name)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CardPickTopBar(onOpenFavorites: () -> Unit) {
+    TopAppBar(
+        title = { Text(stringResource(R.string.sandbox_title)) },
+        actions = {
+            IconButton(onClick = onOpenFavorites) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.List,
+                    contentDescription = stringResource(R.string.sandbox_favorites_title),
+                )
+            }
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MainTopBar(
+    handLabel: String,
+    isFavorite: Boolean,
+    starEnabled: Boolean,
+    onRename: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onOpenFavorites: () -> Unit,
+) {
+    TopAppBar(
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(handLabel)
+                IconButton(onClick = onRename) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = stringResource(R.string.sandbox_rename_hand),
+                    )
+                }
+            }
+        },
+        actions = {
+            IconButton(onClick = onToggleFavorite, enabled = starEnabled) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                    contentDescription = stringResource(
+                        if (isFavorite) R.string.sandbox_unmark_favorite else R.string.sandbox_mark_favorite,
+                    ),
+                )
+            }
+            IconButton(onClick = onOpenFavorites) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.List,
+                    contentDescription = stringResource(R.string.sandbox_favorites_title),
+                )
+            }
+        },
+    )
+}
+
+/** Inline points section (spec 25.6): the former bottom score banner moves up here as the header,
+ *  with the Ring/Liste toggle on the right and the chosen view rendered below it. */
+@Composable
+private fun SandboxScoreSection(
+    score: Int,
+    cards: List<CardDefinition>,
+    result: ScoringResult,
+    cardLookup: (String) -> CardDefinition?,
+    modifier: Modifier = Modifier,
+) {
+    var mode by rememberSaveable { mutableStateOf(BreakdownMode.RING) }
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        tonalElevation = 1.dp,
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.sandbox_score, score),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                BreakdownModeChips(mode = mode, onModeChange = { mode = it })
+            }
+            Spacer(Modifier.height(8.dp))
+            HandBreakdownBody(
+                mode = mode,
+                cards = cards,
+                result = result,
+                cardLookup = cardLookup,
+            )
+        }
+    }
+}
+
+/** The bottom fixed bar of the main stage: reset on the left, compare on the right (spec 25.6). */
+@Composable
+private fun SandboxActionBar(
+    onReset: () -> Unit,
+    onCompare: () -> Unit,
+    compareEnabled: Boolean,
+) {
+    Surface(tonalElevation = 4.dp) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedButton(onClick = onReset, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.sandbox_reset_hand))
+            }
+            Button(
+                onClick = onCompare,
+                enabled = compareEnabled,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.sandbox_compare_hand))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenameHandDialog(
+    initialName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf(initialName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.sandbox_rename_hand)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                label = { Text(stringResource(R.string.sandbox_hand_name_label)) },
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }
 
 @Composable

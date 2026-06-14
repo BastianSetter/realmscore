@@ -224,9 +224,24 @@
     <string name="multihand_swap">Swap</string>
     <string name="action_back">Back</string>
     <string name="action_delete">Delete</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Phase 25.6: Sandbox UI rework -->
+    <string name="sandbox_hand_default_name">Hand</string>
+    <string name="sandbox_rename_hand">Name hand</string>
+    <string name="sandbox_hand_name_label">Name</string>
+    <string name="sandbox_mark_favorite">Mark as favorite</string>
+    <string name="sandbox_unmark_favorite">Remove favorite</string>
+    <string name="sandbox_reset_hand">Reset hand</string>
+    <string name="sandbox_compare_hand">Compare hand</string>
+    <string name="sandbox_rename_favorite">Rename favorite</string>
+    <string name="multihand_copy_left">Copy from left</string>
+    <string name="multihand_copy_right">Copy from right</string>
+    <string name="multihand_card_details">Score details</string>
 
     <!-- Effect descriptions (Breakdown sheet). %1$s and %2$s are dynamic args. -->
-    <string name="effect_base_strength">Base strength %1$s</string>
+    <string name="effect_base_strength">Base strength</string>
 
     <string name="effect_rangers_per_land">+10 per Land (× %1$s) <!-- NEEDS REVIEW --></string>
     <string name="effect_elven_archers_no_weather">+5 if no Weather <!-- NEEDS REVIEW --></string>

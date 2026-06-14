@@ -62,11 +62,16 @@ data class SandboxUiState(
     val jokerAssignments: Map<String, JokerAssignment> = emptyMap(),
     val scoringResult: ScoringResult? = null,
     val optimalRunning: Boolean = false,
-    val breakdownOpen: Boolean = false,
     val originBanner: OriginBanner? = null,
     val discardCards: List<CardDefinition> = emptyList(),
     val discardScanned: Boolean = false,
     val isLoadingLaunchData: Boolean = false,
+    // Favorite/hand naming (spec 25.6). [favoriteId] non-null ⇒ this exact hand is persisted as a
+    // favorite (filled star); any hand edit clears the link. [handName] is the free-text name shown
+    // in the header, kept even while unsaved so it sticks when the hand is later starred.
+    val favoriteId: String? = null,
+    val favoriteNumber: Int? = null,
+    val handName: String? = null,
 ) {
     val score: Int get() = scoringResult?.totalScore ?: 0
 
@@ -76,6 +81,9 @@ data class SandboxUiState(
     /** A favorite may only be saved from a full, 7-card hand (Phase 22). */
     val canSaveFavorite: Boolean
         get() = filledCards.size == SANDBOX_SLOT_COUNT
+
+    /** Whether the current hand is currently persisted as a favorite (drives the star toggle). */
+    val isFavorite: Boolean get() = favoriteId != null
 
     /**
      * Every card needing a generic joker choice row (substitution jokers + Island/Fountain). The
@@ -106,7 +114,7 @@ class SandboxViewModel(
     private val _uiState = MutableStateFlow(SandboxUiState())
     val uiState: StateFlow<SandboxUiState> = _uiState.asStateFlow()
 
-    /** Emits the favorite number each time [saveFavorite] succeeds, for the confirmation snackbar. */
+    /** Emits the favorite number each time the star toggle persists a hand, for the snackbar. */
     private val _favoriteSaved = MutableSharedFlow<Int>(extraBufferCapacity = 1)
     val favoriteSaved: SharedFlow<Int> = _favoriteSaved.asSharedFlow()
 
@@ -189,7 +197,14 @@ class SandboxViewModel(
     private suspend fun loadFromFavorite(favoriteId: String) {
         val repo = favoriteRepo ?: return clearLoading()
         val favorite = repo.getById(favoriteId) ?: return clearLoading()
-        _uiState.update { it.applySnapshot(favorite.toSnapshot()).copy(isLoadingLaunchData = false) }
+        _uiState.update {
+            it.applySnapshot(favorite.toSnapshot()).copy(
+                isLoadingLaunchData = false,
+                favoriteId = favorite.id,
+                favoriteNumber = favorite.number,
+                handName = favorite.name,
+            )
+        }
     }
 
     /** Snapshot of the current hand, for the Multi-Hand left column or favorite serialization. */
@@ -200,20 +215,47 @@ class SandboxViewModel(
         _uiState.update { it.applySnapshot(snapshot) }
     }
 
-    /** Saves the current (full) hand as a new favorite and emits its number via [favoriteSaved]. */
-    fun saveFavorite() {
+    /**
+     * Star toggle (spec 25.6): if the current hand is already a favorite it is removed; otherwise the
+     * full hand is persisted (with the current [SandboxUiState.handName]) and the link kept so the
+     * star stays filled. Emits the favorite number on save for the confirmation snackbar.
+     */
+    fun toggleFavorite() {
         val repo = favoriteRepo ?: return
         val state = _uiState.value
+        val existingId = state.favoriteId
+        if (existingId != null) {
+            _uiState.update { it.copy(favoriteId = null, favoriteNumber = null) }
+            viewModelScope.launch { repo.delete(existingId) }
+            return
+        }
         if (!state.canSaveFavorite) return
         val cards = state.toFavoriteCards()
+        val name = state.handName
         viewModelScope.launch {
-            val number = repo.save(cards)
-            _favoriteSaved.emit(number)
+            val favorite = repo.save(cards, name)
+            _uiState.update { it.copy(favoriteId = favorite.id, favoriteNumber = favorite.number) }
+            _favoriteSaved.emit(favorite.number)
         }
     }
 
+    /** Renames the current hand; persists to the linked favorite when one exists (spec 25.6). */
+    fun renameHand(name: String?) {
+        val clean = name?.takeIf { it.isNotBlank() }
+        _uiState.update { it.copy(handName = clean) }
+        val id = _uiState.value.favoriteId ?: return
+        val repo = favoriteRepo ?: return
+        viewModelScope.launch { repo.updateName(id, clean) }
+    }
+
     fun loadFavorite(favorite: SandboxFavorite) {
-        _uiState.update { it.applySnapshot(favorite.toSnapshot()) }
+        _uiState.update {
+            it.applySnapshot(favorite.toSnapshot()).copy(
+                favoriteId = favorite.id,
+                favoriteNumber = favorite.number,
+                handName = favorite.name,
+            )
+        }
     }
 
     private fun SandboxUiState.toSnapshot(): HandSnapshot = HandSnapshot(
@@ -259,14 +301,21 @@ class SandboxViewModel(
             slots = padded,
             jokerAssignments = snapshot.jokerAssignments,
             originBanner = null,
-        ).pruneStaleSelections().recomputeScore()
+        ).unlinkFavorite().pruneStaleSelections().recomputeScore()
     }
+
+    /**
+     * Drops the favorite link (spec 25.6): once the hand is edited it no longer matches the persisted
+     * snapshot, so the star empties. The free-text [SandboxUiState.handName] is kept.
+     */
+    private fun SandboxUiState.unlinkFavorite(): SandboxUiState =
+        if (favoriteId == null) this else copy(favoriteId = null, favoriteNumber = null)
 
     fun setCardInSlot(slotIndex: Int, card: CardDefinition) {
         if (slotIndex !in 0 until SANDBOX_SLOT_COUNT) return
         _uiState.update { state ->
             val newSlots = state.slots.toMutableList().also { it[slotIndex] = CardSlot.Filled(card) }
-            state.copy(slots = newSlots).pruneStaleSelections().recomputeScore()
+            state.copy(slots = newSlots).unlinkFavorite().pruneStaleSelections().recomputeScore()
         }
     }
 
@@ -274,7 +323,7 @@ class SandboxViewModel(
         if (slotIndex !in 0 until SANDBOX_SLOT_COUNT) return
         _uiState.update { state ->
             val newSlots = state.slots.toMutableList().also { it[slotIndex] = CardSlot.Empty }
-            state.copy(slots = newSlots).pruneStaleSelections().recomputeScore()
+            state.copy(slots = newSlots).unlinkFavorite().pruneStaleSelections().recomputeScore()
         }
     }
 
@@ -282,7 +331,7 @@ class SandboxViewModel(
         _uiState.update { state ->
             val newAssignments = state.jokerAssignments.toMutableMap()
             if (assignment == null) newAssignments.remove(jokerKey) else newAssignments[jokerKey] = assignment
-            state.copy(jokerAssignments = newAssignments).recomputeScore()
+            state.copy(jokerAssignments = newAssignments).unlinkFavorite().recomputeScore()
         }
     }
 
@@ -302,17 +351,9 @@ class SandboxViewModel(
                     jokerAssignments = best.bestInput.jokerAssignments,
                     scoringResult = best.bestResult,
                     optimalRunning = false,
-                )
+                ).unlinkFavorite()
             }
         }
-    }
-
-    fun openBreakdown() {
-        _uiState.update { it.copy(breakdownOpen = true) }
-    }
-
-    fun closeBreakdown() {
-        _uiState.update { it.copy(breakdownOpen = false) }
     }
 
     fun reset() {

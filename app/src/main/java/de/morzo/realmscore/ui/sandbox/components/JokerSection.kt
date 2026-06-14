@@ -6,15 +6,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -95,6 +92,9 @@ fun JokerSection(
     onOptimal: (() -> Unit)? = null,
     optimalRunning: Boolean = false,
     necromancer: NecromancerRowData? = null,
+    // In narrow columns (multi-hand compare) each joker row stacks its pieces vertically instead of
+    // on one line, which would otherwise wrap into an unreadable mess (spec 25.6).
+    compact: Boolean = false,
 ) {
     if (jokers.isEmpty() && necromancer == null) return
 
@@ -118,19 +118,28 @@ fun JokerSection(
                 text = stringResource(R.string.sandbox_joker_section_title),
                 style = MaterialTheme.typography.titleMedium,
             )
-            // Necromancer is the first card to resolve, so it leads the section.
-            if (necromancer != null) {
-                NecromancerRow(necromancer)
+            // Build the rows actually present in the hand (Necromancer leads, as it resolves first),
+            // then draw a thin divider above every row but the first. Because only present jokers
+            // produce a row, absent ones never leave a doubled or dangling divider (spec follow-up).
+            val rows = buildList<@Composable () -> Unit> {
+                if (necromancer != null) add { NecromancerRow(necromancer, compact = compact) }
+                jokers.forEach { joker ->
+                    add {
+                        JokerRow(
+                            joker = joker,
+                            assignment = assignments[joker.key],
+                            allCards = allCards,
+                            handCards = handCards,
+                            resolved = resolved,
+                            onChange = { onAssignmentChange(joker.key, it) },
+                            compact = compact,
+                        )
+                    }
+                }
             }
-            jokers.forEach { joker ->
-                JokerRow(
-                    joker = joker,
-                    assignment = assignments[joker.key],
-                    allCards = allCards,
-                    handCards = handCards,
-                    resolved = resolved,
-                    onChange = { onAssignmentChange(joker.key, it) },
-                )
+            rows.forEachIndexed { index, row ->
+                if (index > 0) HorizontalDivider()
+                row()
             }
             if (onOptimal != null) {
                 Button(
@@ -159,6 +168,7 @@ private fun JokerRow(
     handCards: List<CardDefinition>,
     resolved: List<ResolvedCard>,
     onChange: (JokerAssignment?) -> Unit,
+    compact: Boolean = false,
 ) {
     val locale = currentLocale()
     val options: List<TargetOption> = remember(joker.jokerType, allCards, handCards, resolved, locale) {
@@ -211,7 +221,26 @@ private fun JokerRow(
         }
     }
 
-    if (isBook) {
+    if (compact) {
+        // Narrow column (multi-hand): every piece on its own line, so nothing wraps mid-word.
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(joker.displayName(locale), style = MaterialTheme.typography.bodyLarge)
+            Text(jokerActionLabel(joker.jokerType), style = MaterialTheme.typography.bodyMedium)
+            TargetPicker(current = currentLabel, options = options, onSelected = onTargetSelected)
+            if (isBook && assignment?.targetCardKey != null) {
+                Text(
+                    text = stringResource(R.string.joker_book_to),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                SuitPicker(
+                    current = assignment.targetSuit ?: BOOK_OF_CHANGES_SUITS.first(),
+                    onSelected = { suit ->
+                        onChange(JokerAssignment(joker.key, assignment.targetCardKey, suit))
+                    },
+                )
+            }
+        }
+    } else if (isBook) {
         // Two fields ("ändert <Karte> zu <Farbe>") need more room, so keep the name on its own line.
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(joker.displayName(locale), style = MaterialTheme.typography.bodyLarge)
@@ -249,32 +278,33 @@ private fun JokerRow(
 }
 
 @Composable
-private fun NecromancerRow(data: NecromancerRowData) {
+private fun NecromancerRow(data: NecromancerRowData, compact: Boolean = false) {
     val locale = currentLocale()
+    // The pick chip itself is the way to change the pull (tap → card picker); there is no separate
+    // clear button (spec follow-up): re-tapping the chip lets the user choose a different card.
+    val picked = data.pickedCard?.displayName(locale)
+        ?: stringResource(R.string.sandbox_joker_unset)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        // One-liner: "<Totenbeschwörer> <verb> <Karte>".
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        if (compact) {
+            // Narrow column (multi-hand): stack name, verb, and the pick chip.
             Text(data.card.displayName(locale), style = MaterialTheme.typography.bodyLarge)
             Text(
                 text = jokerActionLabel(data.card.jokerType),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            val picked = data.pickedCard?.displayName(locale)
-                ?: stringResource(R.string.sandbox_joker_unset)
-            AssistChip(
-                onClick = data.onPick,
-                label = { Text(picked) },
-            )
-            if (data.pickedCard != null) {
-                IconButton(onClick = data.onClear) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.necromancer_clear),
-                    )
-                }
+            AssistChip(onClick = data.onPick, label = { Text(picked) })
+        } else {
+            // One-liner: "<Totenbeschwörer> <verb> <Karte>".
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(data.card.displayName(locale), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = jokerActionLabel(data.card.jokerType),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                AssistChip(onClick = data.onPick, label = { Text(picked) })
             }
         }
         Text(

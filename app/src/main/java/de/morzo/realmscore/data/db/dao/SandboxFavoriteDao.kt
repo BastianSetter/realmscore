@@ -12,6 +12,10 @@ interface SandboxFavoriteDao {
     @Insert
     suspend fun insert(favorite: SandboxFavoriteEntity)
 
+    /** Renames a favorite in place (spec 25.6); free text, no uniqueness constraint. */
+    @Query("UPDATE sandbox_favorites SET name = :name, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateName(id: String, name: String?, updatedAt: Long)
+
     @Query("SELECT * FROM sandbox_favorites ORDER BY number ASC")
     fun observeAll(): Flow<List<SandboxFavoriteEntity>>
 

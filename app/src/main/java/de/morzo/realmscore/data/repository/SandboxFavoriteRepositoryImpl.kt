@@ -25,19 +25,32 @@ class SandboxFavoriteRepositoryImpl(
     override suspend fun getById(id: String): SandboxFavorite? =
         dao.getById(id)?.toDomain()
 
-    override suspend fun save(cards: List<FavoriteCard>): Int {
+    override suspend fun save(cards: List<FavoriteCard>, name: String?): SandboxFavorite {
         val now = clock.nowEpochMillis()
         val number = dao.maxNumber() + 1
+        val cleanName = name?.takeIf { it.isNotBlank() }
+        val id = UUID.randomUUID().toString()
         val entity = SandboxFavoriteEntity(
-            id = UUID.randomUUID().toString(),
+            id = id,
             number = number,
+            name = cleanName,
             cardsJson = json.encodeToString(cards.map { it.toDto() }),
             createdAt = now,
             updatedAt = now,
             originDeviceId = deviceUuidProvider.get(),
         )
         dao.insert(entity)
-        return number
+        return SandboxFavorite(
+            id = id,
+            number = number,
+            name = cleanName,
+            handCards = cards,
+            createdAt = now,
+        )
+    }
+
+    override suspend fun updateName(id: String, name: String?) {
+        dao.updateName(id, name?.takeIf { it.isNotBlank() }, clock.nowEpochMillis())
     }
 
     override suspend fun delete(id: String) = dao.deleteById(id)
@@ -45,6 +58,7 @@ class SandboxFavoriteRepositoryImpl(
     private fun SandboxFavoriteEntity.toDomain(): SandboxFavorite = SandboxFavorite(
         id = id,
         number = number,
+        name = name,
         handCards = runCatching {
             json.decodeFromString<List<FavoriteCardDto>>(cardsJson).map { it.toDomain() }
         }.getOrDefault(emptyList()),

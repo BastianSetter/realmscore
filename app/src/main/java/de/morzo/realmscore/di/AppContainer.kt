@@ -5,6 +5,7 @@ import androidx.room.Room
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.data.datastore.DeviceUuidProvider
 import de.morzo.realmscore.data.db.AppDatabase
+import de.morzo.realmscore.data.db.migration.MIGRATION_6_7
 import de.morzo.realmscore.data.repository.BackupRepositoryImpl
 import de.morzo.realmscore.data.repository.GameRepositoryImpl
 import de.morzo.realmscore.data.repository.HandCardRepositoryImpl
@@ -54,6 +55,9 @@ class AppContainer(private val applicationContext: Context) {
             // would destroy their games/profiles/stats. Replace this with real Migration objects (or
             // Room auto-migrations; exportSchema is already on) and remove the destructive fallback —
             // at minimum gate it behind a debug check. Decision deferred: documenting only for now.
+            // Real migrations registered here take precedence over the destructive fallback for the
+            // version steps they cover (spec 25.6: 6 → 7 adds the favorite `name` column).
+            .addMigrations(MIGRATION_6_7)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }

@@ -12,6 +12,8 @@ import androidx.room.PrimaryKey
 data class SandboxFavoriteEntity(
     @PrimaryKey val id: String,
     val number: Int,
+    // Free-text favorite/hand name (spec 25.6); null = unnamed → the UI falls back to the number.
+    val name: String?,
     val cardsJson: String,
     val createdAt: Long,
     val updatedAt: Long,

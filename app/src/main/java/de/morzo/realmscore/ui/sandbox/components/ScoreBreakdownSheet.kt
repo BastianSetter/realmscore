@@ -159,13 +159,16 @@ fun BreakdownEffectRow(
             }
         }
     }
+    // Two columns: the (wrapping) description on the left, the delta pinned to the top-right so it
+    // stays on one line and aligned even when the text wraps in a narrow column (spec 25.6).
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        Text(text, style = MaterialTheme.typography.bodyMedium)
+        Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Text(formatDelta(effect.pointsDelta), style = MaterialTheme.typography.bodyMedium)
     }
 }

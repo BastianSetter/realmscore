@@ -16,9 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -111,23 +111,27 @@ fun MultiHandScreen(
                 },
             )
         },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            MultiHandScoreHeader(scoreLeft = stateLeft.score, scoreRight = stateRight.score)
-            MultiHandActions(
-                onCopyAToB = { vmRight.applyHandSnapshot(vmLeft.currentSnapshot()) },
+        bottomBar = {
+            // Three fixed actions (spec 25.6): "Kopiere links" pushes the left hand onto the right,
+            // "Kopiere rechts" the right onto the left, and the middle swaps both.
+            MultiHandBottomBar(
+                onCopyLeftToRight = { vmRight.applyHandSnapshot(vmLeft.currentSnapshot()) },
                 onSwap = {
                     val left = vmLeft.currentSnapshot()
                     val right = vmRight.currentSnapshot()
                     vmLeft.applyHandSnapshot(right)
                     vmRight.applyHandSnapshot(left)
                 },
+                onCopyRightToLeft = { vmLeft.applyHandSnapshot(vmRight.currentSnapshot()) },
             )
+        },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            MultiHandScoreHeader(scoreLeft = stateLeft.score, scoreRight = stateRight.score)
             HorizontalDivider()
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 SandboxHandColumn(
                     modifier = Modifier.weight(1f),
-                    label = stringResource(R.string.multihand_left),
                     vm = vmLeft,
                     state = stateLeft,
                     cardLookup = container.cardLookup::getByKey,
@@ -135,7 +139,6 @@ fun MultiHandScreen(
                 VerticalDivider()
                 SandboxHandColumn(
                     modifier = Modifier.weight(1f),
-                    label = stringResource(R.string.multihand_right),
                     vm = vmRight,
                     state = stateRight,
                     cardLookup = container.cardLookup::getByKey,
@@ -146,31 +149,35 @@ fun MultiHandScreen(
 }
 
 @Composable
-private fun MultiHandActions(
-    onCopyAToB: () -> Unit,
+private fun MultiHandBottomBar(
+    onCopyLeftToRight: () -> Unit,
     onSwap: () -> Unit,
+    onCopyRightToLeft: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-    ) {
-        TextButton(onClick = onCopyAToB) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.size(4.dp))
-            Text(stringResource(R.string.multihand_copy_a_to_b))
-        }
-        TextButton(onClick = onSwap) {
-            Icon(
-                imageVector = Icons.Default.SwapHoriz,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.size(4.dp))
-            Text(stringResource(R.string.multihand_swap))
+    Surface(tonalElevation = 4.dp) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Each button names its *source* hand and sits on the opposite side: "Übernehme Rechts"
+            // (left button) pulls the right hand onto the left; "Übernehme Links" (right button)
+            // pulls the left hand onto the right.
+            TextButton(onClick = onCopyRightToLeft, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.multihand_copy_right))
+            }
+            TextButton(onClick = onSwap) {
+                Icon(
+                    imageVector = Icons.Default.SwapHoriz,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.size(4.dp))
+                Text(stringResource(R.string.multihand_swap))
+            }
+            TextButton(onClick = onCopyLeftToRight, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.multihand_copy_left))
+            }
         }
     }
 }
@@ -208,7 +215,6 @@ private fun ScoreDisplay(score: Int, isWinner: Boolean, modifier: Modifier = Mod
 
 @Composable
 private fun SandboxHandColumn(
-    label: String,
     vm: SandboxViewModel,
     state: SandboxUiState,
     cardLookup: (String) -> CardDefinition?,
@@ -229,11 +235,6 @@ private fun SandboxHandColumn(
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-        )
         state.slots.forEachIndexed { index, slot ->
             MultiHandSlot(
                 slot = slot,
@@ -249,6 +250,9 @@ private fun SandboxHandColumn(
             allCards = vm.allCards,
             handCards = state.filledCards,
             onAssignmentChange = vm::setJokerAssignment,
+            onOptimal = vm::applyOptimal,
+            optimalRunning = state.optimalRunning,
+            compact = true,
             necromancer = if (state.necromancerInHand) {
                 NecromancerRowData(
                     card = vm.allCards.first { it.key == "necromancer" },
@@ -348,8 +352,10 @@ private fun FilledMultiHandSlot(
     ) {
         Column(Modifier.fillMaxWidth().padding(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Spec 25.6: tapping the name opens the picker; the info icon toggles the points
+                // detail (inverted from before).
                 Column(
-                    modifier = Modifier.weight(1f).clickable { expanded = !expanded },
+                    modifier = Modifier.weight(1f).clickable(onClick = onEdit),
                 ) {
                     Text(
                         text = card.displayName(),
@@ -365,10 +371,10 @@ private fun FilledMultiHandSlot(
                         )
                     }
                 }
-                IconButton(onClick = onEdit) {
+                IconButton(onClick = { expanded = !expanded }) {
                     Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(R.string.sandbox_remove_card),
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = stringResource(R.string.multihand_card_details),
                         tint = suitOnColor(card.suit),
                     )
                 }

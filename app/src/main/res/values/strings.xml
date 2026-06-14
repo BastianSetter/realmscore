@@ -224,9 +224,24 @@
     <string name="multihand_swap">Tauschen</string>
     <string name="action_back">Zurück</string>
     <string name="action_delete">Löschen</string>
+    <string name="action_save">Speichern</string>
+    <string name="action_cancel">Abbrechen</string>
+
+    <!-- Phase 25.6: Sandbox-UI-Rework -->
+    <string name="sandbox_hand_default_name">Hand</string>
+    <string name="sandbox_rename_hand">Hand benennen</string>
+    <string name="sandbox_hand_name_label">Name</string>
+    <string name="sandbox_mark_favorite">Als Favorit markieren</string>
+    <string name="sandbox_unmark_favorite">Favorit entfernen</string>
+    <string name="sandbox_reset_hand">Hand zurücksetzen</string>
+    <string name="sandbox_compare_hand">Hand vergleichen</string>
+    <string name="sandbox_rename_favorite">Favorit umbenennen</string>
+    <string name="multihand_copy_left">Übernehme Links</string>
+    <string name="multihand_copy_right">Übernehme Rechts</string>
+    <string name="multihand_card_details">Punkte-Details</string>
 
     <!-- Effect descriptions (Breakdown sheet). %1$s and %2$s are dynamic args. -->
-    <string name="effect_base_strength">Basisstärke %1$s</string>
+    <string name="effect_base_strength">Basisstärke</string>
 
     <string name="effect_rangers_per_land">+10 pro Land (× %1$s)</string>
     <string name="effect_elven_archers_no_weather">+5 ohne Wetter</string>
