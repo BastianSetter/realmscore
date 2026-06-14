@@ -1,0 +1,9 @@
+Version 1.1.0
+- Spielerprofile mit Statistik über mehrere Spiele
+- Englische Übersetzung und Sprachauswahl
+- Mittelfeld-Erfassung des Ablagestapels
+- Neues Ring-Diagramm zur Karten-Bonus-Visualisierung
+- Sandbox: Favoriten speichern und mehrere Hände vergleichen
+- Daten-Backup und -Export als JSON
+- Überarbeiteter Erfassungs-Flow
+- Totenbeschwörer als vollwertiger Joker

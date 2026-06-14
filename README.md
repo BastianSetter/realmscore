@@ -1,191 +1,93 @@
 # RealmScore
 
-**Offline-Punktezähler für *Fantasy Realms* / *Fantastische Reiche* — kostenlos, werbefrei, ohne Tracker.**
+RealmScore is a score keeper for the card game *Fantasy Realms*. The app handles the round scoring, manages ongoing games and collects statistics about your own playing group. It works entirely offline.
 
-> Inoffizielle Fan-App. Steht in keiner Verbindung zu Strohmann Games, WizKids oder den Herausgebern des Spiels.
-
----
-
-## Ist diese App das Richtige für mich?
-
-| Ich … | Passt? |
-|---|---|
-| spiele Fantasy Realms / Fantastische Reiche regelmäßig und will keine Punkte mehr mit Stift & Papier erfassen | ✅ Genau dafür gebaut |
-| will eine App, die mir die komplexe Punkteformel automatisch berechnet | ✅ Vollautomatisch inkl. Boni, Strafen, Blanking, Joker |
-| mag den spannenden Moment wenn alle Hände gleichzeitig aufgedeckt werden | ✅ Reveal-Modus mit Animation |
-| will Karten-Kombinationen vorab ausprobieren | ✅ Sandbox eingebaut |
-| will langfristige Statistiken über meine Spielgruppe | ✅ Ausführliche Spieler- und Karten-Statistiken |
-| brauche eine Cloud-Anbindung oder Online-Multiplayer | ❌ Rein offline, kein Internet nötig |
-| spiele nur gelegentlich und brauche keine Auswertung | ⚠️ Funktioniert, aber der Mehrwert entfaltet sich über Zeit |
-| habe ein iPhone | ❌ Nur Android |
+> Unofficial fan app. Not affiliated with Strohmann Games, WizKids or the game's publishers.
 
 ---
 
-## Screenshots
+## What it is about
 
-| Startbildschirm | Karten eingeben | Spannungs-Reveal | Statistiken |
-|---|---|---|---|
-| ![Home](fastlane/metadata/android/de-DE/images/phoneScreenshots/1.png) | ![Karten](fastlane/metadata/android/de-DE/images/phoneScreenshots/2.png) | ![Reveal](fastlane/metadata/android/de-DE/images/phoneScreenshots/3.png) | ![Stats](fastlane/metadata/android/de-DE/images/phoneScreenshots/4.png) |
+In *Fantasy Realms*, each player forms a hand of seven cards that influence one another through bonuses, penalties and effects. This makes the final scoring laborious and error-prone. RealmScore records the hands, calculates the score automatically according to the official rules and shows clearly how each result comes about.
 
 ---
 
-## Features (aktueller Stand)
+## Features
 
-### Spielverwaltung
+### Managing games
 
-- **2–6 Spieler** pro Spiel
-- **Zwei Spielmodi:** Feste Rundenanzahl *oder* Punktelimit (Rommé-artig — neue Runde bis jemand das Limit reißt)
-- Mehrere Spiele **gleichzeitig offen** — einfach App verlassen und später weitermachen
-- Spiel-Übersicht mit laufendem Gesamtstand über alle Runden
+- Games with 2 to 6 players.
+- Two game modes: a fixed number of rounds, or a point limit where play continues until someone reaches the threshold.
+- Several games can be kept open at the same time and continued later.
+- An overview shows the running total across all rounds.
 
-### Karten-Eingabe
+### Entering cards
 
-- **Kartensuche** mit Suit-Filter (Army, Beast, Flame, Flood, Land, Leader, Magic, Wild, Wizard …)
-- **Joker-Karten** werden vollständig unterstützt:
-  - *Doppelgänger* — kopiert eine beliebige Karte aus der eigenen Hand
-  - *Spiegelung* & *Gestaltenwandler* — können jede der 53 Karten imitieren
-  - *Buch der Wandlungen* — wechselt den Suit einer Karte
-  - *Totenbeschwörer* — holt eine Nicht-Magier-Karte aus dem Mittelfeld in die eigene Wertung (8. Karte)
-- Eingabe ist **jederzeit korrigierbar**, solange keine neue Runde gestartet wurde
+- Cards are chosen through a search with a filter by card suit.
+- All special and joker cards are supported, including Doppelgänger, Mirage, Shapeshifter, the Book of Changes and the Necromancer.
+- Entries can be corrected as long as the round has not been completed.
+- The discard pile can be recorded as well, which is relevant for certain card effects.
 
-### Scoring-Engine
+### Calculating the score
 
-Die gesamte Fantasy-Realms-Regellogik ist implementiert — kein manuelles Nachschlagen mehr:
+- The game's full rule logic is built in: bonuses, penalties, blanking effects and jokers are evaluated in the correct order.
+- For each card it can be broken down how much it contributes to the overall result.
+- An optimization function determines the highest-scoring assignment of the joker cards for a given hand.
+- A ring diagram presents the hand graphically and uses connecting lines to show which cards strengthen or weaken one another.
 
-- **Automatische Boni** (z. B. König: +5 pro Armee-Karte; +20 mit Königin)
-- **Automatische Strafen** (z. B. fehlende Karte in einer Bedingung)
-- **Blanking-Effekte** — Drachen blanken Karten ohne Schwert oder Magie; geklärte Karten werden korrekt behandelt
-- **Korrekte Reihenfolge:** Joker → Buch der Wandlungen → Totenbeschwörer → Strafen aufheben → Blanking → Boni → Strafen → Score
-- **Optimal-Button** — berechnet die beste Joker-Belegung per Brute-Force (alle Kombinationen) für die aktuelle Hand
-- **Aufschlüsselung** pro Karte: Basisstärke, Boni, Strafen, geblankt ja/nein, exakter Beitrag zum Gesamtscore
+### Reveal
 
-### Spannungs-Reveal
-
-- Alle Spieler geben ihre Karten verdeckt ein — keiner sieht die Punkte der anderen
-- **Reveal-Sequenz** mit Animation: Spieler werden von niedrigster zu höchster Punktzahl aufgedeckt, Punkte zählen hoch
-- **Krone** für den Rundensieger
-- Skip-Option wenn es schneller gehen soll
-- Reveal lässt sich nachträglich nochmal ansehen
+- All players enter their cards without seeing the others' scores.
+- When revealing, the results are shown one after another from the lowest to the highest score, and the round winner is highlighted.
+- A result that has already been shown can be viewed again.
 
 ### Sandbox
 
-- **Freies Kombinieren** aller 53 Karten ohne laufendes Spiel
-- Live-Score-Update bei jeder Kartenänderung
-- Detaillierte **Aufschlüsselung** welche Karte wie viel beisteuert
-- Joker-Belegung manuell oder per **Optimal**-Solver
-- Totenbeschwörer-Auswahl direkt in der Sandbox
+- A free mode for trying out any card combination without an ongoing game.
+- The score updates with every change, including a breakdown.
+- Interesting combinations can be saved as favorites and loaded again later.
+- Two hands can be compared side by side.
 
-### Statistiken
+### Profiles
 
-- **Globale Übersicht:** Gespielte Spiele, Runden, einzigartige Spieler
-- **Spieler-Rangliste** sortiert nach Siegquote
-- **Spieler-Detail:** Siegquote, Durchschnittspunkte, beste Einzelhand, Lieblingskarten, Score-Trend, Duell-Statistiken gegen jeden Gegner
-- **Karten-Statistiken:** Wie oft wurde eine Karte gespielt, durchschnittlicher Beitrag, stärkster Einzelbeitrag, häufigste Kombi-Partner
-- **Head-to-Head:** Detaillierter Vergleich zweier Spieler
-- **Datenqualitäts-Hinweis** wenn Mittelfeld-Daten fehlen
+- Players are kept as profiles and can be renamed, colored, archived or merged.
+- Archived profiles no longer appear in the selection, but their game data is preserved.
 
-### Datenschutz & Technik
+### Statistics
 
-- **Vollständig offline** — kein Internet, kein Account, keine Cloud
-- **Keine Tracker**, kein Analytics, keine Werbung
-- **F-Droid-konform** — keine Google Play Services, kein Firebase, kein ML Kit
-- Alle Daten bleiben auf dem Gerät (Room-Datenbank)
+- A global overview of games played, rounds and participating players.
+- A player ranking as well as detailed evaluations with win rate, average points, best hands and preferred cards.
+- Evaluations of individual cards, such as how often they were played and how much they contribute on average.
+- A direct comparison of two players.
+
+### Language and data
+
+- The app is available in German and English; the language can be chosen in the settings.
+- All data can be backed up to a file and imported again, including on another device.
+- No data is sent to any server; the app needs no internet connection, no account, and contains no ads or trackers.
 
 ---
 
-## Geplante Features
+## Planned
 
-Die folgenden Funktionen sind spezifiziert und werden in kommenden Versionen umgesetzt:
+These features are intended but not yet included:
 
-### Spieler & Verwaltung
-
-- **Profilverwaltung** (Phase 17): Dedizierter Screen zum Umbenennen, Farbe ändern, Archivieren und Zusammenführen von Profilen. Archivierte Profile verschwinden aus der Auswahl, alle Spieldaten bleiben erhalten.
-
-### Visualisierung
-
-- **Karten-Ring-Diagramm** (Phase 18): Die 7 Handkarten werden als Ring angeordnet. Verbindungslinien zeigen, welche Karten sich beeinflussen — Grün für Boni, Rot für Strafen, Linienstärke proportional zur Effektstärke. Geblankte Karten werden grau dargestellt. Optimaler Layout-Algorithmus minimiert Kreuzungen. Verfügbar in der Sandbox und nach dem Reveal.
-
-### Mittelfeld erfassen
-
-- **Manueller Mittelfeld-Scan** (Phase 20): Der Discard-Pile kann per CardPicker manuell erfasst werden. Die Totenbeschwörer-Auswahl wird dann automatisch auf die erfassten Karten gefiltert, und der Optimal-Solver bezieht die Totenbeschwörer-Karte in seine Berechnung ein.
-- **Kamera-Scan mit OCR** (Phase 21): Alle 7 Handkarten auf einmal fotografieren — die App erkennt die Kartennamen automatisch via Tesseract OCR. Bei sicherer Erkennung werden Karten direkt übernommen, bei Unsicherheit wählt der User aus Top-3-Kandidaten. Manuelle Eingabe bleibt immer als Fallback. Gilt für Spieler-Hände und das Mittelfeld. F-Droid-konform (kein ML Kit).
-
-### Sandbox-Erweiterungen
-
-- **Favoriten** (Phase 22): Interessante Karten-Kombinationen speichern und später per Tap wieder laden. Durchnummeriert, kein Name nötig.
-- **Multi-Hand-Vergleich** (Phase 22): Zwei Hände nebeneinander im Split-Screen vergleichen — Score-Vergleich oben, Karten-Details in jeder Hälfte.
-
-### Sprache
-
-- **Englische Übersetzung** (Phase 19): Vollständige englische UI inkl. offizieller englischer Kartennamen aus der WizKids-Edition. Language-Switcher in den Settings (System / Deutsch / English).
-
-### Daten
-
-- **Backup & Export** (Phase 23): Vollständiges Backup aller Daten als JSON-Datei via Android Share-Intent. Import auf demselben oder einem anderen Gerät. Versioniertes Format, Duplikate werden beim Import automatisch übersprungen.
-
-### Erweiterung "Der verfluchte Schatz"
-
-- **+47 Karten** (Phase 24): Die Erweiterung wird über einen Settings-Toggle aktiviert. Erweiterungs-Karten erscheinen im CardPicker mit einem kleinen Badge und werden von der Scoring-Engine vollständig unterstützt.
-
-### Gemeinsam am Tisch spielen
-
-- **P2P-Synchronisation via NFC + Bluetooth** (Phase 25): Jeder Spieler tippt seine eigenen Karten auf seinem Gerät ein. Geräte verbinden sich per NFC-Handshake und Bluetooth RFCOMM — ohne Location-Permission, ohne Cloud. Live-Synchronisation der Spielerliste, Optimistic Locking wenn jemand gerade eingibt, Offline-Weiterspielen bei Verbindungsabbruch mit automatischem Resync. Am Spielende haben alle Geräte die vollständigen Daten lokal. Fallback-Code für Geräte ohne NFC.
+- Capturing the hand cards via camera.
+- Support for the "Cursed Hoard" expansion.
+- Shared entry, where each player enters their cards on their own device and the devices sync with one another.
 
 ---
 
 ## Installation
 
-### Aus F-Droid (empfohlen)
-
-> F-Droid-Listing folgt nach dem ersten Release. Bis dahin: APK-Download (siehe unten).
-
-### APK direkt installieren
-
-1. Unter [Releases](https://github.com/BastianSetter/realmscore/releases) die neueste `app-debug.apk` herunterladen
-2. Auf dem Android-Gerät "Installation aus unbekannten Quellen" einmalig erlauben
-3. APK installieren
-
-Mindest-Android-Version: **Android 8.0 (API 26)**
-
-### Selbst kompilieren
-
-Voraussetzungen: JDK 21 (z. B. JBR aus Android Studio), Android SDK (compileSdk 36).
-
-```bash
-./gradlew assembleDebug
-```
-
-Die APK landet unter `app/build/outputs/apk/debug/`.
-
-F-Droid-Konformitäts-Check (muss leer sein):
-
-```bash
-./gradlew :app:dependencies | grep -E "(gms|firebase|mlkit|google-services)"
-```
+The latest version is available as an APK for direct installation under [Releases](https://github.com/BastianSetter/realmscore/releases). Android 8.0 or newer is required.
 
 ---
 
-## Tech-Stack
+## License
 
-| | |
-|---|---|
-| Sprache | Kotlin 2.2, Compose Compiler Plugin |
-| UI | Jetpack Compose + Material 3 |
-| Datenbank | Room 2.7 |
-| Einstellungen | DataStore Preferences |
-| Navigation | AndroidX Navigation Compose |
-| DI | Manuell via `AppContainer` (kein Hilt) |
-| Build | Gradle Kotlin DSL + Version Catalog |
-| Distribution | F-Droid-konform (keine proprietären Libs) |
+GPL-3.0-or-later. See [LICENSE](LICENSE).
 
----
-
-## Lizenz
-
-GPL-3.0-or-later. Siehe [LICENSE](LICENSE).
-
----
-
-## Quellcode
+## Source
 
 https://github.com/BastianSetter/realmscore

@@ -1,0 +1,9 @@
+Version 1.1.0
+- Player profiles with stats across multiple games
+- English translation and language selection
+- Discard pile (Mittelfeld) capture
+- New ring diagram for card bonus visualization
+- Sandbox: save favorites and compare multiple hands
+- Data backup and export as JSON
+- Reworked capture flow
+- Necromancer as a full-fledged joker
