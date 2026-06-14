@@ -103,9 +103,9 @@ fun PlayerHandCaptureContent(
             unavailableKeys = unavailableKeys,
             searchEnabled = searchEnabled,
             onSetCardInSlot = onSetCardInSlot,
-            onCorrectSlot = { editSlot = it },
             onSubmit = onSubmit,
             submitLabel = submitLabel,
+            autoOpenKey = autoOpenKey,
             modifier = modifier,
         )
         CaptureStage.PlayerStage -> PlayerStageContent(
@@ -166,11 +166,23 @@ private fun CardPickStage(
     unavailableKeys: Set<String>,
     searchEnabled: Boolean,
     onSetCardInSlot: (Int, CardDefinition) -> Unit,
-    onCorrectSlot: (Int) -> Unit,
     onSubmit: () -> Unit,
     submitLabel: String,
+    autoOpenKey: Any?,
     modifier: Modifier = Modifier,
 ) {
+    // The slot the embedded picker fills next. Default: the first empty slot. Tapping an already
+    // chosen card in the fan overrides it, so the user re-picks that card inline through the same
+    // picker section (no full-screen picker here); the override resets once a card is placed.
+    var pickTarget by rememberSaveable(autoOpenKey) { mutableStateOf<Int?>(null) }
+    val firstEmpty = state.slots.indexOfFirst { it is CardSlot.Empty }
+    val targetSlot = pickTarget ?: firstEmpty
+
+    // When re-picking a filled slot, let its current card be selectable again (and highlight it in
+    // the list), matching the full-screen correction picker used in the player stage.
+    val targetCard = (state.slots.getOrNull(targetSlot) as? CardSlot.Filled)?.card
+    val pickerExcluded = if (targetCard != null) unavailableKeys - targetCard.key else unavailableKeys
+
     // No outer verticalScroll here: the embedded picker's card list is a LazyColumn that takes the
     // remaining height via weight(1f); imePadding keeps it usable when the keyboard is up.
     Column(
@@ -181,16 +193,18 @@ private fun CardPickStage(
     ) {
         OverlappingHandStack(
             slots = state.slots,
-            onSlotTap = onCorrectSlot,
+            currentSlot = targetSlot,
+            onSlotTap = { pickTarget = it },
         )
         Spacer(Modifier.height(16.dp))
         CardPickerContent(
             allCards = allCards,
-            excludedKeys = unavailableKeys,
+            excludedKeys = pickerExcluded,
+            highlightedKey = targetCard?.key,
             showSearch = searchEnabled,
             onCardChosen = { card ->
-                val nextEmpty = state.slots.indexOfFirst { it is CardSlot.Empty }
-                if (nextEmpty >= 0) onSetCardInSlot(nextEmpty, card)
+                if (targetSlot >= 0) onSetCardInSlot(targetSlot, card)
+                pickTarget = null
             },
             modifier = Modifier
                 .fillMaxWidth()

@@ -32,10 +32,7 @@ data class RevealUiState(
     val isLoading: Boolean = true,
     val players: List<PlayerReveal> = emptyList(),
     val currentRevealIndex: Int = 0,
-) {
-    val isDone: Boolean
-        get() = players.isNotEmpty() && currentRevealIndex >= players.size
-}
+)
 
 class RevealViewModel(
     private val roundId: String,

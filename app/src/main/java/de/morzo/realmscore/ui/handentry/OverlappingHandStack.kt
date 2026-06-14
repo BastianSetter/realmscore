@@ -17,31 +17,38 @@ import kotlin.math.roundToInt
 private val IdealCardWidth = 80.dp
 private val CardSpacing = 8.dp
 
+/** The picked slot lifts this fraction of its own height so it stands out from its neighbours. */
+private const val CurrentSlotRaiseFraction = 0.15f
+
+/** Card height : width ratio (120 : 80); mirrors the 80:120 aspect ratio used by [CardSlotView]. */
+private const val CardHeightRatio = 120f / 80f
+
 /**
  * The hand as an overlapping, tappable fan (spec 25.5, KartenPick stage): the filled slots plus the
- * single slot currently being filled (the first empty one, highlighted with a halo and drawn on
- * top) are rendered — the remaining empty slots are left out, but every card keeps the position it
- * would have if all slots were drawn, so the fan doesn't reflow as cards come in. They are spread
- * evenly across the full width from left to right so adjacent cards overlap. Cards use the same
- * width as the flat player-stage [HandSlotsRow], adjusted to the screen, so the two stages look
- * consistent.
+ * slot currently being filled ([currentSlot]) are rendered — the remaining empty slots are left
+ * out, but every card keeps the position it would have if all slots were drawn, so the fan doesn't
+ * reflow as cards come in. They are spread evenly across the full width from left to right so
+ * adjacent cards overlap. Cards use the same width as the flat player-stage [HandSlotsRow], adjusted
+ * to the screen, so the two stages look consistent.
  *
- * [onSlotTap] reports the card's slot index so the caller can open the full-screen picker to correct
- * exactly that slot. Renders nothing when there are no slots.
+ * The [currentSlot] (the slot the embedded picker fills next) is lifted up by ~15% of its height and
+ * drawn on top so it reads as the active card. [onSlotTap] reports the tapped card's slot index so
+ * the caller can re-target the picker at exactly that slot.
  */
 @Composable
 fun OverlappingHandStack(
     slots: List<CardSlot>,
+    currentSlot: Int,
     onSlotTap: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (slots.isEmpty()) return
-    val currentSlot = slots.indexOfFirst { it is CardSlot.Empty }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         // Same card sizing as the player stage: derive the width from how many ideal-width cards fit.
         val columns = (maxWidth / IdealCardWidth).roundToInt().coerceAtLeast(1)
         val cardWidth = (maxWidth - CardSpacing * (columns - 1)) / columns
+        val raise = cardWidth * CardHeightRatio * CurrentSlotRaiseFraction
 
         val count = slots.size
         // Spread all cards across the full width; with more cards than fit, they overlap.
@@ -54,12 +61,15 @@ fun OverlappingHandStack(
             CardSlotView(
                 slot = slot,
                 onClick = { onSlotTap(index) },
-                highlighted = index == currentSlot,
+                bordered = slot is CardSlot.Filled,
                 modifier = Modifier
-                    .offset(x = step * index)
+                    .offset(
+                        x = step * index,
+                        y = if (index == currentSlot) -raise else 0.dp,
+                    )
                     .width(cardWidth)
-                    // Later cards draw on top; the highlighted current slot floats above all so its
-                    // halo is never covered by the cards that follow it.
+                    // Later cards draw on top; the raised current slot floats above all so it is
+                    // never covered by the cards that follow it.
                     .zIndex(if (index == currentSlot) count.toFloat() else index.toFloat()),
             )
         }

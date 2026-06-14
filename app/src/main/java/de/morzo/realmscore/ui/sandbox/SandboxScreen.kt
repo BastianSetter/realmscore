@@ -96,6 +96,9 @@ fun SandboxScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var pickerForSlot by rememberSaveable { mutableStateOf<Int?>(null) }
+    // Slot the KartenPick fan's embedded picker fills next: a tapped filled card overrides the
+    // default (first empty) so the user re-picks it inline; reset once a card is placed.
+    var pickTarget by rememberSaveable { mutableStateOf<Int?>(null) }
     var necromancerPickerOpen by rememberSaveable { mutableStateOf(false) }
     var renameOpen by rememberSaveable { mutableStateOf(false) }
     var compareSnapshot by remember { mutableStateOf<HandSnapshot?>(null) }
@@ -185,18 +188,24 @@ fun SandboxScreen(
                     .imePadding()
                     .padding(16.dp),
             ) {
+                val targetSlot = pickTarget ?: state.slots.indexOfFirst { it is CardSlot.Empty }
+                val targetCard = (state.slots.getOrNull(targetSlot) as? CardSlot.Filled)?.card
+                val pickerExcluded =
+                    if (targetCard != null) placedKeys - targetCard.key else placedKeys
                 OverlappingHandStack(
                     slots = state.slots,
-                    onSlotTap = { idx -> pickerForSlot = idx },
+                    currentSlot = targetSlot,
+                    onSlotTap = { idx -> pickTarget = idx },
                 )
                 Spacer(Modifier.height(16.dp))
                 CardPickerContent(
                     allCards = viewModel.allCards,
-                    excludedKeys = placedKeys,
+                    excludedKeys = pickerExcluded,
+                    highlightedKey = targetCard?.key,
                     showSearch = searchEnabled,
                     onCardChosen = { card ->
-                        val nextEmpty = state.slots.indexOfFirst { it is CardSlot.Empty }
-                        if (nextEmpty >= 0) viewModel.setCardInSlot(nextEmpty, card)
+                        if (targetSlot >= 0) viewModel.setCardInSlot(targetSlot, card)
+                        pickTarget = null
                     },
                     modifier = Modifier
                         .fillMaxWidth()

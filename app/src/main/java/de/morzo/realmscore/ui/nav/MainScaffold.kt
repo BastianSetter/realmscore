@@ -54,7 +54,9 @@ import de.morzo.realmscore.ui.tabs.settings.SettingsViewModel
 import de.morzo.realmscore.ui.tabs.settings.UsernameChangeScreen
 import de.morzo.realmscore.ui.tabs.settings.UsernameChangeViewModel
 import android.app.Activity
+import android.content.Intent
 import androidx.compose.ui.platform.LocalContext
+import de.morzo.realmscore.ui.MainActivity
 import de.morzo.realmscore.ui.tabs.stats.CardStatsOverviewScreen
 import de.morzo.realmscore.ui.tabs.stats.CardStatsScreen
 import de.morzo.realmscore.ui.tabs.stats.HeadToHeadScreen
@@ -447,7 +449,20 @@ fun MainScaffold(container: AppContainer) {
                     onManageProfiles = {
                         tabNavController.navigate(Routes.PROFILE_MANAGEMENT)
                     },
-                    onAppReset = { activity?.recreate() },
+                    // Reset wiped the owner profile and all settings. Relaunch the Activity with a
+                    // cleared task so a fresh MainActivity starts with no saved nav back stack: the
+                    // splash re-runs, finds no owner, and routes to onboarding. (A plain recreate()
+                    // would restore the saved back stack and land back in the main app; navigating
+                    // in-graph here would dispose this very screen's ViewModel mid-callback.)
+                    onAppReset = {
+                        activity?.let { act ->
+                            val intent = Intent(act, MainActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            act.startActivity(intent)
+                            act.finish()
+                        }
+                    },
                 )
             }
             composable(Routes.PROFILE_MANAGEMENT) {

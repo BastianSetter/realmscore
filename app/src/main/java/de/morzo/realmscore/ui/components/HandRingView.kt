@@ -159,7 +159,7 @@ fun HandRingView(
     val onSurface = MaterialTheme.colorScheme.onSurface
     val highlight = MaterialTheme.colorScheme.primary
     val surface = MaterialTheme.colorScheme.surface
-    val darkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val darkTheme = de.morzo.realmscore.ui.theme.LocalIsDarkTheme.current
 
     Column(modifier = modifier.fillMaxWidth()) {
         BoxWithConstraints(

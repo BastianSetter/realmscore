@@ -1,6 +1,7 @@
 package de.morzo.realmscore.ui.sandbox.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,7 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
@@ -44,35 +45,15 @@ fun CardSlotView(
     slot: CardSlot,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    highlighted: Boolean = false,
+    bordered: Boolean = false,
 ) {
-    // The slot currently being filled gets a soft primary-tinted halo — a radial glow centred on the
-    // card and radiating outward past its edges — instead of a hard outline. Drawn before the clip so
-    // it can spill beyond the card bounds, behind the card content.
-    val haloColor = MaterialTheme.colorScheme.primary
+    // A chosen card can carry a slim black outline (the KartenPick fan uses it to frame the selected
+    // cards). Drawn before the clip so the stroke follows the card's rounded corners.
     Box(
         modifier = modifier
             .aspectRatio(CardAspectRatio)
             .then(
-                if (highlighted) {
-                    Modifier.drawBehind {
-                        val radius = size.maxDimension * 0.85f
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    haloColor.copy(alpha = 0f),
-                                    haloColor.copy(alpha = 0f),
-                                ),
-                                center = center,
-                                radius = radius,
-                            ),
-                            radius = radius,
-                            center = center,
-                        )
-                    }
-                } else {
-                    Modifier
-                },
+                if (bordered) Modifier.border(1.dp, Color.Black, SlotShape) else Modifier,
             )
             .clip(SlotShape)
             .clickable(onClick = onClick),

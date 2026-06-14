@@ -16,17 +16,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -77,7 +74,11 @@ fun RevealScreen(
             .fillMaxSize()
             .background(Color.Black)
             .clickable(enabled = !state.isLoading) {
-                if (state.isDone) onDone() else vm.revealNext()
+                // Tapping the last (winning) player goes straight to the round summary; there is no
+                // intermediate "continue" screen.
+                val onLastReveal = state.players.isNotEmpty() &&
+                    state.currentRevealIndex >= state.players.lastIndex
+                if (onLastReveal) onDone() else vm.revealNext()
             },
     ) {
         if (state.isLoading) {
@@ -103,14 +104,14 @@ fun RevealScreen(
                     .padding(24.dp),
                 label = "reveal-player",
             ) { index ->
+                // currentRevealIndex never advances past the last player anymore (its tap calls
+                // onDone), so only the player card is ever shown here.
                 if (index < state.players.size) {
                     PlayerRevealCard(
                         player = state.players[index],
                         isWinner = index == state.players.size - 1,
                         cardLookup = container.cardLookup::getByKey,
                     )
-                } else {
-                    CompletionContent(onContinue = onDone)
                 }
             }
         }
@@ -224,19 +225,5 @@ private fun TopCardChip(name: String) {
             color = Color.White,
             style = MaterialTheme.typography.bodyMedium,
         )
-    }
-}
-
-@Composable
-private fun CompletionContent(onContinue: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.round_summary_continue_to_summary))
-        }
     }
 }

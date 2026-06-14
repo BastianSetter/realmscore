@@ -8,8 +8,18 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import de.morzo.realmscore.domain.model.ThemeMode
+
+/**
+ * The dark/light decision actually applied by [FantasyRealmsTheme] (i.e. respecting the in-app
+ * [ThemeMode], not just the system). Read this — not `isSystemInDarkTheme()` — wherever non-Material
+ * colours (suit colours, the ring canvas) need to follow the theme, so forcing Light/Dark in-app
+ * also switches them. See the `suitColor` helper.
+ */
+val LocalIsDarkTheme = staticCompositionLocalOf { false }
 
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryLight,
@@ -82,9 +92,11 @@ fun FantasyRealmsTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content,
-    )
+    CompositionLocalProvider(LocalIsDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content,
+        )
+    }
 }
