@@ -29,6 +29,7 @@
     <string name="random_stat_most_played_together">%1$s and %2$s play together most often (%3$d games)</string>
 
     <string name="tab_home">Home</string>
+    <string name="tab_game">Game</string>
     <string name="tab_history">History</string>
     <string name="tab_stats">Stats</string>
     <string name="tab_sandbox">Sandbox</string>

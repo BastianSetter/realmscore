@@ -5,10 +5,20 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val MAIN = "main"
 
+    // Footer-section subgraph routes. Each must differ from its startDestination route so the
+    // nested navigation graph and its start leaf stay distinct destinations.
+    const val SECTION_START = "section_start"
+    const val SECTION_GAME = "section_game"
+    const val SECTION_HISTORY = "section_history"
+    const val SECTION_STATS = "section_stats"
+    const val SECTION_SANDBOX = "section_sandbox"
+
     const val TAB_HOME = "tab_home"
     const val TAB_HISTORY = "tab_history"
     const val TAB_STATS = "tab_stats"
     const val TAB_SETTINGS = "tab_settings"
+
+    const val GAME_HUB = "game_hub"
 
     const val NEW_GAME = "new_game"
     const val USERNAME_CHANGE = "settings/username_change"

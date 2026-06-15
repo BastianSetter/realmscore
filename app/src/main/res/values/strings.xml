@@ -29,6 +29,7 @@
     <string name="random_stat_most_played_together">%1$s und %2$s spielen am häufigsten zusammen (%3$d Spiele)</string>
 
     <string name="tab_home">Start</string>
+    <string name="tab_game">Spiel</string>
     <string name="tab_history">Historie</string>
     <string name="tab_stats">Statistik</string>
     <string name="tab_sandbox">Sandbox</string>
