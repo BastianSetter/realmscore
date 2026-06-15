@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">RealmScore</string>
     <string name="onboarding_headline">Willkommen!</string>
-    <string name="onboarding_body">Diese App hilft dir beim Punkte-Zaehlen fuer Fantastische Reiche. Erzaehl mir kurz, wie du heisst.</string>
+    <string name="onboarding_body">Diese App hilft dir beim Punkte-Zählen für Fantastische Reiche. Erzähl mir kurz, wie du heißt.</string>
     <string name="onboarding_name_label">Dein Name</string>
     <string name="onboarding_continue">Weiter</string>
     <string name="onboarding_error_empty">Bitte gib einen Namen ein.</string>
@@ -202,7 +202,7 @@
     <string name="necromancer_section_title">Totenbeschwörer holt</string>
     <string name="necromancer_pick_hint">Karte aus dem Mittelfeld wählen</string>
     <string name="necromancer_picked_label">Geholt: %1$s</string>
-    <string name="necromancer_suit_hint">Nur Armeen, Magier, Heerführer oder Bestien</string>
+    <string name="necromancer_suit_hint">Nur Armeen, Zauberer, Anführer oder Bestien</string>
     <string name="necromancer_clear">Auswahl entfernen</string>
     <string name="necromancer_breakdown_tag">Vom Totenbeschwörer geholt</string>
 
@@ -236,8 +236,8 @@
     <string name="sandbox_reset_hand">Hand zurücksetzen</string>
     <string name="sandbox_compare_hand">Hand vergleichen</string>
     <string name="sandbox_rename_favorite">Favorit umbenennen</string>
-    <string name="multihand_copy_left">Übernehme Links</string>
-    <string name="multihand_copy_right">Übernehme Rechts</string>
+    <string name="multihand_copy_left">Übernehme\nLinks</string>
+    <string name="multihand_copy_right">Übernehme\nRechts</string>
     <string name="multihand_card_details">Punkte-Details</string>
 
     <!-- Effect descriptions (Breakdown sheet). %1$s and %2$s are dynamic args. -->

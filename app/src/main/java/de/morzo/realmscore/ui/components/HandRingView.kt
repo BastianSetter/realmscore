@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -156,10 +157,16 @@ fun HandRingView(
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val locale = currentLocale()
-    val onSurface = MaterialTheme.colorScheme.onSurface
     val highlight = MaterialTheme.colorScheme.primary
     val surface = MaterialTheme.colorScheme.surface
     val darkTheme = de.morzo.realmscore.ui.theme.LocalIsDarkTheme.current
+    // Label colour matches the card picker: pick black/white by the suit fill's luminance so the
+    // name/score stay legible on every suit (the previous onSurface was black-on-dark on dark suits).
+    val nodeTextColors = remember(cards, darkTheme) {
+        cards.map { card ->
+            if (SuitColors.forSuit(card.suit, darkTheme).luminance() > 0.5f) Color.Black else Color.White
+        }
+    }
 
     Column(modifier = modifier.fillMaxWidth()) {
         BoxWithConstraints(
@@ -250,7 +257,7 @@ fun HandRingView(
                         dimmed = dimmed,
                         center = nodeCenters[idx],
                         radius = cardRadius,
-                        textColor = onSurface,
+                        textColor = nodeTextColors[idx],
                         highlightColor = highlight,
                         backgroundColor = surface,
                         darkTheme = darkTheme,

@@ -54,10 +54,18 @@ fun OverlappingHandStack(
         // Spread all cards across the full width; with more cards than fit, they overlap.
         val step: Dp = if (count <= 1) 0.dp else (maxWidth - cardWidth) / (count - 1)
 
+        // The next slot that will be filled. It stays rendered (and tappable) even while a
+        // different, already-filled slot is being corrected — otherwise re-targeting it would be
+        // impossible because it had vanished.
+        val nextEmptyIndex = slots.indexOfFirst { it is CardSlot.Empty }
+
         slots.forEachIndexed { index, slot ->
-            // Skip the still-empty slots except the one currently being filled; their positions are
-            // still reserved (step * index) so the rendered cards don't shift as the hand fills up.
-            if (slot is CardSlot.Empty && index != currentSlot) return@forEachIndexed
+            // Skip the still-empty slots except the one currently being filled and the next empty
+            // slot to fill; their positions are still reserved (step * index) so the rendered cards
+            // don't shift as the hand fills up. Only the current slot is raised.
+            if (slot is CardSlot.Empty && index != currentSlot && index != nextEmptyIndex) {
+                return@forEachIndexed
+            }
             CardSlotView(
                 slot = slot,
                 onClick = { onSlotTap(index) },

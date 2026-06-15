@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
@@ -74,7 +74,7 @@ private val tabs = listOf(
     TabItem(Routes.TAB_HOME, Routes.TAB_HOME, R.string.tab_home, Icons.Default.Home),
     TabItem(Routes.TAB_HISTORY, Routes.TAB_HISTORY, R.string.tab_history, Icons.Default.DateRange),
     TabItem(Routes.TAB_STATS, Routes.TAB_STATS, R.string.tab_stats, Icons.AutoMirrored.Filled.List),
-    TabItem(Routes.SANDBOX, Routes.sandboxRouteEmpty(), R.string.tab_sandbox, Icons.Default.Casino),
+    TabItem(Routes.SANDBOX, Routes.sandboxRouteEmpty(), R.string.tab_sandbox, Icons.Default.Science),
     TabItem(Routes.TAB_SETTINGS, Routes.TAB_SETTINGS, R.string.tab_settings, Icons.Default.Settings),
 )
 

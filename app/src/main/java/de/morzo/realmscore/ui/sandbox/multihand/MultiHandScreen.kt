@@ -164,7 +164,7 @@ private fun MultiHandBottomBar(
             // (left button) pulls the right hand onto the left; "Übernehme Links" (right button)
             // pulls the left hand onto the right.
             TextButton(onClick = onCopyRightToLeft, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.multihand_copy_right))
+                Text(stringResource(R.string.multihand_copy_right), textAlign = TextAlign.Center)
             }
             TextButton(onClick = onSwap) {
                 Icon(
@@ -176,7 +176,7 @@ private fun MultiHandBottomBar(
                 Text(stringResource(R.string.multihand_swap))
             }
             TextButton(onClick = onCopyLeftToRight, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.multihand_copy_left))
+                Text(stringResource(R.string.multihand_copy_left), textAlign = TextAlign.Center)
             }
         }
     }

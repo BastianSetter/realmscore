@@ -10,18 +10,15 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,8 +42,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
-import de.morzo.realmscore.domain.model.displayName
-import de.morzo.realmscore.ui.util.currentLocale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,7 +105,6 @@ fun RevealScreen(
                     PlayerRevealCard(
                         player = state.players[index],
                         isWinner = index == state.players.size - 1,
-                        cardLookup = container.cardLookup::getByKey,
                     )
                 }
             }
@@ -135,7 +129,6 @@ fun RevealScreen(
 private fun PlayerRevealCard(
     player: PlayerReveal,
     isWinner: Boolean,
-    cardLookup: (String) -> de.morzo.realmscore.domain.model.CardDefinition?,
 ) {
     val animatedScore by animateIntAsState(
         targetValue = player.finalScore,
@@ -192,38 +185,6 @@ private fun PlayerRevealCard(
             color = Color.White,
             fontSize = 64.sp,
             fontWeight = FontWeight.Bold,
-        )
-
-        if (player.topCardKeys.isNotEmpty()) {
-            val locale = currentLocale()
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                player.topCardKeys.forEach { key ->
-                    TopCardChip(cardLookup(key)?.displayName(locale) ?: key)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TopCardChip(name: String) {
-    Box(
-        modifier = Modifier
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.6f),
-                shape = RoundedCornerShape(16.dp),
-            )
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-    ) {
-        Text(
-            text = name,
-            color = Color.White,
-            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }
