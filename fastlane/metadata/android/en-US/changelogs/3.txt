@@ -1,0 +1,5 @@
+Version 1.2.0
+- New "Game" tab: start a new game and continue ongoing games
+- Section-aware navigation bar - tapping a tab takes you back instead of pressing Back repeatedly
+- Settings moved to a gear icon in the top-right of the Start screen
+- Minor fixes to contrast, sandbox icon, and reveal flow

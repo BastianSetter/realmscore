@@ -1,0 +1,5 @@
+Version 1.2.0
+- Neuer "Spiel"-Tab: neues Spiel starten und laufende Spiele fortsetzen
+- Bereichsbewusste Navigationsleiste – ein Tipp führt zurück, statt mehrfach "Zurück" zu drücken
+- Einstellungen jetzt über das Zahnrad oben rechts auf dem Startbildschirm
+- Kleinere Korrekturen an Kontrast, Sandbox-Symbol und Aufdeck-Ablauf
