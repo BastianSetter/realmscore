@@ -46,7 +46,8 @@
       "PowerShell(git show*)",
       "PowerShell(git branch*)",
       "PowerShell(git rev-parse*)",
-      "PowerShell(git push *)"
+      "PowerShell(git push *)",
+      "PowerShell(git checkout *)"
     ]
   }
 }
