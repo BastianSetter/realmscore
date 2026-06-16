@@ -13,7 +13,8 @@ object RedBannerDetector {
 
     private const val DETECT_WIDTH = 720
     private const val MIN_AREA_FRACTION = 0.004  // ignore tiny red specks
-    private const val MIN_ASPECT = 1.8           // banners are much wider than tall
+    private const val MIN_ASPECT = 1.4           // banners are wider than tall; lenient enough for tilt,
+                                                 // still rejects tall vertical suit bands (aspect < 1)
     private const val PAD_FRACTION = 0.1         // small vertical grow; the recognizer tightens to text
 
     fun detect(bitmap: Bitmap, maxCards: Int): List<Rect> {
@@ -24,7 +25,7 @@ object RedBannerDetector {
 
         val pixels = IntArray(workW * workH)
         small.getPixels(pixels, 0, workW, 0, 0, workW, workH)
-        val mask = BooleanArray(pixels.size) { ScanImageOps.isBannerRed(pixels[it]) }
+        val mask = BooleanArray(pixels.size) { ScanImageOps.isSaturatedRed(pixels[it]) }
 
         val frame = workW.toLong() * workH
         val boxes = ConnectedComponents.boxes(mask, workW, workH)

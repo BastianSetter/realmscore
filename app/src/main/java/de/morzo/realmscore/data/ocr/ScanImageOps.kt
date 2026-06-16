@@ -165,13 +165,19 @@ object ScanImageOps {
 
     fun minChannel(p: Int): Int = minOf(Color.red(p), Color.green(p), Color.blue(p))
 
-    /** Saturated red of the title banner ribbon — high red, clearly above green and blue (excludes
-     *  purple suit bands and brown table wood). Shared by the blob detector and the ML Kit title filter. */
-    fun isBannerRed(p: Int): Boolean {
+    /**
+     * Saturated red of the title banner, judged **proportionally** so it is brightness-independent:
+     * dark / shadowed / tilted banners still count (the difference scales with the red level), while
+     * the less-saturated brown of a wooden table does not. Used for the whole-photo blob detection in
+     * the Tesseract flavour. (The ML Kit flavour uses [redFraction]'s simpler test, applied only to
+     * text-line boxes that are already on a card.)
+     */
+    fun isSaturatedRed(p: Int): Boolean {
         val r = Color.red(p)
         val g = Color.green(p)
         val b = Color.blue(p)
-        return r >= 110 && r - g >= 55 && r - b >= 45
+        if (r < 60) return false
+        return (r - g) >= 0.4f * r && (r - b) >= 0.3f * r
     }
 
     /** Fraction of [box] in [bitmap] that is banner-red — used to tell a white-on-red *title* line from
@@ -192,8 +198,8 @@ object ScanImageOps {
             val g = Color.green(p)
             val b = Color.blue(p)
             // Relative red: red clearly dominant, at *any* brightness — catches dark/shadowed/tilted
-            // banners (unlike the absolute isBannerRed used for blob detection), while still excluding
-            // white/cream (r≈g) and blue/purple (b ≥ r).
+            // banners, while still excluding white/cream (r≈g) and blue/purple (b ≥ r). Simpler than
+            // isSaturatedRed because it only ever sees text-line boxes already on a card (no table wood).
             if (r - g >= 24 && r - b >= 16) red++
         }
         return red.toFloat() / pixels.size
