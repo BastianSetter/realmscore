@@ -59,11 +59,18 @@ data class RoundCaptureUiState(
     val currentProfileId: String? = null,
     /** Whether the embedded KartenPick picker shows its text-search field (spec 25.5). */
     val pickerSearchEnabled: Boolean = true,
+    /** Whether an empty hand opens the camera card scan instead of the manual picker (Phase 26). */
+    val cameraScanEnabled: Boolean = false,
+    /** Names of cards placed in more than one entry this round — must be empty before the reveal. */
+    val duplicateCardNames: List<String> = emptyList(),
     /** UI shape consumed by the shared PlayerHandCaptureContent for the current entry. */
     val current: PlayerHandEntryUiState = PlayerHandEntryUiState(isLoading = false),
 ) {
     val allCaptured: Boolean
         get() = orderedPlayers.isNotEmpty() && orderedPlayers.all { it.captured }
+
+    /** A physical card can sit in only one entry; block the reveal until any clash is resolved. */
+    val hasDuplicates: Boolean get() = duplicateCardNames.isNotEmpty()
 }
 
 /**
@@ -139,6 +146,7 @@ class RoundCaptureViewModel(
 
             discardEnabled = settingsRepo.discardCaptureEnabled.first()
             val pickerSearchEnabled = settingsRepo.pickerSearchEnabled.first()
+            val cameraScanEnabled = settingsRepo.cameraScanEnabled.first()
             discardSlotCount =
                 if (playerIds.size <= 2) DISCARD_SLOTS_TWO_PLAYERS else DISCARD_SLOTS_MULTI_PLAYER
 
@@ -166,6 +174,7 @@ class RoundCaptureViewModel(
                     roundNumber = round.roundNumber,
                     currentProfileId = first,
                     pickerSearchEnabled = pickerSearchEnabled,
+                    cameraScanEnabled = cameraScanEnabled,
                 )
             }
             rebuild()
@@ -237,7 +246,27 @@ class RoundCaptureViewModel(
                 requiredCount = requiredCountFor(id),
             )
         }
-        _uiState.update { it.copy(orderedPlayers = players, current = buildCurrent(currentId)) }
+        _uiState.update {
+            it.copy(
+                orderedPlayers = players,
+                current = buildCurrent(currentId),
+                duplicateCardNames = duplicateCardNames(),
+            )
+        }
+    }
+
+    /** Card names that appear in more than one entry (a physical card can be in only one place). */
+    private fun duplicateCardNames(): List<String> {
+        val counts = HashMap<String, Int>()
+        drafts.values.forEach { draft ->
+            draft.slots.forEach { slot ->
+                (slot as? CardSlot.Filled)?.card?.key?.let { counts[it] = (counts[it] ?: 0) + 1 }
+            }
+        }
+        return counts.filter { it.value > 1 }
+            .keys
+            .mapNotNull { cardLookup.getByKey(it)?.nameDe }
+            .sorted()
     }
 
     private fun buildCurrent(profileId: String?): PlayerHandEntryUiState {
@@ -280,6 +309,19 @@ class RoundCaptureViewModel(
         updateCurrentDraft { draft ->
             if (slotIndex !in draft.slots.indices) draft
             else draft.copy(slots = draft.slots.toMutableList().also { it[slotIndex] = CardSlot.Filled(card) })
+        }
+    }
+
+    /**
+     * Replaces the current entry's slots with the scanned cards (Phase 26). Extra cards beyond the
+     * entry's slot count are dropped and any remaining slots cleared; the user corrects mis-reads in
+     * the player stage. Filling the slots makes the hand non-empty, which advances out of the scan.
+     */
+    fun setCardsFromScan(cards: List<CardDefinition>) {
+        updateCurrentDraft { draft ->
+            val slots = MutableList<CardSlot>(draft.slots.size) { CardSlot.Empty }
+            cards.take(slots.size).forEachIndexed { index, card -> slots[index] = CardSlot.Filled(card) }
+            draft.copy(slots = slots)
         }
     }
 
@@ -350,13 +392,19 @@ class RoundCaptureViewModel(
 
             isSaving = false
             val next = orderedIds.firstOrNull { it !in captured }
-            if (next == null) {
-                gameRepo.updateScanOrder(gameId, scanOrder.toMap())
-                rebuild()
-                onAllDone()
-            } else {
-                _uiState.update { it.copy(currentProfileId = next) }
-                rebuild()
+            when {
+                // All captured but a card sits in two entries — don't proceed to the reveal; the
+                // warning banner shows so the user can correct it, then tap "reveal" explicitly.
+                next == null && duplicateCardNames().isNotEmpty() -> rebuild()
+                next == null -> {
+                    gameRepo.updateScanOrder(gameId, scanOrder.toMap())
+                    rebuild()
+                    onAllDone()
+                }
+                else -> {
+                    _uiState.update { it.copy(currentProfileId = next) }
+                    rebuild()
+                }
             }
         }
     }

@@ -17,14 +17,23 @@ android {
         applicationId = "de.morzo.realmscore"
         minSdk = 29   // war 26 – für automatische Silbentrennung (Hyphens.Auto, API 29+)
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
+    }
+
+    // Phase 26: two distribution flavors differing only in the OCR engine.
+    //  - fdroid → Tesseract (FOSS, no Google libs) — the build F-Droid ships.
+    //  - play   → ML Kit on-device text recognition (more robust) — for GitHub/Play distribution.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("fdroid") { dimension = "distribution" }
+        create("play") { dimension = "distribution" }
     }
 
     buildTypes {
@@ -62,6 +71,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true   // BuildConfig.DEBUG gates the scan-debug tool (Phase 26)
     }
 }
 
@@ -92,6 +102,14 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.core.splashscreen)
+
+    // Camera scan (Phase 26). CameraX is shared; the OCR engine is per-flavor.
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    // fdroid: Tesseract (FOSS). play: ML Kit on-device (bundled model, no Google Play Services).
+    "fdroidImplementation"(libs.tesseract4android)
+    "playImplementation"(libs.mlkit.text.recognition)
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)

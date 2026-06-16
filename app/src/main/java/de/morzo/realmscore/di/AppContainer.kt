@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.data.datastore.DeviceUuidProvider
+import de.morzo.realmscore.data.ocr.CardScanner
+import de.morzo.realmscore.data.ocr.ScannerFactory
 import de.morzo.realmscore.data.db.AppDatabase
 import de.morzo.realmscore.data.db.migration.MIGRATION_6_7
 import de.morzo.realmscore.data.repository.BackupRepositoryImpl
@@ -69,6 +71,10 @@ class AppContainer(private val applicationContext: Context) {
     val clock: Clock by lazy { SystemClock() }
 
     val cardLookup: CardLookup by lazy { CardLookup(applicationContext) }
+
+    // Phase 26 camera scan: the OCR engine is flavour-specific (Tesseract for fdroid, ML Kit for
+    // play), built by the active flavour's ScannerFactory and warmed up at app start.
+    val cardScanner: CardScanner by lazy { ScannerFactory.create(applicationContext, cardLookup) }
 
     val profileRepository: ProfileRepository by lazy {
         ProfileRepositoryImpl(

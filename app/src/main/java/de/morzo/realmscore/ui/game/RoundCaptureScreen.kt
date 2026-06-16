@@ -4,13 +4,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -23,13 +26,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +49,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
+import de.morzo.realmscore.ui.scan.CameraScanScreen
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,7 +75,28 @@ fun RoundCaptureScreen(
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
 
+    // Per-entry "dropped to manual" flags so the auto-opening camera doesn't keep reappearing once
+    // the user chose manual entry (or was denied the camera) for that hand. Resets with this round.
+    val manuallyDismissed = remember { mutableStateMapOf<String, Boolean>() }
+    val currentId = state.currentProfileId
+
+    // Phase 26: when the setting is on, an empty, not-yet-filled entry shows the camera scan instead
+    // of the manual KartenPick — but kept *inside* the scaffold so the player dropdown stays usable
+    // and the user can pick which hand / the Mittelfeld to scan. Filling the entry (via scan or by
+    // going manual) flips back to the normal flow.
+    val showCameraScan = !state.isLoading &&
+        state.cameraScanEnabled &&
+        currentId != null &&
+        state.current.cardsCount == 0 &&
+        manuallyDismissed[currentId] != true
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val skippedTemplate = stringResource(R.string.scan_skipped_conflicts)
+    val revealBlockedMsg = stringResource(R.string.reveal_blocked_duplicates)
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -89,7 +120,15 @@ fun RoundCaptureScreen(
                 },
                 actions = {
                     if (state.allCaptured) {
-                        TextButton(onClick = onAllPlayersCaptured) {
+                        TextButton(
+                            onClick = {
+                                if (state.hasDuplicates) {
+                                    scope.launch { snackbarHostState.showSnackbar(revealBlockedMsg) }
+                                } else {
+                                    onAllPlayersCaptured()
+                                }
+                            },
+                        ) {
                             Text(stringResource(R.string.round_capture_reveal))
                         }
                     }
@@ -107,25 +146,73 @@ fun RoundCaptureScreen(
             return@Scaffold
         }
 
-        de.morzo.realmscore.ui.handentry.PlayerHandCaptureContent(
-            modifier = Modifier.padding(padding),
-            state = state.current,
-            allCards = vm.allCards,
-            necromancerCandidates = vm::necromancerCandidates,
-            onSetCardInSlot = vm::setCardInSlot,
-            onClearSlot = vm::clearSlot,
-            onSetJokerAssignment = vm::setJokerAssignment,
-            onApplyOptimal = vm::applyOptimal,
-            onSetNecromancerPick = vm::setNecromancerPick,
-            onClearNecromancerPick = vm::clearNecromancerPick,
-            onSubmit = { vm.submitCurrentAndAdvance(onAllPlayersCaptured) },
-            submitLabel = if (state.current.isDiscard) {
-                stringResource(R.string.discard_capture_submit)
-            } else {
-                stringResource(R.string.round_capture_submit)
-            },
-            autoOpenKey = state.currentProfileId,
-            searchEnabled = state.pickerSearchEnabled,
+        if (showCameraScan && currentId != null) {
+            CameraScanScreen(
+                modifier = Modifier.padding(padding),
+                scanner = container.cardScanner,
+                maxCards = state.current.requiredSlotCount,
+                entryKey = currentId,
+                // Cards already placed in other hands / the Mittelfeld can't appear here too.
+                excludedKeys = state.current.cardsUsedByOthers,
+                onScanComplete = { cards, skipped ->
+                    vm.setCardsFromScan(cards)
+                    if (skipped > 0) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(String.format(skippedTemplate, skipped))
+                        }
+                    }
+                },
+                onManual = { manuallyDismissed[currentId] = true },
+            )
+            return@Scaffold
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            if (state.hasDuplicates) {
+                DuplicateWarning(names = state.duplicateCardNames)
+            }
+            de.morzo.realmscore.ui.handentry.PlayerHandCaptureContent(
+                modifier = Modifier.weight(1f),
+                state = state.current,
+                allCards = vm.allCards,
+                necromancerCandidates = vm::necromancerCandidates,
+                onSetCardInSlot = vm::setCardInSlot,
+                onClearSlot = vm::clearSlot,
+                onSetJokerAssignment = vm::setJokerAssignment,
+                onApplyOptimal = vm::applyOptimal,
+                onSetNecromancerPick = vm::setNecromancerPick,
+                onClearNecromancerPick = vm::clearNecromancerPick,
+                onSubmit = { vm.submitCurrentAndAdvance(onAllPlayersCaptured) },
+                submitLabel = if (state.current.isDiscard) {
+                    stringResource(R.string.discard_capture_submit)
+                } else {
+                    stringResource(R.string.round_capture_submit)
+                },
+                autoOpenKey = state.currentProfileId,
+                searchEnabled = state.pickerSearchEnabled,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DuplicateWarning(names: List<String>) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        shape = RoundedCornerShape(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.capture_duplicate_warning, names.joinToString(", ")),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.padding(12.dp),
         )
     }
 }

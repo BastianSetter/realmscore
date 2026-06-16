@@ -390,6 +390,24 @@
     <string name="settings_discard_capture_enabled">Capture discard pile</string>
     <string name="settings_discard_capture_enabled_desc">When enabled, the discard pile is captured like a player (mandatory before the reveal).</string>
     <string name="settings_picker_search_enabled">Show search in picker</string>
+    <string name="settings_camera_scan_enabled">Scan cards with camera</string>
+    <string name="settings_camera_scan_enabled_desc">When enabled, an empty hand opens the camera instead of the manual card picker. Recognised cards can be corrected afterwards.</string>
+
+    <!-- Phase 26: camera scan -->
+    <string name="camera_scan_title">Scan cards</string>
+    <string name="camera_scan_capture">Take photo</string>
+    <string name="camera_scan_manual">Enter manually</string>
+    <string name="camera_scan_flash">Flash</string>
+    <string name="camera_scan_recognizing">Recognising cards …</string>
+    <string name="camera_scan_hint">Lay the cards side by side in frame and tap the shutter.</string>
+    <string name="camera_scan_low_light">Too dark – add light or enable the flash.</string>
+    <string name="camera_scan_permission_rationale">Scanning needs camera access. Without the camera you can enter the cards manually.</string>
+    <string name="camera_scan_permission_open_settings">Grant camera permission</string>
+    <string name="camera_scan_failed">No cards recognised – try again or enter them manually.</string>
+    <string name="camera_scan_retry">Scan again</string>
+    <string name="scan_skipped_conflicts">%1$d card(s) already used – skipped</string>
+    <string name="capture_duplicate_warning">Used more than once: %1$s. Please fix before revealing.</string>
+    <string name="reveal_blocked_duplicates">Duplicate cards – please fix first</string>
 
     <!-- Language switcher (Phase 19) -->
     <string name="settings_language">Language</string>

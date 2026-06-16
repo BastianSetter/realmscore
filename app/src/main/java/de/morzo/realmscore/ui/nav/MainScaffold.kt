@@ -52,6 +52,7 @@ import de.morzo.realmscore.ui.tabs.home.HomeScreen
 import de.morzo.realmscore.ui.tabs.home.HomeViewModel
 import de.morzo.realmscore.ui.tabs.settings.ProfileManagementScreen
 import de.morzo.realmscore.ui.tabs.settings.ProfileManagementViewModel
+import de.morzo.realmscore.ui.scan.ScanDebugScreen
 import de.morzo.realmscore.ui.tabs.settings.SettingsScreen
 import de.morzo.realmscore.ui.tabs.settings.SettingsViewModel
 import de.morzo.realmscore.ui.tabs.settings.UsernameChangeScreen
@@ -178,6 +179,9 @@ fun MainScaffold(container: AppContainer) {
                         onManageProfiles = {
                             tabNavController.navigate(Routes.PROFILE_MANAGEMENT)
                         },
+                        onOpenScanDebug = {
+                            tabNavController.navigate(Routes.SCAN_DEBUG)
+                        },
                         // Reset wiped the owner profile and all settings. Relaunch the Activity with a
                         // cleared task so a fresh MainActivity starts with no saved nav back stack: the
                         // splash re-runs, finds no owner, and routes to onboarding. (A plain recreate()
@@ -214,6 +218,12 @@ fun MainScaffold(container: AppContainer) {
                     UsernameChangeScreen(
                         viewModel = vm,
                         onDone = { tabNavController.popBackStack() },
+                        onBack = { tabNavController.popBackStack() },
+                    )
+                }
+                composable(Routes.SCAN_DEBUG) {
+                    ScanDebugScreen(
+                        scanner = container.cardScanner,
                         onBack = { tabNavController.popBackStack() },
                     )
                 }
