@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,6 +51,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.ui.scan.CameraScanScreen
+import de.morzo.realmscore.ui.util.sortedByLocalizedSuitAndName
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,6 +92,7 @@ fun RoundCaptureScreen(
         state.current.cardsCount == 0 &&
         manuallyDismissed[currentId] != true
 
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val skippedTemplate = stringResource(R.string.scan_skipped_conflicts)
@@ -155,7 +158,9 @@ fun RoundCaptureScreen(
                 // Cards already placed in other hands / the Mittelfeld can't appear here too.
                 excludedKeys = state.current.cardsUsedByOthers,
                 onScanComplete = { cards, skipped ->
-                    vm.setCardsFromScan(cards)
+                    // OCR returns cards in detection order (looks random); show them sorted by
+                    // localized suit, then card name, so the resulting tokens read consistently.
+                    vm.setCardsFromScan(cards.sortedByLocalizedSuitAndName(context))
                     if (skipped > 0) {
                         scope.launch {
                             snackbarHostState.showSnackbar(String.format(skippedTemplate, skipped))
