@@ -32,7 +32,9 @@ import de.morzo.realmscore.domain.model.displayName
 import de.morzo.realmscore.domain.scoring.JokerAssignment
 import de.morzo.realmscore.domain.scoring.ResolvedCard
 import de.morzo.realmscore.domain.scoring.joker.JokerResolver
+import de.morzo.realmscore.ui.components.suitLabelRes
 import de.morzo.realmscore.ui.util.currentLocale
+import de.morzo.realmscore.ui.util.sortedByLocalizedLabel
 import java.util.Locale
 
 private val BOOK_OF_CHANGES_SUITS = Suit.entries.filter { it != Suit.WILD }
@@ -212,11 +214,14 @@ private fun JokerRow(
         ?: stringResource(R.string.sandbox_joker_unset)
 
     val isBook = joker.jokerType == JokerType.BOOK_OF_CHANGES
+    // Default target colour = first suit in the localized order, so it matches the dropdown's
+    // alphabetical ordering for the current language.
+    val defaultBookSuit = BOOK_OF_CHANGES_SUITS.sortedByLocalizedLabel().first()
     val onTargetSelected: (TargetOption?) -> Unit = { option ->
         if (option == null) {
             onChange(null)
         } else {
-            val newSuit = if (isBook) assignment?.targetSuit ?: BOOK_OF_CHANGES_SUITS.first() else null
+            val newSuit = if (isBook) assignment?.targetSuit ?: defaultBookSuit else null
             onChange(JokerAssignment(joker.key, option.key, newSuit))
         }
     }
@@ -233,7 +238,7 @@ private fun JokerRow(
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 SuitPicker(
-                    current = assignment.targetSuit ?: BOOK_OF_CHANGES_SUITS.first(),
+                    current = assignment.targetSuit ?: defaultBookSuit,
                     onSelected = { suit ->
                         onChange(JokerAssignment(joker.key, assignment.targetCardKey, suit))
                     },
@@ -256,7 +261,7 @@ private fun JokerRow(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     SuitPicker(
-                        current = assignment.targetSuit ?: BOOK_OF_CHANGES_SUITS.first(),
+                        current = assignment.targetSuit ?: defaultBookSuit,
                         onSelected = { suit ->
                             onChange(JokerAssignment(joker.key, assignment.targetCardKey, suit))
                         },
@@ -352,12 +357,14 @@ private fun SuitPicker(
     var expanded by remember { mutableStateOf(false) }
     AssistChip(
         onClick = { expanded = true },
-        label = { Text(current.name) },
+        label = { Text(stringResource(suitLabelRes(current))) },
     )
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        BOOK_OF_CHANGES_SUITS.forEach { suit ->
+        // Display order follows the in-app language; the BOOK_OF_CHANGES_SUITS default
+        // (used elsewhere for the initial target) stays on the fixed enum order.
+        BOOK_OF_CHANGES_SUITS.sortedByLocalizedLabel().forEach { suit ->
             DropdownMenuItem(
-                text = { Text(suit.name) },
+                text = { Text(stringResource(suitLabelRes(suit))) },
                 onClick = { onSelected(suit); expanded = false },
             )
         }

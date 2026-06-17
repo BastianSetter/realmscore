@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,6 +53,7 @@ import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.ui.util.displayName
+import de.morzo.realmscore.ui.util.sortedByLocalizedLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -158,10 +160,23 @@ fun CardPickerContent(
     // future option to toggle back to multi-select behaviour.
     var selectedSuit by rememberSaveable { mutableStateOf<Suit?>(null) }
 
+    // The locale-aware context (it carries the in-app language; see MainActivity.attachBaseContext).
+    // Keying the remembers on it re-sorts the suits when the language switches (Activity recreate
+    // hands down a fresh context).
+    val context = LocalContext.current
+
     // Only offer suit filters that actually have selectable cards (e.g. the Necromancer picker
     // receives a pre-filtered Army/Wizard/Leader/Beast list, so the other suits are hidden).
-    val availableSuits = remember(allCards, excludedKeys) {
-        Suit.entries.filter { suit -> allCards.any { it.suit == suit && it.key !in excludedKeys } }
+    // Ordered alphabetically by the *localized* suit label rather than the old enum/JSON order.
+    val availableSuits = remember(allCards, excludedKeys, context) {
+        Suit.entries
+            .filter { suit -> allCards.any { it.suit == suit && it.key !in excludedKeys } }
+            .sortedByLocalizedLabel(context)
+    }
+    // Rank used to group the card list by the same localized suit order.
+    val suitRank = remember(context) {
+        Suit.entries.sortedByLocalizedLabel(context)
+            .withIndex().associate { (index, suit) -> suit to index }
     }
     // A previously selected suit may no longer be offered after the card set changes → treat as "Alle".
     val effectiveSuit = selectedSuit?.takeIf { it in availableSuits }
@@ -169,7 +184,7 @@ fun CardPickerContent(
     // When the search field is hidden the query must not silently keep filtering the list.
     val effectiveQuery = if (showSearch) query else ""
 
-    val filtered = remember(effectiveQuery, effectiveSuit, allCards, excludedKeys) {
+    val filtered = remember(effectiveQuery, effectiveSuit, allCards, excludedKeys, suitRank) {
         val normalizedQuery = effectiveQuery.trim().lowercase()
         allCards
             .asSequence()
@@ -181,6 +196,9 @@ fun CardPickerContent(
                     it.nameEn?.lowercase()?.contains(normalizedQuery) == true
             }
             .toList()
+            // Group by the localized suit order; allCards is already name-sorted within a suit, so
+            // a stable sort on the suit rank keeps that secondary ordering intact.
+            .sortedBy { suitRank[it.suit] ?: Int.MAX_VALUE }
     }
 
     Column(modifier = modifier) {
