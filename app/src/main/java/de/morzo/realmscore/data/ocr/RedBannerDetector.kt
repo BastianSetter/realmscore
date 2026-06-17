@@ -38,13 +38,24 @@ object RedBannerDetector {
     private const val PAD_FRACTION = 0.1         // small vertical grow; the recognizer tightens to text
     private const val UPPER_BIAS = 0.5           // single-card: penalise distance-from-top so the title
                                                  // ribbon beats wider red artwork lower on the card
+    private const val SINGLE_COLUMN_MAX = 7      // ≤7 cards (a hand) fan in one stack; the larger
+                                                 // Mittelfeld (10/12) is laid out as two side-by-side stacks
+    private const val KMEANS_ITERS = 8           // Lloyd iterations for the 1-D column clustering
 
     /**
-     * Single-column **fan** variant (Phase 26.2): the cards are laid in one overlapping stack so each
+     * The number of vertical stacks a fan of [maxCards] cards is laid out in: a hand (≤7) is a single
+     * stack; the larger Mittelfeld (10/12) is two side-by-side stacks, so its banners cluster into two
+     * columns. The fan only steals *vertical* pixels per stack, so two columns keep titles wide enough.
+     */
+    fun columnsFor(maxCards: Int): Int = if (maxCards > SINGLE_COLUMN_MAX) 2 else 1
+
+    /**
+     * **Fan** variant (Phase 26.2 / 26.3): the cards are laid in one or two overlapping stacks so each
      * shows its own white top edge + red title ribbon (cards run white→red top to bottom). Every card
-     * therefore contributes one red banner blob; this returns the largest [maxCards] of them ordered
-     * **top→bottom** (reading order), each scaled+padded to full resolution. A pure top sort (not the
-     * single-card "best" pick) is what keeps the regions aligned with the physical card order.
+     * therefore contributes one red banner blob; this returns the largest [maxCards] of them in
+     * **reading order** (each column left→right, top→bottom within a column), scaled+padded to full
+     * resolution. The column count is derived from [maxCards] via [columnsFor]. A pure positional sort
+     * (not the single-card "best" pick) is what keeps the regions aligned with the physical card order.
      */
     fun detectFanned(bitmap: Bitmap, maxCards: Int): List<Rect> {
         if (maxCards <= 0) return emptyList()
@@ -55,8 +66,8 @@ object RedBannerDetector {
 
     /**
      * Same detection as [detectFanned], plus the red mask and an overlay with every qualifying
-     * candidate (yellow) and the chosen banners (green, numbered top→bottom) for the scan-debug screen.
-     * The [banners][FanTrace.banners] it returns are identical to [detectFanned].
+     * candidate (yellow) and the chosen banners (green, numbered in reading order) for the scan-debug
+     * screen. The [banners][FanTrace.banners] it returns are identical to [detectFanned].
      */
     fun detectFannedTraced(bitmap: Bitmap, maxCards: Int): FanTrace {
         val a = analyzeRed(bitmap)
@@ -66,12 +77,46 @@ object RedBannerDetector {
         return FanTrace(banners, maskBitmap(a), fanOverlay(a, picked))
     }
 
-    /** The largest [maxCards] qualifying banners, then ordered top→bottom (detect-resolution coords). */
-    private fun RedAnalysis.fanBanners(maxCards: Int): List<Rect> =
-        qualifying
+    /**
+     * The largest [maxCards] qualifying banners, in reading order (detect-resolution coords). One
+     * column → a plain top→bottom sort. Two columns (Mittelfeld) → cluster the blobs by horizontal
+     * centre into two stacks, then read each stack left→right, top→bottom within it.
+     */
+    private fun RedAnalysis.fanBanners(maxCards: Int): List<Rect> {
+        val picked = qualifying
             .sortedByDescending { it.width().toLong() * it.height() }
             .take(maxCards)
-            .sortedBy { it.top }
+        val columns = columnsFor(maxCards)
+        if (columns <= 1 || picked.size <= 1) return picked.sortedBy { it.top }
+        return clusterColumns(picked, columns)
+            .sortedBy { col -> col.minOf { it.centerX() } }   // columns left→right
+            .flatMap { col -> col.sortedBy { it.top } }        // cards top→bottom within a column
+    }
+
+    /**
+     * Groups [boxes] into [k] columns by their horizontal centre (1-D k-means / Lloyd's algorithm).
+     * Two side-by-side card stacks separate cleanly in x, so a few iterations from evenly spread
+     * centroids converge reliably. Empty clusters are dropped. Caller guarantees `boxes.size > 1`.
+     */
+    private fun clusterColumns(boxes: List<Rect>, k: Int): List<List<Rect>> {
+        if (boxes.size <= k) return boxes.map { listOf(it) }
+        val xs = boxes.map { it.centerX().toFloat() }
+        val min = xs.min()
+        val max = xs.max()
+        var centroids = FloatArray(k) { if (k == 1) (min + max) / 2f else min + (max - min) * it / (k - 1) }
+        var groups = List(k) { mutableListOf<Rect>() }
+        repeat(KMEANS_ITERS) {
+            groups = List(k) { mutableListOf() }
+            boxes.forEachIndexed { i, box ->
+                val nearest = centroids.indices.minByOrNull { kotlin.math.abs(xs[i] - centroids[it]) }!!
+                groups[nearest].add(box)
+            }
+            centroids = FloatArray(k) { ci ->
+                groups[ci].takeIf { it.isNotEmpty() }?.map { it.centerX() }?.average()?.toFloat() ?: centroids[ci]
+            }
+        }
+        return groups.filter { it.isNotEmpty() }
+    }
 
     /**
      * Single-card variant (Phase 26.1): assumes **one upright card filling the frame** and returns its

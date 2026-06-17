@@ -41,6 +41,11 @@ class ScanDebugViewModel(private val scanner: CardScanner) : ViewModel() {
         last?.let { analyze(it.first, it.second, it.third) }
     }
 
+    /** Re-run the last image with a new card count (changes the 1- vs 2-column fan layout). */
+    fun reanalyze(maxCards: Int) {
+        last?.let { analyze(it.first, it.second, maxCards) }
+    }
+
     class Factory(private val scanner: CardScanner) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =

@@ -54,7 +54,7 @@ class TesseractCardScanner(
             trace += ScanStage(
                 "Banner-Auswahl", t.overlay,
                 if (t.banners.isEmpty()) "⚠ keine Banner – Fallback auf Namensband"
-                else "grün = gewählt (oben→unten nummeriert), gelb = verworfen",
+                else "grün = gewählt (in Lesereihenfolge nummeriert: je Spalte oben→unten), gelb = verworfen",
             )
             t.banners
         } else {

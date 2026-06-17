@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -70,6 +72,8 @@ fun ScanDebugScreen(
     val redBorder = remember { mutableFloatStateOf(ScanImageOps.titleBorderRed) }
     val whiteMin = remember { mutableFloatStateOf(ScanImageOps.titleBorderWhite) }
     val whiteMax = remember { mutableFloatStateOf(ScanImageOps.titleTextWhite) }
+    // How many cards the picked photo holds — drives the fan layout (≤7 = one stack, 10/12 = two stacks).
+    val maxCards = remember { mutableIntStateOf(FAN_HAND_CARDS) }
 
     fun loadBitmap(uri: Uri): Bitmap? = runCatching {
         val source = ImageDecoder.createSource(context.contentResolver, uri)
@@ -91,13 +95,13 @@ fun ScanDebugScreen(
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent(),
     ) { uri: Uri? ->
-        if (uri != null) loadBitmap(uri)?.let { vm.analyze(it, 0, FAN_MAX_CARDS) }
+        if (uri != null) loadBitmap(uri)?.let { vm.analyze(it, 0, maxCards.intValue) }
     }
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicturePreview(),
     ) { bitmap: Bitmap? ->
         if (bitmap != null) {
-            vm.analyze(bitmap.copy(Bitmap.Config.ARGB_8888, false), 0, FAN_MAX_CARDS)
+            vm.analyze(bitmap.copy(Bitmap.Config.ARGB_8888, false), 0, maxCards.intValue)
         }
     }
 
@@ -123,11 +127,32 @@ fun ScanDebugScreen(
         ) {
             item {
                 Text(
-                    "Fächer-Diagnose (Tesseract): ein einspaltiger Stapel von bis zu 7 Karten, " +
-                        "jede mit weißer Oberkante + rotem Titelband, oben→unten.",
+                    "Fächer-Diagnose (Tesseract): Karten als Stapel, jede mit weißer Oberkante + rotem " +
+                        "Titelband. 7 = ein Stapel; 10/12 (Mittelfeld) = zwei Stapel nebeneinander.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            item {
+                Text(
+                    "Kartenzahl (Layout): ${maxCards.intValue} " +
+                        "(${if (maxCards.intValue > FAN_HAND_CARDS) "2 Spalten" else "1 Spalte"})",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FAN_CARD_CHOICES.forEach { choice ->
+                        FilterChip(
+                            selected = maxCards.intValue == choice,
+                            onClick = {
+                                if (maxCards.intValue != choice) {
+                                    maxCards.intValue = choice
+                                    vm.reanalyze(choice)
+                                }
+                            },
+                            label = { Text("$choice") },
+                        )
+                    }
+                }
             }
             item {
                 Text(
@@ -309,8 +334,11 @@ fun ScanDebugScreen(
     }
 }
 
-/** A normal Fantasy Realms hand is 7 cards; the fan scanner reads at most this many banners. */
-private const val FAN_MAX_CARDS = 7
+/** A normal Fantasy Realms hand is 7 cards (one fan stack); the default in the debug screen. */
+private const val FAN_HAND_CARDS = 7
+
+/** Selectable card counts: 7 = a hand (one stack), 10/12 = the Mittelfeld (two side-by-side stacks). */
+private val FAN_CARD_CHOICES = listOf(7, 10, 12)
 
 @Composable
 private fun StageCard(index: Int, stage: ScanStage) {

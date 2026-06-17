@@ -140,6 +140,42 @@ the detected edges (orange = the two borders, green = the confirming text row).
 
 ---
 
+## Phase 26.3 — Two-column fan (Mittelfeld 10/12)
+
+**Why:** a player hand (7) fits one stack, but the Mittelfeld (10/12 cards) is too tall for a single
+readable fan. Lay it out as **two side-by-side stacks** instead; each card still shows its white top
+edge + red ribbon, and two columns keep every title wide (the fan only costs vertical pixels).
+
+**Detection (`RedBannerDetector`):** `detectFanned`/`detectFannedTraced` now derive the column count
+from `maxCards` via the new `columnsFor(maxCards)` (`>7` → 2 columns, else 1). `fanBanners` still takes
+the largest `maxCards` red blobs, but for two columns it **x-clusters** them (1-D k-means on banner
+centre-x, `clusterColumns`) into two stacks, orders the columns left→right and each stack top→bottom,
+then concatenates — i.e. **reading order**. One column is unchanged (plain top→bottom sort). The traced
+overlay numbers banners 1..N in that reading order.
+
+**Scanner:** no signature change — `TesseractCardScanner` passes `maxCards` straight through, so the
+column split is automatic. The production capture path already passes `maxCards = requiredSlotCount`
+(7 for a hand, 10/12 for the Mittelfeld), so a **single Mittelfeld photo of the two-stack fan reads
+end-to-end** today; only the on-camera guide overlay is still missing (below).
+
+**Debug screen:** a **card-count selector** (chips 7 / 10 / 12) drives the layout — 7 = one stack,
+10/12 = two stacks — and re-runs on the current photo. All seven tuning sliders are unchanged.
+
+**Live in-game flow needs no further wiring (traced 2026-06-17):** the two-column path drops straight
+into the existing capture flow. `RoundCaptureScreen` passes `maxCards = requiredSlotCount` (10/12 for
+the Mittelfeld via `loadDiscardDraft`/`discardSlotCount`), so `columnsFor` picks two columns; the
+discard draft is already sized to 10/12, so `setCardsFromScan` (`cards.take(slots.size)`) keeps all of
+them; `CameraScanScreen` is layout-agnostic and forwards `maxCards` untouched, and live capture is
+full-resolution (vs. the debug screen's 2200px cap), which *helps* the half-width two-column titles.
+The only Mittelfeld gap left is **UX guidance** (no two-stack hint / dashed guide) — deliberately
+deferred to the guide-overlay task below.
+
+> ⚠️ Same caveat as 26.2: built and compiling, tuned on a narrow set; the two-column **x-clustering**
+> still needs device validation on a real 10/12 Mittelfeld photo (confirm the two stacks separate
+> cleanly in the red mask and don't merge).
+
+---
+
 ## Architecture (the important part)
 
 OCR is split into two **product flavors** behind one interface. ~99% of the code is shared; only the
@@ -195,10 +231,11 @@ crop.
 
 - **play (ML Kit):** works well — **7/7** on the test hand photo after tuning. Whole-hand photo, no
   arranging, no cropping. Recommended engine for reliability.
-- **fdroid (Tesseract):** reworked for the **single-column fan of up to 7 cards** (Phase 26.2, above):
-  fan detection (top→bottom), the **two-red-border** title tightening, the left/right side-cut,
-  binarization and matching all compile and run end-to-end. Tuned on the fan test photos; still needs a
-  **wider card set** on device to confirm the gate defaults. Two-column (10/12) layout + dashed guide
+- **fdroid (Tesseract):** reworked for the **single-column fan** (Phase 26.2) and now the **two-column
+  fan for the Mittelfeld 10/12** (Phase 26.3): fan detection (x-clustered into 1 vs 2 stacks, read in
+  reading order), the **two-red-border** title tightening, the left/right side-cut, binarization and
+  matching all compile and run end-to-end. Tuned on the fan test photos; still needs a **wider card
+  set** — and a real 10/12 two-column photo — on device to confirm the gate defaults. Dashed guide
   overlay **not built yet**.
 - Both flavors compile and assemble; F‑Droid check clean.
 
@@ -230,10 +267,12 @@ crop.
 
 ## Open items / decisions
 
-- [ ] **Validate Phase 26.2 (fan) on more cards** (different suits / banner shapes) on device and adjust
-      the tuned gate defaults if needed — the debug `Zeilen‑Profil` plot + seven sliders are the tool.
-- [ ] **Build the two-column (Mittelfeld 10/12) layout** — x-cluster banner blobs into 1 vs 2 columns
-      (count auto from hand size), read each column top→bottom. Single-column (7) is done.
+- [ ] **Validate Phase 26.2/26.3 (fan) on more cards** (different suits / banner shapes, **and a real
+      10/12 two-column Mittelfeld photo**) on device and adjust the tuned gate defaults if needed — the
+      debug `Zeilen‑Profil` plot, the 7/10/12 card-count chips + seven sliders are the tool.
+- [x] **Build the two-column (Mittelfeld 10/12) layout** (Phase 26.3) — x-cluster banner blobs into 1 vs
+      2 columns (count auto from `maxCards` via `RedBannerDetector.columnsFor`), read each column
+      top→bottom. Single-column (7) and two-column (10/12) both done; **needs device validation**.
 - [ ] **Dashed guide overlay** in `CameraScanScreen`, sized to the hand (1 vs 2 stacks).
 - [ ] **Wire the fan into the live capture flow** — `CameraScanScreen` still uses the single-shot
       `takePicture`; the recognizer is fan-ready, the camera UX/guide is not.
