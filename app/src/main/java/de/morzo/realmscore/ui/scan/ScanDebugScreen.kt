@@ -64,9 +64,12 @@ fun ScanDebugScreen(
     val state by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val brightFraction = remember { mutableFloatStateOf(ScanImageOps.whiteTextBrightFraction) }
-    val titlePad = remember { mutableFloatStateOf(ScanImageOps.titlePadFraction) }
-    val redGate = remember { mutableFloatStateOf(ScanImageOps.titleRowRedFraction) }
-    val whiteGate = remember { mutableFloatStateOf(ScanImageOps.titleRowWhiteFraction) }
+    val padTop = remember { mutableFloatStateOf(ScanImageOps.titlePadTopFraction) }
+    val padBottom = remember { mutableFloatStateOf(ScanImageOps.titlePadBottomFraction) }
+    val sideRed = remember { mutableFloatStateOf(ScanImageOps.titleSideRed) }
+    val redBorder = remember { mutableFloatStateOf(ScanImageOps.titleBorderRed) }
+    val whiteMin = remember { mutableFloatStateOf(ScanImageOps.titleBorderWhite) }
+    val whiteMax = remember { mutableFloatStateOf(ScanImageOps.titleTextWhite) }
 
     fun loadBitmap(uri: Uri): Bitmap? = runCatching {
         val source = ImageDecoder.createSource(context.contentResolver, uri)
@@ -88,13 +91,13 @@ fun ScanDebugScreen(
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent(),
     ) { uri: Uri? ->
-        if (uri != null) loadBitmap(uri)?.let { vm.analyze(it, 0, SINGLE_CARD) }
+        if (uri != null) loadBitmap(uri)?.let { vm.analyze(it, 0, FAN_MAX_CARDS) }
     }
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicturePreview(),
     ) { bitmap: Bitmap? ->
         if (bitmap != null) {
-            vm.analyze(bitmap.copy(Bitmap.Config.ARGB_8888, false), 0, SINGLE_CARD)
+            vm.analyze(bitmap.copy(Bitmap.Config.ARGB_8888, false), 0, FAN_MAX_CARDS)
         }
     }
 
@@ -120,41 +123,58 @@ fun ScanDebugScreen(
         ) {
             item {
                 Text(
-                    "Einzelkarten-Diagnose (Tesseract): eine aufrechte Karte, die den Rahmen füllt.",
+                    "Fächer-Diagnose (Tesseract): ein einspaltiger Stapel von bis zu 7 Karten, " +
+                        "jede mit weißer Oberkante + rotem Titelband, oben→unten.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             item {
                 Text(
-                    "Rot-Gate (Bannerstart): ${"%.2f".format(redGate.floatValue)} " +
-                        "(Rot-Anteil/Zeile)",
+                    "Rot-Gate Rand (Bannerrand): ${"%.2f".format(redBorder.floatValue)} " +
+                        "(Rand-Zeile: Rot-Anteil > x)",
                     style = MaterialTheme.typography.labelLarge,
                 )
                 Slider(
-                    value = redGate.floatValue,
+                    value = redBorder.floatValue,
                     onValueChange = {
-                        redGate.floatValue = it
-                        ScanImageOps.titleRowRedFraction = it
+                        redBorder.floatValue = it
+                        ScanImageOps.titleBorderRed = it
                     },
                     onValueChangeFinished = { vm.reanalyze() },
-                    valueRange = 0.02f..0.50f,
+                    valueRange = 0.30f..0.95f,
                 )
             }
             item {
                 Text(
-                    "Weiß-Gate (Textkanten): ${"%.2f".format(whiteGate.floatValue)} " +
-                        "(Weiß-Anteil/Zeile)",
+                    "Weiß-Min Rand: ${"%.2f".format(whiteMin.floatValue)} " +
+                        "(Rand-Zeile: Weiß-Anteil < x)",
                     style = MaterialTheme.typography.labelLarge,
                 )
                 Slider(
-                    value = whiteGate.floatValue,
+                    value = whiteMin.floatValue,
                     onValueChange = {
-                        whiteGate.floatValue = it
-                        ScanImageOps.titleRowWhiteFraction = it
+                        whiteMin.floatValue = it
+                        ScanImageOps.titleBorderWhite = it
                     },
                     onValueChangeFinished = { vm.reanalyze() },
-                    valueRange = 0.01f..0.40f,
+                    valueRange = 0.0f..0.20f,
+                )
+            }
+            item {
+                Text(
+                    "Weiß-Max Text: ${"%.2f".format(whiteMax.floatValue)} " +
+                        "(Text-Zeile: Weiß-Anteil > x)",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Slider(
+                    value = whiteMax.floatValue,
+                    onValueChange = {
+                        whiteMax.floatValue = it
+                        ScanImageOps.titleTextWhite = it
+                    },
+                    onValueChangeFinished = { vm.reanalyze() },
+                    valueRange = 0.02f..0.40f,
                 )
             }
             item {
@@ -175,18 +195,50 @@ fun ScanDebugScreen(
             }
             item {
                 Text(
-                    "Rand um Titel: ${"%.2f".format(titlePad.floatValue)} " +
-                        "(Anteil der Titelhöhe oben+unten)",
+                    "Rand oben: ${"%.2f".format(padTop.floatValue)} " +
+                        "(Anteil der Titelhöhe · negativ = abschneiden)",
                     style = MaterialTheme.typography.labelLarge,
                 )
                 Slider(
-                    value = titlePad.floatValue,
+                    value = padTop.floatValue,
                     onValueChange = {
-                        titlePad.floatValue = it
-                        ScanImageOps.titlePadFraction = it
+                        padTop.floatValue = it
+                        ScanImageOps.titlePadTopFraction = it
                     },
                     onValueChangeFinished = { vm.reanalyze() },
-                    valueRange = 0.0f..1.5f,
+                    valueRange = -0.5f..1.5f,
+                )
+            }
+            item {
+                Text(
+                    "Rand unten: ${"%.2f".format(padBottom.floatValue)} " +
+                        "(Anteil der Titelhöhe · negativ = abschneiden)",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Slider(
+                    value = padBottom.floatValue,
+                    onValueChange = {
+                        padBottom.floatValue = it
+                        ScanImageOps.titlePadBottomFraction = it
+                    },
+                    onValueChangeFinished = { vm.reanalyze() },
+                    valueRange = -0.5f..1.5f,
+                )
+            }
+            item {
+                Text(
+                    "Seiten-Cut (Rot > x): ${"%.2f".format(sideRed.floatValue)} " +
+                        "(links/rechts auf volle Rot-Spalte beschneiden)",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Slider(
+                    value = sideRed.floatValue,
+                    onValueChange = {
+                        sideRed.floatValue = it
+                        ScanImageOps.titleSideRed = it
+                    },
+                    onValueChangeFinished = { vm.reanalyze() },
+                    valueRange = 0.50f..1.0f,
                 )
             }
             item {
@@ -257,8 +309,8 @@ fun ScanDebugScreen(
     }
 }
 
-/** maxCards is ignored by the Tesseract single-card path; pass a fixed 1 for clarity. */
-private const val SINGLE_CARD = 1
+/** A normal Fantasy Realms hand is 7 cards; the fan scanner reads at most this many banners. */
+private const val FAN_MAX_CARDS = 7
 
 @Composable
 private fun StageCard(index: Int, stage: ScanStage) {

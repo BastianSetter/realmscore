@@ -21,6 +21,14 @@ data class BannerTrace(
     val candidateCount: Int,
 )
 
+/** Debug trace of the fanned (single-column) detection (see [RedBannerDetector.detectFannedTraced]). */
+data class FanTrace(
+    /** Chosen banners, top→bottom (reading order) — identical to [RedBannerDetector.detectFanned]. */
+    val banners: List<Rect>,
+    val mask: Bitmap,
+    val overlay: Bitmap,
+)
+
 object RedBannerDetector {
 
     private const val DETECT_WIDTH = 720
@@ -31,32 +39,39 @@ object RedBannerDetector {
     private const val UPPER_BIAS = 0.5           // single-card: penalise distance-from-top so the title
                                                  // ribbon beats wider red artwork lower on the card
 
-    fun detect(bitmap: Bitmap, maxCards: Int): List<Rect> {
+    /**
+     * Single-column **fan** variant (Phase 26.2): the cards are laid in one overlapping stack so each
+     * shows its own white top edge + red title ribbon (cards run white→red top to bottom). Every card
+     * therefore contributes one red banner blob; this returns the largest [maxCards] of them ordered
+     * **top→bottom** (reading order), each scaled+padded to full resolution. A pure top sort (not the
+     * single-card "best" pick) is what keeps the regions aligned with the physical card order.
+     */
+    fun detectFanned(bitmap: Bitmap, maxCards: Int): List<Rect> {
         if (maxCards <= 0) return emptyList()
-        val workW = DETECT_WIDTH.coerceAtMost(bitmap.width)
-        val workH = (bitmap.height * (workW.toFloat() / bitmap.width)).toInt().coerceAtLeast(1)
-        val small = Bitmap.createScaledBitmap(bitmap, workW, workH, true)
+        val a = analyzeRed(bitmap)
+        val inv = bitmap.width.toFloat() / a.workW
+        return a.fanBanners(maxCards).map { it.scaledAndPadded(inv, bitmap.width, bitmap.height) }
+    }
 
-        val pixels = IntArray(workW * workH)
-        small.getPixels(pixels, 0, workW, 0, 0, workW, workH)
-        val mask = BooleanArray(pixels.size) { ScanImageOps.isSaturatedRed(pixels[it]) }
+    /**
+     * Same detection as [detectFanned], plus the red mask and an overlay with every qualifying
+     * candidate (yellow) and the chosen banners (green, numbered top→bottom) for the scan-debug screen.
+     * The [banners][FanTrace.banners] it returns are identical to [detectFanned].
+     */
+    fun detectFannedTraced(bitmap: Bitmap, maxCards: Int): FanTrace {
+        val a = analyzeRed(bitmap)
+        val picked = a.fanBanners(maxCards)
+        val inv = bitmap.width.toFloat() / a.workW
+        val banners = picked.map { it.scaledAndPadded(inv, bitmap.width, bitmap.height) }
+        return FanTrace(banners, maskBitmap(a), fanOverlay(a, picked))
+    }
 
-        val frame = workW.toLong() * workH
-        val boxes = ConnectedComponents.boxes(mask, workW, workH)
-            .filter { qualifies(it, frame) }
+    /** The largest [maxCards] qualifying banners, then ordered top→bottom (detect-resolution coords). */
+    private fun RedAnalysis.fanBanners(maxCards: Int): List<Rect> =
+        qualifying
             .sortedByDescending { it.width().toLong() * it.height() }
             .take(maxCards)
-            // Reading order: top rows first, then left-to-right within a row band.
-            .sortedWith(
-                compareBy(
-                    { ((it.top + it.bottom) / 2) / (workH / 3).coerceAtLeast(1) },
-                    { it.left },
-                ),
-            )
-
-        val inv = bitmap.width.toFloat() / workW
-        return boxes.map { it.scaledAndPadded(inv, bitmap.width, bitmap.height) }
-    }
+            .sortedBy { it.top }
 
     /**
      * Single-card variant (Phase 26.1): assumes **one upright card filling the frame** and returns its
@@ -111,6 +126,21 @@ object RedBannerDetector {
         val chosenPaint = Paint().apply { color = Color.GREEN; style = Paint.Style.STROKE; strokeWidth = 4f }
         a.qualifying.forEach { canvas.drawRect(it, candidate) }
         a.chosen?.let { canvas.drawRect(it, chosenPaint) }
+        return out
+    }
+
+    /** Fan overlay: every qualifying blob (yellow) + the chosen banners (green, numbered top→bottom). */
+    private fun fanOverlay(a: RedAnalysis, picked: List<Rect>): Bitmap {
+        val out = a.small.copy(Bitmap.Config.ARGB_8888, true)
+        val canvas = Canvas(out)
+        val candidate = Paint().apply { color = Color.YELLOW; style = Paint.Style.STROKE; strokeWidth = 2f }
+        val chosenPaint = Paint().apply { color = Color.GREEN; style = Paint.Style.STROKE; strokeWidth = 4f }
+        val label = Paint().apply { color = Color.GREEN; textSize = 22f; isAntiAlias = true }
+        a.qualifying.forEach { canvas.drawRect(it, candidate) }
+        picked.forEachIndexed { i, r ->
+            canvas.drawRect(r, chosenPaint)
+            canvas.drawText("${i + 1}", r.left.toFloat() + 2f, r.top.toFloat() + 20f, label)
+        }
         return out
     }
 

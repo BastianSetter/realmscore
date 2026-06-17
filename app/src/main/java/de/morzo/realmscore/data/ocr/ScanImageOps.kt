@@ -20,13 +20,19 @@ object ScanImageOps {
 
     // --- Debug-tunable knobs (set live from the Scanner-Test screen; defaults used in production). ---
     /** White-text cut as a fraction of the crop's bright level (higher = thinner text, lower = fatter). */
-    var whiteTextBrightFraction = 0.35f
-    /** Padding kept above *and* below the detected title line, as a fraction of the title height. */
-    var titlePadFraction = 0.60f
-    /** A title row needs this share of *white* (text) pixels — gates the text top/bottom edges. */
-    var titleRowWhiteFraction = 0.20f
-    /** A title row needs this share of *red* (banner) pixels — gates the banner start. */
-    var titleRowRedFraction = 0.50f
+    var whiteTextBrightFraction = 0.65f
+    /** Padding kept *above* the title band, as a fraction of the band height (negative = crop inward). */
+    var titlePadTopFraction = -0.15f
+    /** Padding kept *below* the title band, as a fraction of the band height (negative = crop inward). */
+    var titlePadBottomFraction = 0.20f
+    /** A *border* row (plain red ribbon framing the title) needs more red than this. */
+    var titleBorderRed = 0.70f
+    /** A *border* row also needs less white than this — together with [titleBorderRed] = pure red ribbon. */
+    var titleBorderWhite = 0.08f
+    /** A *text* row needs more white than this — confirms the lettering between the two red borders. */
+    var titleTextWhite = 0.20f
+    /** A *side-trim* column counts as solid ribbon above this red fraction — sets the left/right cut. */
+    var titleSideRed = 0.60f
 
     fun rotate(src: Bitmap, degrees: Int): Bitmap {
         val normalized = ((degrees % 360) + 360) % 360
@@ -62,31 +68,59 @@ object ScanImageOps {
     }
 
     /**
-     * Within a banner crop, isolates the **white‑on‑red title line** with a top‑down scan that walks
-     * per‑row white/red counts and decouples the two cues — robust on Fantasy Realms cards where the
-     * padded crop leaks a white card border / pale background **above** the banner and warm illustration
-     * **below** the title:
-     *  1. **Banner start** = first row with enough red ([TITLE_ROW_RED_FRACTION]). Skips the white
-     *     border above, which has white but no red.
-     *  2. **Text top** = first row at/after the banner start with enough white ([TITLE_ROW_WHITE_FRACTION]).
-     *     The red ribbon above the lettering has no white, so it's skipped.
-     *  3. **Text bottom** = where that white run ends (white drops below the gate for more than a small
-     *     gap). Below the title the ribbon is plain red (no white), so the run stops right after the text.
-     *  4. Crop that band + a little padding (descender headroom via the tunable [bannerBottomExtend]).
+     * Within a banner crop, isolates the **white‑on‑red title line** by finding the two plain‑red ribbon
+     * borders that frame the lettering — robust on Fantasy Realms cards where the padded crop leaks a
+     * white card edge / pale background **above** the ribbon and warm illustration **below** the title.
+     * Top‑down scan of the per‑row red/white fractions:
+     *  1. **Top border** = first row that is plain red ribbon: red > [titleBorderRed] *and* white <
+     *     [titleBorderWhite]. The white card edge above (white, little red) is skipped.
+     *  2. **Text row** = first row after that with white > [titleTextWhite] — confirms the lettering has
+     *     begun (guards against a second border row sitting directly next to the first).
+     *  3. **Bottom border** = the next plain‑red row after the text (or, failing that, the end of the
+     *     text run). Below the title the ribbon is plain red again, so this lands right under the text.
+     *  4. Crop [topBorder..bottomBorder] ± padding ([titlePadTopFraction] / [titlePadBottomFraction];
+     *     negative values bite inward into the border).
      * White uses the per‑pixel minimum channel with the same percentile cut as [binarizeWhite] (so the
      * [whiteTextBrightFraction] knob tunes detection and binarization alike); red uses [isSaturatedRed].
      */
     fun tightenToTitleText(src: Bitmap): Bitmap {
         if (src.height < 8) return src
         val band = analyzeTitleRows(src)
-        if (band.textTop < 0) return src
+        if (band.topBorder < 0 || band.bottomBorder < 0) return src
 
-        val titleH = band.textBottom - band.textTop + 1
-        val pad = (titleH * titlePadFraction).toInt()              // equal headroom above and below (tunable)
-        val top = (band.textTop - pad).coerceAtLeast(0)
-        val bottom = (band.textBottom + pad).coerceAtMost(src.height - 1)
+        val titleH = band.bottomBorder - band.topBorder + 1
+        val padTop = (titleH * titlePadTopFraction).toInt()       // negative = crop inward from the top
+        val padBottom = (titleH * titlePadBottomFraction).toInt() // negative = crop inward from the bottom
+        val top = (band.topBorder - padTop).coerceIn(0, src.height - 1)
+        val bottom = (band.bottomBorder + padBottom).coerceIn(top, src.height - 1)
         val bandH = (bottom - top + 1).coerceAtLeast(1)
         return if (bandH >= src.height) src else Bitmap.createBitmap(src, 0, top, src.width, bandH)
+    }
+
+    /**
+     * After the vertical [tightenToTitleText], trims the **left and right** edges of the title band to
+     * the first fully‑red column from each side (column red fraction > [titleSideRed]). On Fantasy Realms
+     * cards this drops the number disc / coloured suit edge on the left and the ribbon tail on the right
+     * (none of which are solid red), leaving just the red ribbon span that carries the white title — so
+     * OCR isn't fed the number or decoration. Falls back to the input if no solid‑red column is found.
+     */
+    fun tightenToTitleSides(src: Bitmap): Bitmap {
+        if (src.width < 8) return src
+        val w = src.width
+        val h = src.height
+        val pixels = IntArray(w * h)
+        src.getPixels(pixels, 0, w, 0, 0, w, h)
+        val gate = h * titleSideRed
+        val redCol = IntArray(w)
+        for (x in 0 until w) {
+            var red = 0
+            for (y in 0 until h) if (isSaturatedRed(pixels[y * w + x])) red++
+            redCol[x] = red
+        }
+        val left = (0 until w).firstOrNull { redCol[it] > gate } ?: return src
+        val right = (w - 1 downTo 0).firstOrNull { redCol[it] > gate } ?: return src
+        if (right - left < 4) return src   // degenerate span — keep the full band
+        return Bitmap.createBitmap(src, left, 0, right - left + 1, h)
     }
 
     /** Per-row white/red profile of a banner crop and the title edges derived from it (see below). */
@@ -95,20 +129,19 @@ object ScanImageOps {
         val whiteFrac: FloatArray,
         /** Per-row red (banner) pixel fraction, 0..1, top to bottom. */
         val redFrac: FloatArray,
-        /** First red-heavy row (banner top), or -1. */
-        val bannerStart: Int,
-        /** First white-heavy row at/after [bannerStart] (text top), or -1. */
-        val textTop: Int,
-        /** End of the contiguous white run from [textTop] (text bottom). */
-        val textBottom: Int,
+        /** First "red border" row (red-heavy, white-empty) — the title band's top edge, or -1. */
+        val topBorder: Int,
+        /** First text row (white-heavy) after [topBorder], confirming a title is present, or -1. */
+        val textRow: Int,
+        /** Border row after [textRow] (or the text run's end) — the title band's bottom edge, or -1. */
+        val bottomBorder: Int,
     )
 
     /**
-     * Top-down scan of a banner crop (shared by [tightenToTitleText] and [titleProfilePlot]): counts
-     * white (text) and red (banner) pixels per row, then derives the title edges by decoupling the cues:
-     *  - **banner start** = first row with ≥[titleRowRedFraction] red (skips the white border above),
-     *  - **text top** = first row at/after that with ≥[titleRowWhiteFraction] white,
-     *  - **text bottom** = where that white run ends (a small gap tolerance bridges inter-glyph thinning).
+     * Top-down scan of a banner crop (shared by [tightenToTitleText] and [titleProfilePlot]): per row
+     * the white (text) and red (banner) fractions, then the title edges via the two red borders that
+     * frame the lettering — top border (red > [titleBorderRed], white < [titleBorderWhite]) → a text row
+     * (white > [titleTextWhite]) → bottom border (the next such red row, or the text run's end).
      */
     private fun analyzeTitleRows(src: Bitmap): TitleBand {
         val w = src.width
@@ -123,11 +156,9 @@ object ScanImageOps {
             histogram[m]++
         }
         val threshold = (brightLevel(histogram, pixels.size) * whiteTextBrightFraction).toInt().coerceIn(110, 235)
-        val whiteGate = (w * titleRowWhiteFraction).toInt().coerceAtLeast(1)
-        val redGate = (w * titleRowRedFraction).toInt().coerceAtLeast(1)
 
-        val whiteRow = IntArray(h)
-        val redRow = IntArray(h)
+        val whiteFrac = FloatArray(h)
+        val redFrac = FloatArray(h)
         for (y in 0 until h) {
             var white = 0
             var red = 0
@@ -136,37 +167,30 @@ object ScanImageOps {
                 if (minCh[base + x] >= threshold) white++
                 if (isSaturatedRed(pixels[base + x])) red++
             }
-            whiteRow[y] = white
-            redRow[y] = red
+            whiteFrac[y] = white.toFloat() / w
+            redFrac[y] = red.toFloat() / w
         }
 
-        val bannerStart = (0 until h).firstOrNull { redRow[it] >= redGate } ?: -1
-        val textTop = if (bannerStart < 0) -1
-        else (bannerStart until h).firstOrNull { whiteRow[it] >= whiteGate } ?: -1
-        var textBottom = textTop
-        if (textTop >= 0) {
-            val maxGap = (h * 0.04).toInt().coerceAtLeast(2)
-            var gap = 0
-            for (y in textTop until h) {
-                if (whiteRow[y] >= whiteGate) {
-                    textBottom = y
-                    gap = 0
-                } else if (++gap > maxGap) {
-                    break
-                }
-            }
-        }
+        // A "border" row is the plain red ribbon framing the title: lots of red, (almost) no white text.
+        // Walk top→bottom: top border → a text row (white) confirms we're inside the title → the next
+        // border is the bottom edge (or, if the lower border is cut off, the end of the text run).
+        fun isBorder(y: Int) = redFrac[y] > titleBorderRed && whiteFrac[y] < titleBorderWhite
+        val topBorder = (0 until h).firstOrNull { isBorder(it) } ?: -1
+        val textRow = if (topBorder < 0) -1
+        else (topBorder + 1 until h).firstOrNull { whiteFrac[it] > titleTextWhite } ?: -1
+        val bottomBorder = if (textRow < 0) -1
+        else (textRow + 1 until h).firstOrNull { isBorder(it) }
+            ?: (textRow until h).lastOrNull { whiteFrac[it] > titleTextWhite } ?: -1
 
-        val whiteFrac = FloatArray(h) { whiteRow[it].toFloat() / w }
-        val redFrac = FloatArray(h) { redRow[it].toFloat() / w }
-        return TitleBand(whiteFrac, redFrac, bannerStart, textTop, textBottom)
+        return TitleBand(whiteFrac, redFrac, topBorder, textRow, bottomBorder)
     }
 
     /**
      * Debug chart of a banner crop's per-row profile (rows top→bottom on the y axis, fraction 0..1 on
-     * the x axis): red curve = red fraction, blue curve = white fraction, dashed lines = the two gates
-     * ([titleRowRedFraction] / [titleRowWhiteFraction]), horizontal lines = the detected banner start
-     * (orange) and text top/bottom (green). Aligns row-for-row with the crop image shown above it.
+     * the x axis): red curve = red fraction, blue curve = white fraction, dashed verticals = the three
+     * gates ([titleBorderRed] red, [titleBorderWhite] white-min, [titleTextWhite] white-max), horizontal
+     * lines = the detected borders (orange) and the confirming text row (green). Aligns row-for-row with
+     * the crop image shown above it.
      */
     fun titleProfilePlot(src: Bitmap, plotWidth: Int = 360): Bitmap {
         val band = analyzeTitleRows(src)
@@ -175,12 +199,14 @@ object ScanImageOps {
         val canvas = Canvas(out)
         canvas.drawColor(Color.rgb(248, 248, 248))
 
-        // Gate thresholds (dashed verticals).
+        // Gate thresholds (dashed verticals): red border, white-min (border), white-max (text).
         val dash = Paint().apply { style = Paint.Style.STROKE; strokeWidth = 1.5f; pathEffect = DashPathEffect(floatArrayOf(6f, 6f), 0f) }
         dash.color = Color.argb(150, 200, 0, 0)
-        canvas.drawLine(titleRowRedFraction * plotWidth, 0f, titleRowRedFraction * plotWidth, h.toFloat(), dash)
-        dash.color = Color.argb(150, 30, 90, 220)
-        canvas.drawLine(titleRowWhiteFraction * plotWidth, 0f, titleRowWhiteFraction * plotWidth, h.toFloat(), dash)
+        canvas.drawLine(titleBorderRed * plotWidth, 0f, titleBorderRed * plotWidth, h.toFloat(), dash)
+        dash.color = Color.argb(110, 30, 90, 220)
+        canvas.drawLine(titleBorderWhite * plotWidth, 0f, titleBorderWhite * plotWidth, h.toFloat(), dash)
+        dash.color = Color.argb(190, 30, 90, 220)
+        canvas.drawLine(titleTextWhite * plotWidth, 0f, titleTextWhite * plotWidth, h.toFloat(), dash)
 
         // Profiles (red = red fraction, blue = white fraction).
         val redPaint = Paint().apply { color = Color.rgb(220, 30, 30); strokeWidth = 2f; isAntiAlias = true }
@@ -190,16 +216,14 @@ object ScanImageOps {
             canvas.drawLine(band.whiteFrac[y - 1] * plotWidth, (y - 1).toFloat(), band.whiteFrac[y] * plotWidth, y.toFloat(), whitePaint)
         }
 
-        // Detected edges (horizontal lines).
+        // Detected edges (horizontal lines): the two red borders (orange), the confirming text row (green).
         val edge = Paint().apply { strokeWidth = 2f }
-        if (band.bannerStart >= 0) {
-            edge.color = Color.rgb(255, 140, 0)
-            canvas.drawLine(0f, band.bannerStart.toFloat(), plotWidth.toFloat(), band.bannerStart.toFloat(), edge)
-        }
-        if (band.textTop >= 0) {
+        edge.color = Color.rgb(255, 140, 0)
+        if (band.topBorder >= 0) canvas.drawLine(0f, band.topBorder.toFloat(), plotWidth.toFloat(), band.topBorder.toFloat(), edge)
+        if (band.bottomBorder >= 0) canvas.drawLine(0f, band.bottomBorder.toFloat(), plotWidth.toFloat(), band.bottomBorder.toFloat(), edge)
+        if (band.textRow >= 0) {
             edge.color = Color.rgb(0, 160, 0)
-            canvas.drawLine(0f, band.textTop.toFloat(), plotWidth.toFloat(), band.textTop.toFloat(), edge)
-            canvas.drawLine(0f, band.textBottom.toFloat(), plotWidth.toFloat(), band.textBottom.toFloat(), edge)
+            canvas.drawLine(0f, band.textRow.toFloat(), plotWidth.toFloat(), band.textRow.toFloat(), edge)
         }
         return out
     }

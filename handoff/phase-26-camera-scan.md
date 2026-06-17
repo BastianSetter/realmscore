@@ -1,13 +1,21 @@
 # Handoff — Phase 26: Camera Card Scan (+ fdroid/play OCR flavors)
 
-**Branch:** `v1.3.0` (not pushed) · **Date:** 2026-06-16 (26.1 work: 2026-06-17) · **Spec:** `specs/26-Kamera-Tesseract.md`
+**Branch:** `v1.3.0` (not pushed) · **Date:** 2026-06-16 (26.1: 2026-06-17 · 26.2: 2026-06-17) · **Spec:** `specs/26-Kamera-Tesseract.md`
 **Plan:** `C:\Users\basti\.claude\plans\make-a-plan-write-humble-balloon.md`
 
-Three commits on top of `a791847`:
+Commits on top of `a791847`:
 - `03ab0b9` — Phase 26 camera scan + flavors (38 files, incl. ~38 MB tessdata).
 - `5a47a68` — Tesseract banner-detection improvements.
-- *(latest)* — Phase 26.1: Tesseract reworked for the **single upright card** case + a much‑expanded
+- `2cdc194` — Phase 26.1: Tesseract reworked for the **single upright card** case + a much‑expanded
   debug screen (per‑step stages, per‑row profile plot, four live tuning sliders). See "Phase 26.1" below.
+- *(latest)* — Phase 26.2: Tesseract reworked for a **single-column fan** of up to 7 cards + the
+  border‑framing title detection and a left/right side‑cut. See "Phase 26.2" below.
+
+> **Decision (2026-06-17):** pursue **Option B** (lay cards in a fanned stack, one photo, multi‑crop)
+> for the Tesseract path. Option A (continuous video sweep, no shutter) is parked but analysed in
+> `handoff/phase-26-option-a-video-sweep.md`. Rationale: the fan only steals *vertical* pixels, so each
+> title keeps near‑full *horizontal* resolution (the dimension Tesseract needs) — sidestepping the
+> low‑resolution problem that rules out a free multi‑card layout.
 
 ---
 
@@ -78,6 +86,60 @@ passes `null` → zero debug‑bitmap overhead). `RedBannerDetector.detectBestTr
 
 ---
 
+## Phase 26.2 — Tesseract single-column **fan** + border-framing title detection
+
+**Why:** one card per photo is not a viable hand-capture flow, and a *free* multi-card layout defeats
+Tesseract (no neural detector, and each title would get ~1/N of both dimensions). A **single-column
+fan** (cards overlapped top→bottom in one stack) solves both: every card shows its own white top edge
++ red title ribbon (cards run white→red top to bottom), so each contributes exactly one red banner
+blob, and the fan only costs *vertical* pixels — titles keep near-full horizontal resolution. This is
+the **7-card hand** version; the two-column (Mittelfeld 10/12) layout + an on-camera dashed guide
+overlay are **not built yet** (next).
+
+**Detection (`RedBannerDetector`):** new `detectFanned(bitmap, maxCards)` / `detectFannedTraced(...)`
+replace the old unused `detect`. They reuse `analyzeRed`, take the largest `maxCards` qualifying red
+blobs and order them **top→bottom** (a pure top-sort, so regions line up with the physical card order).
+The traced overlay numbers each chosen banner 1..N (green) over the rejected candidates (yellow).
+
+**Scanner (`fdroid/.../TesseractCardScanner.kt`):** `analyze()` now loops the fanned banners and runs
+the proven per-card pipeline on each; stages are prefixed `Karte i/N`. No banner anywhere → the old
+whole-image name-band fallback. `recognizeMultiple`/`recognizeDetailed` pass `maxCards` through;
+`distinctBestCards` maps the ordered regions to slots (unchanged).
+
+**Title tightening reworked (the crux — `ScanImageOps`):** the v3 white-run heuristic was replaced by
+a **two-red-border** rule (user's design) that's much more robust on the fan. Per banner crop, top→bottom
+on per-row red/white **fractions**:
+1. **Top border** = first row that is *plain red ribbon*: `red > titleBorderRed` AND `white <
+   titleBorderWhite`. The card's white top edge above (white, little red) is skipped.
+2. **Text row** = first row after that with `white > titleTextWhite` — confirms lettering began (blocks
+   a second border row sitting right next to the first).
+3. **Bottom border** = the next plain-red row after the text (fallback: end of the text run).
+4. Crop `[topBorder..bottomBorder]` ± **independent** top/bottom padding (negative = bite inward).
+
+Then a **side-cut** (`tightenToTitleSides`): per-column red count; from the left the first column with
+`red > titleSideRed` and from the right likewise → crop `[left..right]`. Drops the number disc / suit
+edge on the left and the ribbon tail on the right, so OCR sees only the red title band. Falls back to
+the full band if no solid-red column / a degenerate span.
+
+**Per-card pipeline:** Crop (Banner-Blob) → Zeilen-Profil (Rot/Weiß) → Titelzeile (Weißtext) →
+**Seiten beschnitten** → Binarisiert → Tesseract → match.
+
+**Tuned defaults (production *and* slider starts):** `titleBorderRed` 0.70, `titleBorderWhite` 0.08,
+`titleTextWhite` 0.20, `whiteTextBrightFraction` 0.65, `titlePadTopFraction` **−0.15**,
+`titlePadBottomFraction` 0.20, `titleSideRed` 0.60. (`whiteTextBrightFraction` still feeds both the
+white-row detection and `binarizeWhite`.)
+
+**Debug screen:** runs the fan with `FAN_MAX_CARDS = 7` (gallery/camera). Now **seven** live sliders:
+Rot-Gate Rand, Weiß-Min Rand, Weiß-Max Text, Weiß-Helligkeit, Rand oben, Rand unten, Seiten-Cut. The
+**Zeilen-Profil** plot draws all three vertical gates (red / faint-blue white-min / blue white-max) and
+the detected edges (orange = the two borders, green = the confirming text row).
+
+> ⚠️ Still **device-validated on a narrow card set only.** The defaults above were tuned on the fan test
+> photos (`AndroidApps/DebugScreenshots/16-18.jpg`); confirm across more suits/banner shapes. Build
+> succeeds; only behaviour-on-device remains to verify.
+
+---
+
 ## Architecture (the important part)
 
 OCR is split into two **product flavors** behind one interface. ~99% of the code is shared; only the
@@ -131,24 +193,24 @@ crop.
 
 ## Current state
 
-- **play (ML Kit):** works well — **7/7** on the test hand photo after tuning. This is the recommended
-  engine for reliability.
-- **fdroid (Tesseract):** reworked for the single upright card (Phase 26.1, above). Banner detection,
-  crop, the **v3 state‑machine title tightening**, binarization and matching work end‑to‑end on the
-  "Kaiserin" test card (reads correctly). Still needs a **wider card set** (other suits / banner
-  shapes) to confirm the tuned gate defaults. Fundamentally limited to the one‑card layout — no
-  tilt/overlap like ML Kit.
+- **play (ML Kit):** works well — **7/7** on the test hand photo after tuning. Whole-hand photo, no
+  arranging, no cropping. Recommended engine for reliability.
+- **fdroid (Tesseract):** reworked for the **single-column fan of up to 7 cards** (Phase 26.2, above):
+  fan detection (top→bottom), the **two-red-border** title tightening, the left/right side-cut,
+  binarization and matching all compile and run end-to-end. Tuned on the fan test photos; still needs a
+  **wider card set** on device to confirm the gate defaults. Two-column (10/12) layout + dashed guide
+  overlay **not built yet**.
 - Both flavors compile and assemble; F‑Droid check clean.
 
 ### Tuning knobs (all in `data/ocr/`)
 - ML Kit titles missed / junk: `MlKitCardScanner.RED_FRACTION` (lower) / `BANNER_FLOOR` (raise).
-- Tesseract banner *missed entirely*: `RedBannerDetector.MIN_AREA_FRACTION` / `MIN_ASPECT`;
-  `ScanImageOps.isSaturatedRed` thresholds.
-- Tesseract title *cropped wrong* (too tall / wrong band): all four are **live sliders** in the debug
-  screen — `titleRowRedFraction` (Rot‑Gate = banner start), `titleRowWhiteFraction` (Weiß‑Gate = text
-  edges), `whiteTextBrightFraction` (Weiß‑Helligkeit = white cut, shared with binarization), and
-  `titlePadFraction` (Rand um Titel = symmetric padding above+below). The debug **Zeilen‑Profil** stage
-  plots the per‑row red/white fractions vs. these gates so you can see where they cut.
+- Tesseract banner *missed / merged*: `RedBannerDetector.MIN_AREA_FRACTION` / `MIN_ASPECT`;
+  `ScanImageOps.isSaturatedRed` thresholds. (Merged = two fanned ribbons touching in the red mask.)
+- Tesseract title *cropped wrong*: **seven live sliders** in the debug screen, all backed by
+  `ScanImageOps` vars — `titleBorderRed` (Rot-Gate Rand), `titleBorderWhite` (Weiß-Min Rand),
+  `titleTextWhite` (Weiß-Max Text), `whiteTextBrightFraction` (Weiß-Helligkeit, shared with
+  binarization), `titlePadTopFraction` (Rand oben, ±), `titlePadBottomFraction` (Rand unten, ±),
+  `titleSideRed` (Seiten-Cut). The **Zeilen-Profil** plot shows the three gates + detected edges.
 - Match acceptance floor: `MIN_MATCH_SCORE` in `ScanModels.kt` (shared).
 
 ---
@@ -168,9 +230,13 @@ crop.
 
 ## Open items / decisions
 
-- [ ] **Validate Phase 26.1 on more cards** (different suits / banner shapes) and adjust the tuned gate
-      defaults if needed — the debug `Zeilen‑Profil` plot + four sliders are the tool for this.
-- [ ] **Validate the fdroid (Tesseract) engine on device** broadly and tune if needed.
+- [ ] **Validate Phase 26.2 (fan) on more cards** (different suits / banner shapes) on device and adjust
+      the tuned gate defaults if needed — the debug `Zeilen‑Profil` plot + seven sliders are the tool.
+- [ ] **Build the two-column (Mittelfeld 10/12) layout** — x-cluster banner blobs into 1 vs 2 columns
+      (count auto from hand size), read each column top→bottom. Single-column (7) is done.
+- [ ] **Dashed guide overlay** in `CameraScanScreen`, sized to the hand (1 vs 2 stacks).
+- [ ] **Wire the fan into the live capture flow** — `CameraScanScreen` still uses the single-shot
+      `takePicture`; the recognizer is fan-ready, the camera UX/guide is not.
 - [ ] **Distribution decision.** F‑Droid ships the `fdroid` flavor. The `play` (ML Kit) flavor is for
       Play Store (one‑time ~$25, *not* €29/mo) **or** a free GitHub release. ML Kit does **not** require
       the Play Store.
@@ -182,6 +248,8 @@ crop.
 - [ ] Optional polish: visible re‑scan button in stage 2; low‑light detection in the camera overlay.
 
 ## Known limitations
-- Tesseract can't match ML Kit on tilted/overlapping cards (no neural detector).
+- Tesseract can't match ML Kit on free tilted/overlapping cards (no neural detector) — it needs the
+  controlled **single-column fan**; ML Kit takes a plain whole-hand photo.
 - Camera needs a real device — the emulator's synthetic camera can't validate OCR.
-- The 7‑card hand photo must show each card's red title banner (top of card) for banner mode.
+- The fan photo must show each card's white top edge + red title banner; ribbons must stay separated in
+  the red mask (don't overlap two ribbons), or they merge into one region.
