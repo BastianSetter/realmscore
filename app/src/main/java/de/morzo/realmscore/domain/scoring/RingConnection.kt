@@ -39,6 +39,18 @@ fun buildRingConnections(
     scoringResult.perCard.forEach { cardResult ->
         val toIdx = idxByKey[cardResult.cardKey] ?: return@forEach
         cardResult.effects.forEach { effect ->
+            val explicit = effect.contributorWeights
+                ?.takeIf { it.size == effect.contributingCardKeys.size }
+            if (explicit != null) {
+                // Per-contributor weights given (e.g. Warlord): each key keeps its own weight.
+                effect.contributingCardKeys.forEachIndexed { i, key ->
+                    val fromIdx = idxByKey[key] ?: return@forEachIndexed
+                    if (fromIdx == toIdx) return@forEachIndexed
+                    val pair = fromIdx to toIdx
+                    summed[pair] = (summed[pair] ?: 0) + explicit[i]
+                }
+                return@forEach
+            }
             val contributors = effect.contributingCardKeys.mapNotNull { idxByKey[it] }
                 .filter { it != toIdx }
             if (contributors.isEmpty()) return@forEach
