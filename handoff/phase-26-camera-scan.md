@@ -167,8 +167,8 @@ the Mittelfeld via `loadDiscardDraft`/`discardSlotCount`), so `columnsFor` picks
 discard draft is already sized to 10/12, so `setCardsFromScan` (`cards.take(slots.size)`) keeps all of
 them; `CameraScanScreen` is layout-agnostic and forwards `maxCards` untouched, and live capture is
 full-resolution (vs. the debug screen's 2200px cap), which *helps* the half-width two-column titles.
-The only Mittelfeld gap left is **UX guidance** (no two-stack hint / dashed guide) — deliberately
-deferred to the guide-overlay task below.
+The only Mittelfeld gap left was **UX guidance** (two-stack hint / dashed guide) — now built
+(`FanGuideOverlay` + `camera_scan_hint_fan_double`, gated by `CardScanner.usesFanLayout`).
 
 > ⚠️ Same caveat as 26.2: built and compiling, tuned on a narrow set; the two-column **x-clustering**
 > still needs device validation on a real 10/12 Mittelfeld photo (confirm the two stacks separate
@@ -235,8 +235,9 @@ crop.
   fan for the Mittelfeld 10/12** (Phase 26.3): fan detection (x-clustered into 1 vs 2 stacks, read in
   reading order), the **two-red-border** title tightening, the left/right side-cut, binarization and
   matching all compile and run end-to-end. Tuned on the fan test photos; still needs a **wider card
-  set** — and a real 10/12 two-column photo — on device to confirm the gate defaults. Dashed guide
-  overlay **not built yet**.
+  set** — and a real 10/12 two-column photo — on device to confirm the gate defaults. Dashed fan guide
+  overlay (1 vs 2 stacks) + fan-specific hint now wired into the live camera (`FanGuideOverlay`, gated by
+  `CardScanner.usesFanLayout`).
 - Both flavors compile and assemble; F‑Droid check clean.
 
 ### Tuning knobs (all in `data/ocr/`)
@@ -273,9 +274,16 @@ crop.
 - [x] **Build the two-column (Mittelfeld 10/12) layout** (Phase 26.3) — x-cluster banner blobs into 1 vs
       2 columns (count auto from `maxCards` via `RedBannerDetector.columnsFor`), read each column
       top→bottom. Single-column (7) and two-column (10/12) both done; **needs device validation**.
-- [ ] **Dashed guide overlay** in `CameraScanScreen`, sized to the hand (1 vs 2 stacks).
-- [ ] **Wire the fan into the live capture flow** — `CameraScanScreen` still uses the single-shot
-      `takePicture`; the recognizer is fan-ready, the camera UX/guide is not.
+- [x] **Dashed guide overlay** in `CameraScanScreen`, sized to the hand (1 vs 2 stacks) — `FanGuideOverlay`
+      draws one dashed column frame per stack (`RedBannerDetector.columnsFor(maxCards)`: 1 for a 7-card
+      hand, 2 for the 10/12 Mittelfeld) with a per-card divider hinting the top→bottom fan. Shown only
+      for the fan engine via the new `CardScanner.usesFanLayout` (`true` for Tesseract, `false` for ML
+      Kit, which still takes a free whole-hand photo). **Needs device validation** that the frame lines
+      up with where titles actually read.
+- [x] **Wire the fan into the live capture flow** — the recognizer was already fan-ready (`maxCards` →
+      `columnsFor`); a single `takePicture` is the right capture for the fan (one photo). The remaining
+      gap was UX, now closed: the overlay above + a fan-specific hint
+      (`camera_scan_hint_fan_single`/`_double`, switched on `usesFanLayout` + column count).
 - [ ] **Distribution decision.** F‑Droid ships the `fdroid` flavor. The `play` (ML Kit) flavor is for
       Play Store (one‑time ~$25, *not* €29/mo) **or** a free GitHub release. ML Kit does **not** require
       the Play Store.

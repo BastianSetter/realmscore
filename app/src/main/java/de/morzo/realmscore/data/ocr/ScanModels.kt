@@ -54,6 +54,13 @@ data class ScanReport(
  * flavour, ML Kit in the `play` flavour, each provided via that flavour's `ScannerFactory`.
  */
 interface CardScanner {
+    /**
+     * True when this engine needs the cards laid out as an overlapping **fan** (Tesseract: no neural
+     * detector, so it relies on the controlled single-/two-column fan). False when a free whole-hand
+     * photo works (ML Kit). The camera screen draws its dashed fan guide + matching hint only when true.
+     */
+    val usesFanLayout: Boolean
+
     /** Optional background warm-up (model load); safe to call repeatedly. */
     suspend fun warmUp()
 

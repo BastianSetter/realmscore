@@ -11,6 +11,7 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,9 +42,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -52,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
 import de.morzo.realmscore.data.ocr.CardScanner
+import de.morzo.realmscore.data.ocr.RedBannerDetector
 import de.morzo.realmscore.domain.model.CardDefinition
 
 /**
@@ -111,6 +119,9 @@ fun CameraScanScreen(
         return
     }
 
+    // 1 stack for a 7-card hand, 2 side-by-side stacks for the 10/12 Mittelfeld (mirrors the detector).
+    val columns = remember(maxCards) { RedBannerDetector.columnsFor(maxCards) }
+
     val imageCapture = remember { ImageCapture.Builder().build() }
     var flashOn by remember { mutableStateOf(false) }
     LaunchedEffect(flashOn) {
@@ -162,6 +173,17 @@ fun CameraScanScreen(
             },
         )
 
+        // Tesseract needs the cards arranged as a fan; ML Kit takes a free whole-hand photo. Show the
+        // dashed guide (1 stack for a hand, 2 side-by-side stacks for the 10/12 Mittelfeld) only for the
+        // fan engine, so the user knows how to lay the cards. The overlay is purely visual (no touch).
+        if (scanner.usesFanLayout) {
+            FanGuideOverlay(
+                columns = columns,
+                cardCount = maxCards,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
         IconButton(
             onClick = { flashOn = !flashOn },
             modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
@@ -173,6 +195,25 @@ fun CameraScanScreen(
             )
         }
 
+        // Hint at the top of the preview (clear of the flash button on the right), so the bottom
+        // controls stay uncluttered and the guide frame below it is unobstructed.
+        Text(
+            text = when {
+                state.recognitionFailed -> stringResource(R.string.camera_scan_failed)
+                scanner.usesFanLayout && columns >= 2 ->
+                    stringResource(R.string.camera_scan_hint_fan_double)
+                scanner.usesFanLayout -> stringResource(R.string.camera_scan_hint_fan_single)
+                else -> stringResource(R.string.camera_scan_hint)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(top = 16.dp, start = 56.dp, end = 56.dp),
+        )
+
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -181,15 +222,6 @@ fun CameraScanScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = if (state.recognitionFailed) {
-                    stringResource(R.string.camera_scan_failed)
-                } else {
-                    stringResource(R.string.camera_scan_hint)
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White,
-            )
             FloatingActionButton(onClick = capture) {
                 Icon(
                     imageVector = Icons.Filled.CameraAlt,
@@ -217,6 +249,61 @@ fun CameraScanScreen(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Dashed guide showing where to lay the fanned cards: one column frame per stack ([columns] = 1 for a
+ * 7-card hand, 2 for the 10/12 Mittelfeld), with a horizontal dashed line per card to suggest the
+ * top→bottom fan. Purely cosmetic — it draws on the camera preview and never intercepts touches.
+ */
+@Composable
+private fun FanGuideOverlay(
+    columns: Int,
+    cardCount: Int,
+    modifier: Modifier = Modifier,
+) {
+    val guideColor = Color.White.copy(alpha = 0.85f)
+    // Spread the cards across the columns as evenly as possible (10 → 5/5, 12 → 6/6, 7 → 7).
+    val perColumn = IntArray(columns) { i ->
+        cardCount / columns + if (i < cardCount % columns) 1 else 0
+    }
+    Canvas(modifier) {
+        val dash = PathEffect.dashPathEffect(floatArrayOf(22f, 16f), 0f)
+        val frameStroke = Stroke(width = 3.dp.toPx(), pathEffect = dash)
+        val lineWidth = 2.dp.toPx()
+
+        val marginX = size.width * 0.08f
+        val marginY = size.height * 0.16f
+        val areaWidth = size.width - 2 * marginX
+        val areaHeight = size.height - 2 * marginY
+        val gap = if (columns >= 2) size.width * 0.04f else 0f
+        val columnWidth = (areaWidth - gap * (columns - 1)) / columns
+        val corner = CornerRadius(16.dp.toPx(), 16.dp.toPx())
+
+        for (c in 0 until columns) {
+            val left = marginX + c * (columnWidth + gap)
+            drawRoundRect(
+                color = guideColor,
+                topLeft = Offset(left, marginY),
+                size = Size(columnWidth, areaHeight),
+                cornerRadius = corner,
+                style = frameStroke,
+            )
+            // One divider per card boundary hints the overlapping fan (skip the outer frame edges).
+            val cards = perColumn[c].coerceAtLeast(1)
+            val step = areaHeight / cards
+            for (i in 1 until cards) {
+                val y = marginY + i * step
+                drawLine(
+                    color = guideColor,
+                    start = Offset(left, y),
+                    end = Offset(left + columnWidth, y),
+                    strokeWidth = lineWidth,
+                    pathEffect = dash,
+                )
             }
         }
     }

@@ -21,6 +21,8 @@ import kotlin.coroutines.resume
  */
 class MlKitCardScanner(private val matcher: CardNameMatcher) : CardScanner {
 
+    override val usesFanLayout: Boolean = false
+
     private val recognizer: TextRecognizer =
         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 

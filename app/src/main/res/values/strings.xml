@@ -400,6 +400,8 @@
     <string name="camera_scan_flash">Blitz</string>
     <string name="camera_scan_recognizing">Karten werden erkannt …</string>
     <string name="camera_scan_hint">Lege die Karten nebeneinander ins Bild und tippe auf Auslösen.</string>
+    <string name="camera_scan_hint_fan_single">Lege die Karten überlappend als Fächer (oben→unten) in den Rahmen – jede rote Titelleiste sichtbar – und tippe auf Auslösen.</string>
+    <string name="camera_scan_hint_fan_double">Lege die Karten als zwei nebeneinanderliegende Fächer (je oben→unten) in die Rahmen – jede rote Titelleiste sichtbar – und tippe auf Auslösen.</string>
     <string name="camera_scan_low_light">Zu dunkel – mehr Licht oder Blitz aktivieren.</string>
     <string name="camera_scan_permission_rationale">Für das Scannen wird Zugriff auf die Kamera benötigt. Ohne Kamera kannst du die Karten manuell eingeben.</string>
     <string name="camera_scan_permission_open_settings">Kamera-Berechtigung erteilen</string>

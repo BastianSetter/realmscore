@@ -400,6 +400,8 @@
     <string name="camera_scan_flash">Flash</string>
     <string name="camera_scan_recognizing">Recognising cards …</string>
     <string name="camera_scan_hint">Lay the cards side by side in frame and tap the shutter.</string>
+    <string name="camera_scan_hint_fan_single">Lay the cards as an overlapping fan (top→bottom) inside the frame – each red title strip visible – then tap the shutter.</string>
+    <string name="camera_scan_hint_fan_double">Lay the cards as two side-by-side fans (each top→bottom) inside the frames – each red title strip visible – then tap the shutter.</string>
     <string name="camera_scan_low_light">Too dark – add light or enable the flash.</string>
     <string name="camera_scan_permission_rationale">Scanning needs camera access. Without the camera you can enter the cards manually.</string>
     <string name="camera_scan_permission_open_settings">Grant camera permission</string>

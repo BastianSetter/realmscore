@@ -18,6 +18,8 @@ class TesseractCardScanner(
     private val matcher: CardNameMatcher,
 ) : CardScanner {
 
+    override val usesFanLayout: Boolean = true
+
     override suspend fun warmUp() = tesseract.warmUp()
 
     override suspend fun recognizeMultiple(
