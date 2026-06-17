@@ -24,12 +24,21 @@ class ScanDebugViewModel(private val scanner: CardScanner) : ViewModel() {
     private val _uiState = MutableStateFlow(ScanDebugUiState())
     val uiState: StateFlow<ScanDebugUiState> = _uiState.asStateFlow()
 
+    // Remember the last input so a tuning-slider change can re-run the pipeline on the same image.
+    private var last: Triple<Bitmap, Int, Int>? = null
+
     fun analyze(bitmap: Bitmap, rotationDegrees: Int, maxCards: Int) {
+        last = Triple(bitmap, rotationDegrees, maxCards)
         _uiState.update { it.copy(isProcessing = true, report = null, sourcePreview = bitmap) }
         viewModelScope.launch {
             val report = scanner.recognizeDetailed(bitmap, rotationDegrees, maxCards)
             _uiState.update { it.copy(isProcessing = false, report = report) }
         }
+    }
+
+    /** Re-run on the last image (after a tuning knob in [ScanImageOps] changed). No-op if none yet. */
+    fun reanalyze() {
+        last?.let { analyze(it.first, it.second, it.third) }
     }
 
     class Factory(private val scanner: CardScanner) : ViewModelProvider.Factory {

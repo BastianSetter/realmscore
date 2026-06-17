@@ -51,7 +51,8 @@
       "Bash(mkdir -p app/src/fdroid/assets)",
       "Bash(git mv *)",
       "Bash(mv app/src/main/assets/tessdata app/src/fdroid/assets/tessdata)",
-      "Bash(git ls-remote *)"
+      "Bash(git ls-remote *)",
+      "Bash(git *)"
     ]
   }
 }

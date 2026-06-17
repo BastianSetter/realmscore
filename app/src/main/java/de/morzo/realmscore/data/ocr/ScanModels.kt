@@ -27,11 +27,25 @@ data class ScanRegion(
         get() = candidates.firstOrNull()?.takeIf { it.score >= MIN_MATCH_SCORE }?.card
 }
 
+/**
+ * One labeled intermediate image of the single-card pipeline, for the scan-debug screen. Lets the
+ * developer see every step *before* the final binarized crop (red mask, banner pick, raw crop,
+ * tightened ribbon, …), not just the image handed to OCR. Only populated by `recognizeDetailed`.
+ */
+data class ScanStage(
+    val label: String,
+    val image: Bitmap,
+    /** Short caption: dimensions, candidate counts, or a warning when a step degenerated. */
+    val note: String = "",
+)
+
 /** Full diagnostics of one photo: which engine/path ran, how many regions, and per-region results. */
 data class ScanReport(
     val mode: String,
     val regionCount: Int,
     val regions: List<ScanRegion>,
+    /** Ordered intermediate images of the pipeline (debug screen only; empty in the production path). */
+    val stages: List<ScanStage> = emptyList(),
 )
 
 /**
