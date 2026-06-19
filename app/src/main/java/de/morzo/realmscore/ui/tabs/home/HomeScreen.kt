@@ -45,6 +45,7 @@ fun HomeScreen(
     onOpenSandbox: () -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenSettings: () -> Unit,
+    onJoinSession: () -> Unit,
     onOpenStat: (StatDestination?) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -84,6 +85,24 @@ fun HomeScreen(
                 onNewGame = onNewGame,
                 onOpenGame = onOpenGame,
             )
+        }
+        item {
+            Card(
+                onClick = onJoinSession,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.p2p_join_session),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.home_join_session_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
         }
         item {
             Card(

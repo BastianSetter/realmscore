@@ -34,6 +34,9 @@ object Routes {
     const val SANDBOX_LAUNCH_FROM_FAVORITE = "fromFavorite"
     const val SANDBOX_FAVORITES = "sandbox/favorites"
 
+    // Phase 28 P2P sync.
+    const val JOIN_SESSION = "p2p/join"
+
     const val GAME_IN_PROGRESS = "game/{gameId}"
     const val ROUND_ENTRY = "round/{roundId}"
     const val ROUND_CAPTURE = "round/{roundId}/capture"

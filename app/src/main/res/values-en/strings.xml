@@ -503,6 +503,35 @@
     <string name="state_error_default_title">Something went wrong</string>
     <string name="state_retry">Try again</string>
 
+    <!-- P2P sync (Phase 28) -->
+    <string name="p2p_open_for_joins">Open for joining</string>
+    <string name="p2p_join_session">Join session</string>
+    <string name="p2p_device_joined">%1$s\'s device connected (%2$d/%3$d)</string>
+    <string name="p2p_device_joined_short">%1$s\'s device connected</string>
+    <string name="p2p_connected_count">Connected devices: %1$d/%2$d</string>
+    <string name="p2p_locked_by">Being entered by %1$s</string>
+    <string name="p2p_force_unlock">Unlock</string>
+    <string name="p2p_reconciliation_title">Assign players</string>
+    <string name="p2p_reconciliation_done">Done</string>
+    <string name="p2p_joined_waiting">Joined – waiting for the host</string>
+    <string name="p2p_map_local_profile">Assign local profile</string>
+    <string name="p2p_sync_complete">Game data synced</string>
+    <string name="p2p_bluetooth_off_title">Bluetooth is off</string>
+    <string name="p2p_bluetooth_off_body">Please turn on Bluetooth in settings to join the session.</string>
+    <string name="p2p_bluetooth_settings">Open Bluetooth settings</string>
+    <string name="p2p_bluetooth_unsupported">This device has no Bluetooth.</string>
+    <string name="p2p_bluetooth_permission">Please grant the Bluetooth permission to continue.</string>
+    <string name="p2p_scan_qr">Scan QR code</string>
+    <string name="p2p_session_code_label">Session code</string>
+    <string name="p2p_ready_title">Game ready</string>
+    <string name="p2p_ready_body">Keep playing solo, or open the game so other devices can join.</string>
+    <string name="p2p_continue_to_game">Continue to game</string>
+    <string name="p2p_connecting">Connecting …</string>
+    <string name="p2p_enter_code_instead">Enter code instead</string>
+    <string name="p2p_camera_rationale">Camera access is needed to scan the QR code.</string>
+    <string name="p2p_discoverable_denied">Discoverability was declined. Other devices can\'t find this one without it.</string>
+    <string name="home_join_session_body">Join a session at the same table and enter scores together.</string>
+
     <!--
         ============================================================================
         TODO(TRANSLATE) — strings containing game rule text. Machine-translated,

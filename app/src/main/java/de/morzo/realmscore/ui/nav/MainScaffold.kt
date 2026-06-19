@@ -39,6 +39,7 @@ import de.morzo.realmscore.ui.game.RoundCaptureScreen
 import de.morzo.realmscore.ui.game.RoundEntryScreen
 import de.morzo.realmscore.ui.handentry.PlayerHandEntryScreen
 import de.morzo.realmscore.ui.newgame.NewGameScreen
+import de.morzo.realmscore.ui.p2p.JoinSessionScreen
 import de.morzo.realmscore.ui.reveal.RevealScreen
 import de.morzo.realmscore.ui.reveal.RoundSummaryScreen
 import de.morzo.realmscore.ui.sandbox.SandboxLaunchData
@@ -143,6 +144,7 @@ fun MainScaffold(container: AppContainer) {
                             tabNavController.navigateAcross(Routes.sandboxFavoritesRoute())
                         },
                         onOpenSettings = { tabNavController.navigate(Routes.TAB_SETTINGS) },
+                        onJoinSession = { tabNavController.navigate(Routes.JOIN_SESSION) },
                         onOpenStat = { destination ->
                             when (destination) {
                                 is StatDestination.Player ->
@@ -227,6 +229,13 @@ fun MainScaffold(container: AppContainer) {
                         onBack = { tabNavController.popBackStack() },
                     )
                 }
+                composable(Routes.JOIN_SESSION) {
+                    JoinSessionScreen(
+                        container = container,
+                        onDone = { tabNavController.popBackStack() },
+                        onBack = { tabNavController.popBackStack() },
+                    )
+                }
             }
 
             // ----- GAME section: hub + full game flow -----
@@ -244,6 +253,8 @@ fun MainScaffold(container: AppContainer) {
                 composable(Routes.NEW_GAME) {
                     NewGameScreen(
                         container = container,
+                        // P2P "open for joins" now lives inside NewGameScreen (Phase 28), so on start
+                        // we go straight into the game; any open session keeps running.
                         onGameStarted = { gameId ->
                             tabNavController.navigate(Routes.gameRoute(gameId)) {
                                 popUpTo(Routes.NEW_GAME) { inclusive = true }

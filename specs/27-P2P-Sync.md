@@ -1,5 +1,8 @@
 # Phase 28 – P2P-Sync (NFC/QR + Bluetooth)
 
+> **Umsetzungsplan:** `C:\Users\basti\.claude\plans\please-prepare-a-plan-rustling-iverson.md`
+> (lokale Umsetzung auf Branch `v1.3.0`; QR + 6-stelliger Code, NFC zurückgestellt; ZXing-Core).
+
 ## Anweisung an Claude Code
 
 Lies diese Datei vollstaendig. Lies anschliessend `00-vision.md`. Setze danach diese Phase vollstaendig um.

@@ -72,9 +72,12 @@ fun NewGameScreen(
         factory = NewGameViewModel.Factory(
             profileRepo = container.profileRepository,
             gameRepo = container.gameRepository,
+            p2p = container.p2pSessionRepository,
+            mappingRepo = container.deviceProfileMappingRepository,
         ),
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val sessionState by vm.sessionState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -123,6 +126,18 @@ fun NewGameScreen(
                 onQueryChange = vm::onQueryChange,
                 onAddExisting = vm::addExistingProfile,
                 onAddNew = { vm.addNewProfile(state.addQuery) },
+            )
+
+            Spacer(Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+
+            // Phase 28: open this in-progress roster for P2P joins. Players added below sync live.
+            de.morzo.realmscore.ui.p2p.HostJoinSection(
+                container = container,
+                sessionState = sessionState,
+                bluetoothStatusProvider = vm::bluetoothStatus,
+                onOpenForJoins = vm::openForJoins,
             )
 
             Spacer(Modifier.height(24.dp))

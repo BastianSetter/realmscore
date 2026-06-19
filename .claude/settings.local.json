@@ -52,7 +52,13 @@
       "Bash(git mv *)",
       "Bash(mv app/src/main/assets/tessdata app/src/fdroid/assets/tessdata)",
       "Bash(git ls-remote *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "PowerShell(adb *)",
+      "PowerShell($adb = *)",
+      "PowerShell($apk = *)",
+      "PowerShell(& $adb *)",
+      "PowerShell(& \"C:\\\\Users\\\\basti\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" *)",
+      "PowerShell(Write-Output *)"
     ]
   }
 }

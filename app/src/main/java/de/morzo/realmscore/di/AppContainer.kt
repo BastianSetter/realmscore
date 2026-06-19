@@ -8,7 +8,13 @@ import de.morzo.realmscore.data.ocr.CardScanner
 import de.morzo.realmscore.data.ocr.ScannerFactory
 import de.morzo.realmscore.data.db.AppDatabase
 import de.morzo.realmscore.data.db.migration.MIGRATION_6_7
+import de.morzo.realmscore.data.db.migration.MIGRATION_7_8
+import de.morzo.realmscore.data.p2p.BluetoothRfcommManager
+import de.morzo.realmscore.data.p2p.CompanionDeviceHelper
+import de.morzo.realmscore.data.p2p.HandshakeManager
+import de.morzo.realmscore.data.p2p.SessionManager
 import de.morzo.realmscore.data.repository.BackupRepositoryImpl
+import de.morzo.realmscore.data.repository.DeviceProfileMappingRepositoryImpl
 import de.morzo.realmscore.data.repository.GameRepositoryImpl
 import de.morzo.realmscore.data.repository.HandCardRepositoryImpl
 import de.morzo.realmscore.data.repository.ProfileRepositoryImpl
@@ -16,7 +22,9 @@ import de.morzo.realmscore.data.repository.RoundRepositoryImpl
 import de.morzo.realmscore.data.repository.SandboxFavoriteRepositoryImpl
 import de.morzo.realmscore.data.repository.SettingsRepositoryImpl
 import de.morzo.realmscore.data.repository.StatsRepositoryImpl
+import de.morzo.realmscore.domain.p2p.P2PSessionRepository
 import de.morzo.realmscore.domain.repository.BackupRepository
+import de.morzo.realmscore.domain.repository.DeviceProfileMappingRepository
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
@@ -59,7 +67,7 @@ class AppContainer(private val applicationContext: Context) {
             // at minimum gate it behind a debug check. Decision deferred: documenting only for now.
             // Real migrations registered here take precedence over the destructive fallback for the
             // version steps they cover (spec 25.6: 6 → 7 adds the favorite `name` column).
-            .addMigrations(MIGRATION_6_7)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -186,6 +194,33 @@ class AppContainer(private val applicationContext: Context) {
         BackupRepositoryImpl(
             db = database,
             deviceUuidProvider = deviceUuidProvider,
+            clock = clock,
+        )
+    }
+
+    // Phase 28 P2P sync. Bluetooth RFCOMM transport + QR/code handshake + CompanionDeviceManager
+    // association (no ACCESS_FINE_LOCATION). SessionManager is the high-level P2PSessionRepository.
+    val bluetoothRfcommManager: BluetoothRfcommManager by lazy {
+        BluetoothRfcommManager(applicationContext)
+    }
+
+    val handshakeManager: HandshakeManager by lazy { HandshakeManager() }
+
+    val companionDeviceHelper: CompanionDeviceHelper by lazy {
+        CompanionDeviceHelper(applicationContext)
+    }
+
+    val p2pSessionRepository: P2PSessionRepository by lazy {
+        SessionManager(
+            bluetooth = bluetoothRfcommManager,
+            handshake = handshakeManager,
+            deviceUuidProvider = deviceUuidProvider,
+        )
+    }
+
+    val deviceProfileMappingRepository: DeviceProfileMappingRepository by lazy {
+        DeviceProfileMappingRepositoryImpl(
+            dao = database.deviceProfileMappingDao(),
             clock = clock,
         )
     }

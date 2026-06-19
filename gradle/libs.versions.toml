@@ -17,6 +17,7 @@ serialization = "1.8.0"
 camerax = "1.4.1"
 tesseract4android = "4.8.0"
 mlkitText = "16.0.1"
+zxing = "3.5.3"
 
 coreSplashscreen = "1.0.1"
 
@@ -54,6 +55,8 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 tesseract4android = { group = "com.github.adaptech-cz.Tesseract4Android", name = "tesseract4android", version.ref = "tesseract4android" }
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitText" }
+# P2P handshake (Phase 28): QR generation + decoding. Pure-Java, Apache-2.0, F-Droid-safe.
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 

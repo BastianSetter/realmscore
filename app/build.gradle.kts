@@ -114,6 +114,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
 
+    // P2P sync (Phase 28): QR-code handshake. ZXing core for both flavors (FOSS, F-Droid-safe).
+    implementation(libs.zxing.core)
+
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 

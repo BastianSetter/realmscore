@@ -502,4 +502,33 @@
     <string name="state_empty_default_title">Noch nichts hier</string>
     <string name="state_error_default_title">Etwas ist schiefgelaufen</string>
     <string name="state_retry">Erneut versuchen</string>
+
+    <!-- P2P sync (Phase 28) -->
+    <string name="p2p_open_for_joins">Für Beitritt öffnen</string>
+    <string name="p2p_join_session">Session beitreten</string>
+    <string name="p2p_device_joined">Gerät von %1$s verbunden (%2$d/%3$d)</string>
+    <string name="p2p_device_joined_short">Gerät von %1$s verbunden</string>
+    <string name="p2p_connected_count">Verbundene Geräte: %1$d/%2$d</string>
+    <string name="p2p_locked_by">Wird bearbeitet von %1$s</string>
+    <string name="p2p_force_unlock">Entsperren</string>
+    <string name="p2p_reconciliation_title">Spieler zuordnen</string>
+    <string name="p2p_reconciliation_done">Fertig</string>
+    <string name="p2p_joined_waiting">Beigetreten – warte auf den Host</string>
+    <string name="p2p_map_local_profile">Lokales Profil zuordnen</string>
+    <string name="p2p_sync_complete">Spieldaten synchronisiert</string>
+    <string name="p2p_bluetooth_off_title">Bluetooth nicht aktiv</string>
+    <string name="p2p_bluetooth_off_body">Bitte aktiviere Bluetooth in den Einstellungen, um der Session beizutreten.</string>
+    <string name="p2p_bluetooth_settings">Bluetooth-Einstellungen öffnen</string>
+    <string name="p2p_bluetooth_unsupported">Dieses Gerät unterstützt kein Bluetooth.</string>
+    <string name="p2p_bluetooth_permission">Bitte erteile die Bluetooth-Berechtigung, um fortzufahren.</string>
+    <string name="p2p_scan_qr">QR-Code scannen</string>
+    <string name="p2p_session_code_label">Session-Code</string>
+    <string name="p2p_ready_title">Spiel bereit</string>
+    <string name="p2p_ready_body">Spiele alleine weiter oder öffne das Spiel, damit andere Geräte beitreten können.</string>
+    <string name="p2p_continue_to_game">Weiter zum Spiel</string>
+    <string name="p2p_connecting">Verbinde …</string>
+    <string name="p2p_enter_code_instead">Stattdessen Code eingeben</string>
+    <string name="p2p_camera_rationale">Kamerazugriff wird benötigt, um den QR-Code zu scannen.</string>
+    <string name="p2p_discoverable_denied">Sichtbarkeit abgelehnt. Ohne sie können andere Geräte dieses Gerät nicht finden.</string>
+    <string name="home_join_session_body">Tritt einer Session am selben Tisch bei und erfasst gemeinsam.</string>
 </resources>

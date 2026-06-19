@@ -31,16 +31,24 @@ class MainActivity : ComponentActivity() {
     private var appliedLanguage: AppLanguage = AppLanguage.SYSTEM
 
     override fun attachBaseContext(newBase: Context) {
-        // Apply the chosen language at the *base-context* level so EVERY window the Activity spawns
-        // — Dialog, ModalBottomSheet, Popup, DropdownMenu — inherits it. Compose re-runs
-        // ProvideAndroidCompositionLocals from each child window's context, so a composition-only
-        // override (the old LocalizedContent) never reached those windows (spec 25.7, Ursache A).
+        // Apply the chosen language so EVERY window the Activity spawns — Dialog, ModalBottomSheet,
+        // Popup, DropdownMenu — inherits it (spec 25.7, Ursache A).
+        //
+        // We do this via applyOverrideConfiguration() rather than replacing the base context with
+        // createConfigurationContext(): the latter detaches the base context's *outer context* from
+        // the Activity, which breaks system services that cast their context back to an Activity
+        // (CompanionDeviceManager.associate(), Phase 28, crashed with ClassCastException). Keeping the
+        // system-provided base context and only overriding its configuration fixes that while still
+        // overriding the locale for the Activity and all the windows it creates.
         // settingsRepository stays the single source of truth; reading it once synchronously here is
         // acceptable for a one-shot startup read of a tiny DataStore value.
         val settings = (newBase.applicationContext as FantasyRealmsApp).container.settingsRepository
         val language = runBlocking { settings.appLanguage.first() }
         appliedLanguage = language
-        super.attachBaseContext(newBase.localizedFor(language))
+        super.attachBaseContext(newBase)
+        language.toLocaleOrNull()?.let { locale ->
+            applyOverrideConfiguration(Configuration().apply { setLocale(locale) })
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,13 +84,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** A context whose resources resolve in [language]; the receiver unchanged for [AppLanguage.SYSTEM]. */
-private fun Context.localizedFor(language: AppLanguage): Context {
-    val locale = when (language) {
-        AppLanguage.SYSTEM -> return this // follow the device locale
-        AppLanguage.GERMAN -> Locale.forLanguageTag("de")
-        AppLanguage.ENGLISH -> Locale.forLanguageTag("en")
-    }
-    val config = Configuration(resources.configuration).apply { setLocale(locale) }
-    return createConfigurationContext(config)
+/** The explicit [Locale] for [language], or null to follow the device locale ([AppLanguage.SYSTEM]). */
+private fun AppLanguage.toLocaleOrNull(): Locale? = when (this) {
+    AppLanguage.SYSTEM -> null
+    AppLanguage.GERMAN -> Locale.forLanguageTag("de")
+    AppLanguage.ENGLISH -> Locale.forLanguageTag("en")
 }
