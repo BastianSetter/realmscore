@@ -71,9 +71,18 @@ sealed class SyncMessage {
      * Host → all: a round is now open for capture (Stage B). Sent right after the [FullGameState] that
      * seeds every device's mirror with the shared game/round/profile UUIDs, so all phones navigate into
      * the round-capture screen together. Reused for each subsequent round.
+     *
+     * [priorSubmissions] carries the *previous* round's per-device ordered submit lists (deviceId →
+     * ordered unitIds), so every phone can build the adaptive round-2+ auto-assign order locally (own
+     * list first, then the shared round-robin combined list). Empty for the first round of a game and
+     * backward-compatible (older peers ignore the unknown key).
      */
     @Serializable
-    data class StartRound(val gameId: String, val roundId: String) : SyncMessage()
+    data class StartRound(
+        val gameId: String,
+        val roundId: String,
+        val priorSubmissions: Map<String, List<String>> = emptyMap(),
+    ) : SyncMessage()
 
     /**
      * Client → host: this device finished capturing [unitId] (a player hand or the Mittelfeld) in

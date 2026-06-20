@@ -58,7 +58,13 @@
       "PowerShell($apk = *)",
       "PowerShell(& $adb *)",
       "PowerShell(& \"C:\\\\Users\\\\basti\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" *)",
-      "PowerShell(Write-Output *)"
+      "PowerShell(Write-Output *)",
+      "PowerShell(& \"C:\\\\Users\\\\basti\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" devices)",
+      "PowerShell(& \"C:\\\\Users\\\\basti\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" -s 38011FDJH000N5 logcat -b crash -d | Select-Object -Last 60)",
+      "Bash(C:/Users/basti/AppData/Local/Android/Sdk/platform-tools/adb.exe -s cef2e19b shell run-as de.morzo.realmscore.debug ls databases/)",
+      "Bash(C:/Users/basti/AppData/Local/Android/Sdk/platform-tools/adb.exe -s cef2e19b shell run-as de.morzo.realmscore.debug 'sqlite3 databases/realm_score.db \"SELECT id,name,isLocalOwner,originDeviceId FROM profiles WHERE isLocalOwner=1;\"')",
+      "PowerShell($adb=\"C:\\\\Users\\\\basti\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb -s 38011FDJH000N5 install -r \"app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk\"; if \\($?\\) { & $adb -s cef2e19b install -r \"app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk\" })",
+      "PowerShell(git *)"
     ]
   }
 }

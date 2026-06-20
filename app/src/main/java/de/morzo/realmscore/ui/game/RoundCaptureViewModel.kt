@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.data.datastore.DeviceUuidProvider
 import de.morzo.realmscore.domain.game.CaptureOrdering
+import de.morzo.realmscore.domain.game.DistributedAssignOrder
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.p2p.P2PSessionRepository
 import de.morzo.realmscore.domain.p2p.model.HandCardSyncData
@@ -274,9 +275,11 @@ class RoundCaptureViewModel(
     // --- P2P distributed-capture engine (Stage B) ---
 
     /**
-     * Device-specific steal order: this device's own unit first (the host takes the Mittelfeld first so
-     * the discard is known before any Necromancer pick), then the global order [Mittelfeld?, hands by
-     * seatOrder]. All mirrors share the same participant seatOrder, so the global order is deterministic.
+     * Device-specific steal order. Round 1 (no prior data): this device's own unit first (the host
+     * takes the Mittelfeld first so the discard is known before any Necromancer pick), then the global
+     * order [Mittelfeld?, hands by seatOrder]. Round 2+: replay the previous round's submit history —
+     * this device's own list first, then the shared round-robin combined list (see
+     * [DistributedAssignOrder]). All mirrors share the same seatOrder + seed, so the order is consistent.
      */
     private suspend fun buildAssignOrder(
         session: SessionState,
@@ -284,16 +287,24 @@ class RoundCaptureViewModel(
     ): List<String> {
         val seatOrderIds = participants.map { it.profileId }.filter { drafts.containsKey(it) }
         val globalOrder = if (discardEnabled) listOf(DISCARD_ID) + seatOrderIds else seatOrderIds
+        val isHostDiscard = session is SessionState.Hosting && discardEnabled
         val ownSeat = when (session) {
             is SessionState.Hosting -> profileRepo.getLocalOwner()?.id
             else -> p2p.ownSeatUnitId()
         }
         val ownFirst = when {
-            session is SessionState.Hosting && discardEnabled -> DISCARD_ID
+            isHostDiscard -> DISCARD_ID
             ownSeat != null && ownSeat in globalOrder -> ownSeat
             else -> globalOrder.firstOrNull()
         }
-        return listOfNotNull(ownFirst) + globalOrder.filter { it != ownFirst }
+        return DistributedAssignOrder.build(
+            priorSubmissions = p2p.roundOrderSeed.value,
+            myDeviceId = myDeviceId,
+            globalOrder = globalOrder,
+            ownFirst = ownFirst,
+            // Keep the host's Mittelfeld pinned first across every round (Necromancer correctness).
+            forcedFirst = if (isHostDiscard) DISCARD_ID else null,
+        )
     }
 
     /** Reacts to the host's authoritative lock/done broadcast: repaint, then keep this device busy. */

@@ -90,6 +90,14 @@ class NewGameViewModel(
     /** Provisional session id used while the game doesn't exist yet (roster-only in Stage A). */
     private val sessionGameId: String = UUID.randomUUID().toString()
 
+    /**
+     * This host's own device id (the local owner's `originDeviceId`), captured once at init. A locally
+     * added player is *captured by the host*, so its roster row must carry this id — never the added
+     * profile's stored `originDeviceId`, which for a profile synced in from another device is that
+     * device's id and would (a) block that device from joining and (b) misdirect client seat-resolution.
+     */
+    private var hostDeviceId: String = ""
+
     fun bluetoothStatus(): BluetoothStatus = p2p.bluetoothStatus()
 
     /** Host: open the in-progress roster for joins. Safe to call once Bluetooth is ready. */
@@ -124,9 +132,14 @@ class NewGameViewModel(
         // user may just be glancing at this screen mid-game (closing it would drop everyone) — and do
         // NOT close it when we're intentionally continuing with the same group ("Neues Spiel starten").
         if (!continueSession && !p2p.isInActiveGame()) p2p.close()
+        // A fresh new game never inherits a previous session's joined players. close() above already
+        // clears them, but it is skipped when an active game lingers (e.g. abandoned without a formal
+        // close) — without this, stale joiners would occupy device slots and block the real join.
+        if (!continueSession) p2p.resetJoinedRoster()
         viewModelScope.launch {
             val owner = profileRepo.getLocalOwner()
                 ?: error("Local owner not found – onboarding must run first.")
+            hostDeviceId = owner.originDeviceId
             _uiState.update { state ->
                 state.copy(
                     ownerProfileId = owner.id,
@@ -306,7 +319,8 @@ class NewGameViewModel(
                     name = profile.name,
                     colorArgb = profile.colorArgb,
                     isOwner = profile.id == it.ownerProfileId,
-                    originDeviceId = profile.originDeviceId,
+                    // Locally added → captured by this host device, not the profile's origin device.
+                    originDeviceId = hostDeviceId.ifBlank { profile.originDeviceId },
                 ),
                 addQuery = "",
                 suggestions = emptyList(),

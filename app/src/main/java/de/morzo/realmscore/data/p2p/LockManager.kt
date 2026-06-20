@@ -41,6 +41,10 @@ class LockManager {
         locks.remove(DeviceLock.key(roundId, unitId))
     }
 
+    /** The device currently holding this unit's lock (used to attribute a submission), or null if free. */
+    @Synchronized
+    fun holderOf(roundId: String, unitId: String): String? = locks[DeviceLock.key(roundId, unitId)]
+
     /** Marks the unit finished and drops its lock; it can no longer be locked. */
     @Synchronized
     fun markDone(roundId: String, unitId: String) {

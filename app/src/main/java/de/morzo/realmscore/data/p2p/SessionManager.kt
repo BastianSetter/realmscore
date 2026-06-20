@@ -74,6 +74,17 @@ class SessionManager(
     override val liveDrafts: StateFlow<Map<String, Set<String>>> = _liveDrafts.asStateFlow()
     private val liveDraftOwner = mutableMapOf<String, String>() // unitId -> deviceId
 
+    /** The previous round's per-device ordered submit lists, fed to each capture screen's auto-assign. */
+    private val _roundOrderSeed = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    override val roundOrderSeed: StateFlow<Map<String, List<String>>> = _roundOrderSeed.asStateFlow()
+
+    /**
+     * Host-only submit log: roundId → (deviceId → unitIds in the order that device submitted them).
+     * In-memory only — a host restart mid-game loses it (the next round then falls back to seat order).
+     * Snapshotted into [_roundOrderSeed] when the *next* round opens (see [startSharedSession]).
+     */
+    private val submissionLog = LinkedHashMap<String, LinkedHashMap<String, MutableList<String>>>()
+
     /** Host-only authoritative lock registry; clients drive it via [SyncMessage] over Bluetooth. */
     private val lockManager = LockManager()
 
@@ -168,7 +179,9 @@ class SessionManager(
                     runCatching { connection.send(SyncMessage.FullGameState(snap.game, snap.profiles)) }
                 }
                 _roundStatus.value?.let { runCatching { connection.send(it) } }
-                runCatching { connection.send(SyncMessage.StartRound(gameId, roundId)) }
+                runCatching {
+                    connection.send(SyncMessage.StartRound(gameId, roundId, _roundOrderSeed.value))
+                }
             }
         }
         scope.launch {
@@ -190,18 +203,43 @@ class SessionManager(
 
     override fun isInActiveGame(): Boolean = activeGameId != null
 
+    override fun resetJoinedRoster() {
+        // Clear leftover joiners without touching connections/sockets (a fresh new-game setup; the live
+        // join re-announces over the existing or a re-scanned connection).
+        _joinedParticipants.value = emptyList()
+    }
+
     override suspend fun startSharedSession(gameId: String): Result<String> = runCatching {
-        // Mint the first round, then distribute the whole game so every client builds the same-UUID
+        // Snapshot the just-finished round's per-device submit order before we mint the next one, so
+        // every phone can build the adaptive round-2+ assign order (empty for the first round).
+        val seed = snapshotSubmissions(activeRoundId)
+        // Mint the next round, then distribute the whole game so every client builds the same-UUID
         // mirror before being told to navigate in.
         val round = roundRepo.startRound(gameId)
         val snapshot = backupRepository.exportGame(gameId)
             ?: error("Game $gameId not found for distribution")
         activeGameId = gameId
         activeRoundId = round.id
+        _roundOrderSeed.value = seed
         clearAllDrafts() // a fresh round: no in-progress drafts carry over
         broadcast(SyncMessage.FullGameState(snapshot.game, snapshot.profiles))
-        broadcast(SyncMessage.StartRound(gameId, round.id))
+        broadcast(SyncMessage.StartRound(gameId, round.id, seed))
         round.id
+    }
+
+    /** Host: a read-only copy of [roundId]'s submit log (deviceId → ordered unitIds), or empty. */
+    private fun snapshotSubmissions(roundId: String?): Map<String, List<String>> =
+        synchronized(lock) {
+            roundId?.let { submissionLog[it]?.mapValues { (_, units) -> units.toList() } } ?: emptyMap()
+        }
+
+    /** Host: append [unitId] to [deviceId]'s ordered submit log for [roundId] (first submission wins). */
+    private fun recordSubmission(roundId: String, unitId: String, deviceId: String) {
+        synchronized(lock) {
+            val perDevice = submissionLog.getOrPut(roundId) { LinkedHashMap() }
+            val units = perDevice.getOrPut(deviceId) { mutableListOf() }
+            if (unitId !in units) units += unitId
+        }
     }
 
     // --- Stage B: distributed optimistic locking (host-authoritative) ---
@@ -243,6 +281,11 @@ class SessionManager(
 
     override suspend fun markUnitDone(roundId: String, unitId: String) {
         if (isHost()) {
+            // Attribute to the lock holder (this device for its own hand), recorded before markDone
+            // drops the lock, so the next round's auto-assign can replay each device's submit order.
+            val deviceId = lockManager.holderOf(roundId, unitId)
+                ?: myDeviceId ?: deviceUuidProvider.get().also { myDeviceId = it }
+            recordSubmission(roundId, unitId, deviceId)
             lockManager.markDone(roundId, unitId)
             clearDraftAndBroadcast(roundId, unitId)
             rebuildAndBroadcastStatus(roundId)
@@ -435,6 +478,7 @@ class SessionManager(
             is SyncMessage.StartRound -> {
                 activeGameId = message.gameId
                 activeRoundId = message.roundId
+                _roundOrderSeed.value = message.priorSubmissions // seed the adaptive auto-assign order
                 clearAllDrafts() // a fresh round: drop any leftover in-progress drafts
                 _navSignals.emit(NavSignal.OpenRound(message.roundId))
             }
@@ -500,6 +544,11 @@ class SessionManager(
             }
 
             is SyncMessage.UnitDone -> if (isHost()) {
+                // Attribute to the lock holder (the submitting client), falling back to the connection's
+                // announced device, before markDone drops the lock.
+                val deviceId = lockManager.holderOf(message.roundId, message.unitId)
+                    ?: synchronized(lock) { connectionDeviceId[from] }
+                deviceId?.let { recordSubmission(message.roundId, message.unitId, it) }
                 lockManager.markDone(message.roundId, message.unitId)
                 clearDraftAndBroadcast(message.roundId, message.unitId)
                 rebuildAndBroadcastStatus(message.roundId)
@@ -621,7 +670,11 @@ class SessionManager(
         activeRoundId = null
         lockManager.reset()
         clearAllDrafts()
-        synchronized(lock) { deviceNamesById.clear() }
+        synchronized(lock) {
+            deviceNamesById.clear()
+            submissionLog.clear()
+        }
+        _roundOrderSeed.value = emptyMap()
         _roundStatus.value = null
         _incomingParticipants.value = emptyList()
         _joinedParticipants.value = emptyList()

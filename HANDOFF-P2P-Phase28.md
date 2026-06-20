@@ -19,6 +19,29 @@ Stage B = multi-device live-capture (committed `244a4e5`, device-fixes `7c9f84a`
   distribution + self-seat reconcile) — **working on-device 2026-06-20.** Builds both flavors,
   F-Droid check clean, DB still **v8** (no new entities — only query-only DAO additions).
 
+- **Adaptive multi-phone assign order + join fix** (2026-06-20, **device-VERIFIED on 2 phones**): from
+  round 2 on, each phone's auto-assign priority is *its own previous-round submit list first*, then a
+  shared round-robin "combined" list (index 0 of every device, then index 1, … — devices ordered by id)
+  **walked in reverse** (the front of the combined list is everyone's own seat, re-grabbed via the
+  own-list priority, so a stealing phone takes the leftover later-position hands from the back first —
+  matches the spec "C gets Hand 3, the last one", and the on-device test `A:{1,3,4} B:{2}` → B steals
+  `4` then `3`). Round 1 keeps the seat-based order. The **host** records the per-device submit order in
+  memory (`submissionLog`, attributed via the lock holder at `markDone`), snapshots the finished round's
+  log into `SyncMessage.StartRound.priorSubmissions` + `P2PSessionRepository.roundOrderSeed` when the
+  next round opens, and every phone builds its order locally via the pure `domain/game/DistributedAssignOrder`
+  (unit-tested). In-memory only (host app-kill mid-game → next round falls back to seat order). No DB
+  change (v8). Single-phone ordering (`CaptureOrdering` / `lastScanOrder`) was already correct and is
+  untouched.
+  - **Join bug fixed (was blocking the test):** a locally added player (`addExistingProfile`) used to
+    copy the *added profile's* `originDeviceId` into its roster row. A profile synced in from another
+    device carries that device's id, so adding it made the local row claim a remote device — and since
+    `mergeJoinedParticipants` dedups joiners by `originDeviceId`, the real device's join was dropped as
+    "already known". Fix: a locally added player is captured by the host, so its row now carries the
+    host's own device id (`hostDeviceId`, the local owner's `originDeviceId`). Also added
+    `P2PSessionRepository.resetJoinedRoster()` (clears stale joiners on a fresh new game without
+    dropping live connections). Rule: a roster row's `originDeviceId` = "device that captures this seat"
+    (host for owner/locals, remote only for true joins), never "device the profile was created on".
+
 - **Game-end flow rework** (2026-06-20, built + installed both phones, **device test pending**):
   closing now happens on the **first** button (RoundSummary "Spiel abschließen" → `completeGame` =
   `closeGame` + `closeSharedGame`), so clients reach the game-end screen *then*. The closed game-end

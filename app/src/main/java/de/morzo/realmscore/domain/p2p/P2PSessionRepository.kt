@@ -29,6 +29,13 @@ interface P2PSessionRepository {
     val joinedParticipants: StateFlow<List<ParticipantInfo>>
 
     /**
+     * Drop any leftover joined players ([joinedParticipants]) WITHOUT tearing down live connections.
+     * A fresh new game ("Neues Spiel", not "Neues Spiel starten") calls this so a previous session's
+     * stale joiners don't pollute the new roster when [close] was skipped to guard an active game.
+     */
+    fun resetJoinedRoster()
+
+    /**
      * One-shot navigation commands (Stage B): clients follow the host into round capture / reveal.
      * A `SharedFlow` so each command fires its navigation exactly once (host emits via broadcasts).
      */
@@ -40,6 +47,14 @@ interface P2PSessionRepository {
      * drive its deterministic auto-assignment of free units.
      */
     val roundStatus: StateFlow<SyncMessage.RoundStatus?>
+
+    /**
+     * The *previous* round's per-device ordered submit lists (deviceId → ordered unitIds), set whenever
+     * a round opens (host: in [startSharedSession]; client: on [SyncMessage.StartRound]). The
+     * round-capture screen reads it to build the adaptive round-2+ auto-assign order. Empty for the
+     * first round of a game (and when no session is active).
+     */
+    val roundOrderSeed: StateFlow<Map<String, List<String>>>
 
     /**
      * Live, uncommitted card selections of the units currently being captured on *other* devices
