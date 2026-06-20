@@ -66,6 +66,7 @@ import kotlinx.coroutines.launch
 fun NewGameScreen(
     container: AppContainer,
     onGameStarted: (gameId: String) -> Unit,
+    onSharedRoundStarted: (roundId: String) -> Unit,
     onBack: () -> Unit,
 ) {
     val vm: NewGameViewModel = viewModel(
@@ -143,7 +144,7 @@ fun NewGameScreen(
             Spacer(Modifier.height(24.dp))
 
             Button(
-                onClick = { vm.startGame(onGameStarted) },
+                onClick = { vm.startGame(onGameStarted, onSharedRoundStarted) },
                 enabled = state.canStart,
                 modifier = Modifier.fillMaxWidth(),
             ) {

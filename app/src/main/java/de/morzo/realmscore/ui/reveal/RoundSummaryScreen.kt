@@ -79,6 +79,7 @@ fun RoundSummaryScreen(
             handCardRepo = container.handCardRepository,
             cardLookup = container.cardLookup,
             engine = container.scoringEngine,
+            p2p = container.p2pSessionRepository,
         ),
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -134,7 +135,9 @@ fun RoundSummaryScreen(
 
                 Spacer(Modifier.height(16.dp))
 
-                if (state.canStartNextRound) {
+                // P2P client: the host drives round advancement and game closing — the client only
+                // follows (via the OpenRound signal / GameClosed), so these controls are hidden.
+                if (state.canStartNextRound && !state.isP2pClient) {
                     Button(
                         onClick = { vm.startNextRound(onNextRound) },
                         modifier = Modifier.fillMaxWidth(),
@@ -143,11 +146,13 @@ fun RoundSummaryScreen(
                     }
                 }
 
-                OutlinedButton(
-                    onClick = { onCompleteGame(state.gameId) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.round_summary_complete_game))
+                if (!state.isP2pClient) {
+                    OutlinedButton(
+                        onClick = { onCompleteGame(state.gameId) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.round_summary_complete_game))
+                    }
                 }
 
                 if (state.canEditRound) {

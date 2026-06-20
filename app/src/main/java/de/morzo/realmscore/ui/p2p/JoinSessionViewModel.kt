@@ -30,6 +30,9 @@ class JoinSessionViewModel(
     val sessionState = p2p.sessionState
     val incomingParticipants = p2p.incomingParticipants
 
+    /** Host-driven navigation: when the host starts a round, follow it into capture (Stage B). */
+    val navSignals = p2p.navSignals
+
     val localProfiles: StateFlow<List<LocalProfile>> =
         profileRepo.observeAll()
             .map { profiles ->

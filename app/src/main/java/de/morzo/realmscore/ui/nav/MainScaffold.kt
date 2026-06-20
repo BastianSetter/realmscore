@@ -16,6 +16,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
+import de.morzo.realmscore.domain.p2p.model.NavSignal
 import de.morzo.realmscore.domain.stats.random.StatDestination
 import de.morzo.realmscore.ui.game.GameInProgressScreen
 import de.morzo.realmscore.ui.game.RoundCaptureScreen
@@ -110,6 +112,23 @@ fun MainScaffold(container: AppContainer) {
         roundRepo = container.roundRepository,
         pickRandomStatUseCase = container.pickRandomStatUseCase,
     )
+
+    // P2P (Phase 28, Stage B): one place follows the host through the shared game flow. The host
+    // navigates itself directly (new-game / next-round callbacks); these signals drive the clients into
+    // each round, and everyone (host included) into the reveal once the host has computed it.
+    LaunchedEffect(Unit) {
+        container.p2pSessionRepository.navSignals.collect { signal ->
+            when (signal) {
+                is NavSignal.OpenRound ->
+                    tabNavController.navigateAcross(Routes.roundCaptureRoute(signal.roundId))
+                is NavSignal.OpenReveal ->
+                    tabNavController.navigate(Routes.revealRoute(signal.roundId)) {
+                        popUpTo(Routes.ROUND_CAPTURE) { inclusive = true }
+                        launchSingleTop = true
+                    }
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = { AppBottomNavigation(tabNavController) },
@@ -257,6 +276,13 @@ fun MainScaffold(container: AppContainer) {
                         // we go straight into the game; any open session keeps running.
                         onGameStarted = { gameId ->
                             tabNavController.navigate(Routes.gameRoute(gameId)) {
+                                popUpTo(Routes.NEW_GAME) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        },
+                        // Hosting a P2P session: go straight into the shared round capture (Stage B).
+                        onSharedRoundStarted = { roundId ->
+                            tabNavController.navigate(Routes.roundCaptureRoute(roundId)) {
                                 popUpTo(Routes.NEW_GAME) { inclusive = true }
                                 launchSingleTop = true
                             }

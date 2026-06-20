@@ -7,6 +7,8 @@ import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.Game
 import de.morzo.realmscore.domain.model.GameMode
+import de.morzo.realmscore.domain.p2p.P2PSessionRepository
+import de.morzo.realmscore.domain.p2p.model.SessionState
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
@@ -44,6 +46,8 @@ data class RoundSummaryUiState(
     val canStartNextRound: Boolean = false,
     val canEditRound: Boolean = false,
     val isLastRound: Boolean = false,
+    /** P2P (Stage B): a client only follows the host — it never advances or closes the game itself. */
+    val isP2pClient: Boolean = false,
 )
 
 class RoundSummaryViewModel(
@@ -54,6 +58,7 @@ class RoundSummaryViewModel(
     private val handCardRepo: HandCardRepository,
     private val cardLookup: CardLookup,
     private val engine: ScoringEngine,
+    private val p2p: P2PSessionRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RoundSummaryUiState())
@@ -117,6 +122,7 @@ class RoundSummaryViewModel(
                     val canNext = canStartNextRound(game, totalsByProfile, rounds.size)
                     Triple(isLast, canNext, totalsByProfile.size)
                 }.collect { (isLast, canNext, _) ->
+                    val isP2pClient = p2p.sessionState.value is SessionState.Connected
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -127,6 +133,7 @@ class RoundSummaryViewModel(
                             canStartNextRound = canNext && isLast,
                             canEditRound = isLast,
                             isLastRound = isLast,
+                            isP2pClient = isP2pClient,
                         )
                     }
                 }
@@ -138,8 +145,15 @@ class RoundSummaryViewModel(
         viewModelScope.launch {
             val gameId = _uiState.value.gameId
             if (gameId.isEmpty()) return@launch
-            val round = roundRepo.startRound(gameId)
-            onStarted(round.id)
+            // Host of a live session: mint + distribute the round so every device follows (clients get
+            // the OpenRound signal). Otherwise (solo) just start the next round locally.
+            if (p2p.sessionState.value is SessionState.Hosting) {
+                p2p.startSharedSession(gameId)
+                    .onSuccess { roundId -> onStarted(roundId) }
+                    .onFailure { onStarted(roundRepo.startRound(gameId).id) }
+            } else {
+                onStarted(roundRepo.startRound(gameId).id)
+            }
         }
     }
 
@@ -195,6 +209,7 @@ class RoundSummaryViewModel(
         private val handCardRepo: HandCardRepository,
         private val cardLookup: CardLookup,
         private val engine: ScoringEngine,
+        private val p2p: P2PSessionRepository,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -206,6 +221,7 @@ class RoundSummaryViewModel(
                 handCardRepo = handCardRepo,
                 cardLookup = cardLookup,
                 engine = engine,
+                p2p = p2p,
             ) as T
         }
     }

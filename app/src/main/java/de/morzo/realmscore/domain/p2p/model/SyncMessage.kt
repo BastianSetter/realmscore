@@ -52,6 +52,34 @@ sealed class SyncMessage {
     @Serializable
     data class DiscardUpdate(val roundId: String, val cards: List<String>) : SyncMessage()
 
+    /**
+     * Host → all: a round is now open for capture (Stage B). Sent right after the [FullGameState] that
+     * seeds every device's mirror with the shared game/round/profile UUIDs, so all phones navigate into
+     * the round-capture screen together. Reused for each subsequent round.
+     */
+    @Serializable
+    data class StartRound(val gameId: String, val roundId: String) : SyncMessage()
+
+    /**
+     * Client → host: this device finished capturing [unitId] (a player hand or the Mittelfeld) in
+     * [roundId]. The host marks the unit done in its authoritative registry (and drops its lock), then
+     * re-broadcasts [RoundStatus]. A finished unit is never reassigned (MVP).
+     */
+    @Serializable
+    data class UnitDone(val roundId: String, val unitId: String) : SyncMessage()
+
+    /**
+     * Host → all: the authoritative lock + done state of a round (Stage B). Drives the capture-screen
+     * lock indicators ("wird bearbeitet von X"), the deterministic auto-assignment of free units, and
+     * the pre-reveal waiting screen. A unit absent from both lists is free to grab.
+     */
+    @Serializable
+    data class RoundStatus(
+        val roundId: String,
+        val locks: List<UnitLock>,
+        val doneUnitIds: List<String>,
+    ) : SyncMessage()
+
     /** A round was completed (all hands captured) on the sending device. */
     @Serializable
     data class RoundComplete(val roundId: String) : SyncMessage()
@@ -87,6 +115,14 @@ sealed class SyncMessage {
     @Serializable
     data object Pong : SyncMessage()
 }
+
+/** One held lock in [SyncMessage.RoundStatus]: [unitId] is being captured by [deviceName]. */
+@Serializable
+data class UnitLock(
+    val unitId: String,
+    val deviceId: String,
+    val deviceName: String,
+)
 
 /** One participant as broadcast in [SyncMessage.PlayerListUpdate]. */
 @Serializable

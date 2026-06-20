@@ -21,6 +21,7 @@ import de.morzo.realmscore.domain.backup.BackupResult
 import de.morzo.realmscore.domain.backup.BackupRound
 import de.morzo.realmscore.domain.backup.BackupSchemaTooNewException
 import de.morzo.realmscore.domain.backup.CURRENT_BACKUP_SCHEMA_VERSION
+import de.morzo.realmscore.domain.backup.GameSnapshot
 import de.morzo.realmscore.domain.backup.ImportResult
 import de.morzo.realmscore.domain.repository.BackupRepository
 import de.morzo.realmscore.domain.util.Clock
@@ -187,6 +188,182 @@ class BackupRepositoryImpl(
             if (result.handCards.isNotEmpty()) {
                 db.handCardDao().insertAll(result.handCards.map { it.toEntity(result.id) })
             }
+        }
+    }
+
+    // --- Phase 28 Stage B: single-game export, LWW merge, self-seat reconcile ---
+
+    override suspend fun exportGame(gameId: String): GameSnapshot? {
+        val gameEntity = db.gameDao().getById(gameId) ?: return null
+        val participants = db.gameDao().getParticipants(gameId)
+        val rounds = db.roundDao().getAll().filter { it.gameId == gameId }.sortedBy { it.roundNumber }
+        val roundIds = rounds.map { it.id }.toSet()
+
+        val discardsByRound = db.discardCardDao().getAll()
+            .filter { it.roundId in roundIds }
+            .groupBy { it.roundId }
+        val results = db.roundResultDao().getResultsForRounds(roundIds.toList())
+        val resultsByRound = results.groupBy { it.roundId }
+        val resultIds = results.map { it.id }
+        val handCardsByResult = db.handCardDao().getForRoundResults(resultIds).groupBy { it.roundResultId }
+
+        val game = gameEntity.toBackup(
+            participants = participants,
+            rounds = rounds.map { round ->
+                round.toBackup(
+                    discards = discardsByRound[round.id].orEmpty(),
+                    results = (resultsByRound[round.id].orEmpty()).map { result ->
+                        result.toBackup(handCardsByResult[result.id].orEmpty())
+                    },
+                )
+            },
+        )
+        val profileIds = participants.mapTo(HashSet()) { it.profileId }
+        val profiles = db.profileDao().getAll().filter { it.id in profileIds }.map { it.toBackup() }
+        return GameSnapshot(game = game, profiles = profiles)
+    }
+
+    override suspend fun mergeGame(snapshot: GameSnapshot): ImportResult {
+        val game = snapshot.game
+        return db.withTransaction {
+            // --- Profiles: skip-if-exists (a player's name/colour is stable; never clobber the owner) ---
+            val existingProfileIds = db.profileDao().getAll().mapTo(HashSet()) { it.id }
+            var profilesAdded = 0
+            var profilesSkipped = 0
+            for (profile in snapshot.profiles) {
+                if (profile.id in existingProfileIds) {
+                    profilesSkipped++
+                } else {
+                    db.profileDao().insert(profile.toEntity(isLocalOwner = false))
+                    existingProfileIds += profile.id
+                    profilesAdded++
+                }
+            }
+
+            // --- Game header: insert-if-new, else LWW on updatedAt (carries closedAt at game end) ---
+            val existingGame = db.gameDao().getById(game.id)
+            val participants = game.participants
+                .filter { it.profileId in existingProfileIds }
+                .map { it.toEntity(game.id) }
+            var gamesCreated = 0
+            if (existingGame == null) {
+                db.gameDao().insert(game.toEntity())
+                db.gameDao().insertParticipants(participants)
+                gamesCreated++
+            } else {
+                db.gameDao().insertParticipantsIgnore(participants)
+                participants.forEach { p ->
+                    p.lastScanOrder?.let { db.gameDao().updateScanOrder(game.id, p.profileId, it) }
+                }
+                if (game.updatedAt > existingGame.updatedAt) {
+                    db.gameDao().updateGameMeta(
+                        id = game.id,
+                        displayName = game.displayName,
+                        closedAt = game.closedAt,
+                        closedReason = game.closedReason,
+                        updatedAt = game.updatedAt,
+                    )
+                }
+            }
+
+            // --- Rounds: insert new subtrees; LWW-overwrite existing ones ---
+            val existingRounds = db.roundDao().getAll()
+                .filter { it.gameId == game.id }
+                .associateBy { it.id }
+            var roundsAdded = 0
+            var roundsUpdated = 0
+            var roundsSkipped = 0
+            var roundsSkippedMissingProfile = 0
+            for (round in game.rounds) {
+                if (round.results.any { it.profileId !in existingProfileIds }) {
+                    roundsSkippedMissingProfile++
+                    continue
+                }
+                val existing = existingRounds[round.id]
+                when {
+                    existing == null -> {
+                        insertRoundSubtree(round, game.id)
+                        roundsAdded++
+                    }
+                    mergeExistingRound(round, existing) -> roundsUpdated++
+                    else -> roundsSkipped++
+                }
+            }
+
+            val gamesUpdated = if (existingGame != null && (roundsAdded > 0 || roundsUpdated > 0)) 1 else 0
+            ImportResult(
+                profilesAdded = profilesAdded,
+                profilesSkipped = profilesSkipped,
+                gamesCreated = gamesCreated,
+                gamesUpdated = gamesUpdated,
+                roundsAdded = roundsAdded,
+                roundsSkipped = roundsSkipped,
+                roundsSkippedMissingProfile = roundsSkippedMissingProfile,
+                roundsUpdated = roundsUpdated,
+            )
+        }
+    }
+
+    /**
+     * LWW-overwrites an existing round from [round]. The round meta (and its discard pile, which travels
+     * as a unit with the round) is replaced only when the incoming round is newer; each result is
+     * compared independently by id so a single freshly-captured hand updates without touching siblings.
+     * Returns true if anything changed.
+     */
+    private suspend fun mergeExistingRound(round: BackupRound, existing: RoundEntity): Boolean {
+        var changed = false
+        if (round.updatedAt > existing.updatedAt) {
+            db.roundDao().updateRoundMeta(
+                id = round.id,
+                roundNumber = round.roundNumber,
+                startedAt = round.startedAt,
+                completedAt = round.completedAt,
+                discardScanned = round.discardScanned,
+                updatedAt = round.updatedAt,
+            )
+            db.discardCardDao().deleteAllForRound(round.id)
+            if (round.discardCards.isNotEmpty()) {
+                db.discardCardDao().insertAll(round.discardCards.map { it.toEntity(round.id) })
+            }
+            changed = true
+        }
+        val existingResults = db.roundResultDao().getResultsForRounds(listOf(round.id)).associateBy { it.id }
+        for (result in round.results) {
+            val existingResult = existingResults[result.id]
+            when {
+                existingResult == null -> {
+                    db.roundResultDao().insert(result.toEntity(round.id))
+                    if (result.handCards.isNotEmpty()) {
+                        db.handCardDao().insertAll(result.handCards.map { it.toEntity(result.id) })
+                    }
+                    changed = true
+                }
+                result.updatedAt > existingResult.updatedAt -> {
+                    db.roundResultDao().updateScore(result.id, result.totalScore, result.updatedAt)
+                    db.handCardDao().deleteAllForRoundResult(result.id)
+                    if (result.handCards.isNotEmpty()) {
+                        db.handCardDao().insertAll(result.handCards.map { it.toEntity(result.id) })
+                    }
+                    changed = true
+                }
+            }
+        }
+        return changed
+    }
+
+    override suspend fun reconcileSelfSeat(canonicalProfileId: String) {
+        val ownerProfileId = db.profileDao().getLocalOwner()?.id ?: return
+        if (canonicalProfileId == ownerProfileId) return // host's own seat is already its owner
+        db.withTransaction {
+            val now = clock.nowEpochMillis()
+            val dao = db.profileDao()
+            // Mirror ProfileRepositoryImpl.mergeProfiles: clear PK collisions, reassign, then retire the
+            // now-empty canonical profile (archive rather than delete to stay FK-safe).
+            dao.deleteConflictingParticipants(keepId = ownerProfileId, discardId = canonicalProfileId)
+            dao.reassignParticipants(keepId = ownerProfileId, discardId = canonicalProfileId)
+            dao.reassignRoundResults(keepId = ownerProfileId, discardId = canonicalProfileId)
+            dao.archive(canonicalProfileId, now)
+            dao.touch(ownerProfileId, now)
         }
     }
 }

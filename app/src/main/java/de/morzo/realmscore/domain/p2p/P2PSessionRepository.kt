@@ -2,8 +2,12 @@ package de.morzo.realmscore.domain.p2p
 
 import de.morzo.realmscore.domain.p2p.model.BluetoothStatus
 import de.morzo.realmscore.domain.p2p.model.HandshakePayload
+import de.morzo.realmscore.domain.p2p.model.HandCardSyncData
+import de.morzo.realmscore.domain.p2p.model.NavSignal
 import de.morzo.realmscore.domain.p2p.model.ParticipantInfo
 import de.morzo.realmscore.domain.p2p.model.SessionState
+import de.morzo.realmscore.domain.p2p.model.SyncMessage
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -24,6 +28,19 @@ interface P2PSessionRepository {
      */
     val joinedParticipants: StateFlow<List<ParticipantInfo>>
 
+    /**
+     * One-shot navigation commands (Stage B): clients follow the host into round capture / reveal.
+     * A `SharedFlow` so each command fires its navigation exactly once (host emits via broadcasts).
+     */
+    val navSignals: SharedFlow<NavSignal>
+
+    /**
+     * The host-authoritative lock + done state of the active round (Stage B), or null when no round is
+     * being captured. Every device's round-capture screen observes this to paint lock indicators and to
+     * drive its deterministic auto-assignment of free units.
+     */
+    val roundStatus: StateFlow<SyncMessage.RoundStatus?>
+
     fun bluetoothStatus(): BluetoothStatus
 
     /** The local Bluetooth adapter name the host advertises (so the joiner can find it in CDM). */
@@ -37,6 +54,49 @@ interface P2PSessionRepository {
 
     /** Host: re-broadcast the roster after it changed in the new-game screen. */
     suspend fun broadcastParticipants(participants: List<ParticipantInfo>)
+
+    /**
+     * Host: the game [gameId] has been created locally — mint its first round, distribute the whole
+     * game ([SyncMessage.FullGameState]) so every client builds the same-UUID mirror, then signal
+     * [SyncMessage.StartRound] so all devices enter round capture together. Returns the new round id
+     * for the host's own navigation. No-op-friendly: only meaningful while [SessionState.Hosting].
+     */
+    suspend fun startSharedSession(gameId: String): Result<String>
+
+    /** Client-side: this device's own canonical (host-assigned) seat profile id, or null on the host/idle. */
+    fun ownSeatUnitId(): String?
+
+    /** Claim [unitId] in [roundId] for this device (host arbitrates; result arrives via [roundStatus]). */
+    suspend fun requestLock(roundId: String, unitId: String)
+
+    /** Voluntarily give up a lock this device holds (without finishing the unit). */
+    suspend fun releaseLock(roundId: String, unitId: String)
+
+    /** Force-release a unit locked by another device (manual "Übernehmen"). */
+    suspend fun forceUnlock(roundId: String, unitId: String)
+
+    /** Mark [unitId] finished (captured): the host records it done and re-broadcasts [roundStatus]. */
+    suspend fun markUnitDone(roundId: String, unitId: String)
+
+    /** Propagate a freshly captured player hand to the other devices' mirrors (Stage B live sync). */
+    suspend fun pushHandCards(roundId: String, unitId: String, cards: List<HandCardSyncData>)
+
+    /** Propagate the freshly captured Mittelfeld (discard pile) to the other devices' mirrors. */
+    suspend fun pushDiscard(roundId: String, cards: List<String>)
+
+    /**
+     * Host: every unit of [roundId] is captured — distribute the canonical mirror ([FullGameState]) and
+     * signal [SyncMessage.RoundComplete] so all devices open the reveal together (host is the sole
+     * scoring authority). No-op on a client.
+     */
+    suspend fun finishRound(roundId: String)
+
+    /**
+     * Host: the game [gameId] is finished — distribute the final [FullGameState] and a
+     * [SyncMessage.GameClosed] so every client merges the complete game and reattributes its own seat to
+     * its local owner profile. No-op on a client.
+     */
+    suspend fun closeSharedGame(gameId: String)
 
     /**
      * Client: connect to the host at [macAddress] (resolved via CompanionDeviceManager) using the

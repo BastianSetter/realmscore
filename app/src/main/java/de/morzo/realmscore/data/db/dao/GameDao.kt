@@ -58,6 +58,22 @@ interface GameDao {
     @Query("UPDATE games SET updatedAt = :ts WHERE id = :id")
     suspend fun touch(id: String, ts: Long)
 
+    /**
+     * Phase 28 Stage B: overwrite the mutable game-header fields from a newer mirror copy (LWW).
+     * Identity columns (id/mode/targets/startedAt/createdAt/originDeviceId) are never touched.
+     */
+    @Query(
+        "UPDATE games SET displayName = :displayName, closedAt = :closedAt, " +
+            "closedReason = :closedReason, updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun updateGameMeta(
+        id: String,
+        displayName: String?,
+        closedAt: Long?,
+        closedReason: String?,
+        updatedAt: Long,
+    )
+
     @Query(
         "UPDATE games SET closedAt = :ts, closedReason = :reason, updatedAt = :ts " +
             "WHERE id = :id AND closedAt IS NULL"

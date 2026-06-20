@@ -244,7 +244,9 @@ private fun JoinedContent(
             modifier = Modifier.padding(16.dp),
         )
         LazyColumn(modifier = Modifier.weight(1f)) {
-            items(participants, key = { it.originDeviceId.ifBlank { it.profileId } }) { participant ->
+            // Key by profileId: it is unique per participant, whereas several players added on the
+            // same device (the host's owner + any extra locals) share one originDeviceId.
+            items(participants, key = { it.profileId }) { participant ->
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,

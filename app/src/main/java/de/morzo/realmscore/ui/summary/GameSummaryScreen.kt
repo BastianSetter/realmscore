@@ -66,6 +66,7 @@ fun GameSummaryScreen(
             gameRepo = container.gameRepository,
             roundRepo = container.roundRepository,
             profileRepo = container.profileRepository,
+            p2p = container.p2pSessionRepository,
         ),
     )
     val state by vm.uiState.collectAsStateWithLifecycle()

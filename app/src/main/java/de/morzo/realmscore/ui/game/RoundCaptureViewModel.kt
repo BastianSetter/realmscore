@@ -4,8 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
+import de.morzo.realmscore.data.datastore.DeviceUuidProvider
 import de.morzo.realmscore.domain.game.CaptureOrdering
 import de.morzo.realmscore.domain.model.CardDefinition
+import de.morzo.realmscore.domain.p2p.P2PSessionRepository
+import de.morzo.realmscore.domain.p2p.model.HandCardSyncData
+import de.morzo.realmscore.domain.p2p.model.SessionState
+import de.morzo.realmscore.domain.p2p.model.SyncMessage
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardEntry
 import de.morzo.realmscore.domain.repository.HandCardRepository
@@ -50,6 +55,10 @@ data class CapturePlayer(
     val captured: Boolean,
     val cardsCount: Int,
     val requiredCount: Int,
+    /** P2P (Stage B): the name of another device currently capturing this unit, else null. */
+    val lockedByName: String? = null,
+    /** P2P (Stage B): this unit has been finished on some device (shown as done across all phones). */
+    val isDone: Boolean = false,
 )
 
 data class RoundCaptureUiState(
@@ -65,6 +74,10 @@ data class RoundCaptureUiState(
     val duplicateCardNames: List<String> = emptyList(),
     /** UI shape consumed by the shared PlayerHandCaptureContent for the current entry. */
     val current: PlayerHandEntryUiState = PlayerHandEntryUiState(isLoading = false),
+    /** P2P (Stage B): true when this device finished its share and is waiting for the rest of the round. */
+    val waitingForOthers: Boolean = false,
+    /** P2P (Stage B): the session is distributing this round across devices (locks/auto-assign active). */
+    val isDistributed: Boolean = false,
 ) {
     val allCaptured: Boolean
         get() = orderedPlayers.isNotEmpty() && orderedPlayers.all { it.captured }
@@ -94,6 +107,8 @@ class RoundCaptureViewModel(
     private val settingsRepo: SettingsRepository,
     private val engine: ScoringEngine,
     private val optimalSolver: OptimalSolver,
+    private val p2p: P2PSessionRepository,
+    private val deviceUuidProvider: DeviceUuidProvider,
     private val roundId: String,
 ) : ViewModel() {
 
@@ -118,6 +133,18 @@ class RoundCaptureViewModel(
 
     private var discardEnabled = false
     private var discardSlotCount = DISCARD_SLOTS_MULTI_PLAYER
+
+    // --- P2P distributed capture (Stage B). Inert when no session is active. ---
+    private var isDistributed = false
+    private var isHost = false
+    /** Host-only guard so the reveal is computed + broadcast exactly once per round. */
+    private var roundFinishRequested = false
+    private var myDeviceId: String = ""
+    /** Device-specific steal order: own unit first, then [Mittelfeld?, hands by seatOrder]. */
+    private var assignOrder: List<String> = emptyList()
+    /** The unit we last asked the host to lock for us (awaiting confirmation via roundStatus). */
+    private var pendingLockUnit: String? = null
+    private var latestStatus: SyncMessage.RoundStatus? = null
 
     // Saved discard state, kept in sync via the observer below; powers the Necromancer filtering.
     private var discardScanned = false
@@ -166,7 +193,19 @@ class RoundCaptureViewModel(
             orderedIds.forEach { id ->
                 if (canSubmit(id)) captured += id
             }
-            val first = orderedIds.firstOrNull { it !in captured } ?: orderedIds.firstOrNull()
+
+            // P2P (Stage B): a live host/client session distributes this round across devices. The
+            // current unit is then chosen by the lock flow (own hand first) rather than locally.
+            val session = p2p.sessionState.value
+            isHost = session is SessionState.Hosting
+            isDistributed = session is SessionState.Hosting || session is SessionState.Connected
+            val first = if (isDistributed) {
+                myDeviceId = deviceUuidProvider.get()
+                assignOrder = buildAssignOrder(session, participants)
+                null // set once a lock is granted
+            } else {
+                orderedIds.firstOrNull { it !in captured } ?: orderedIds.firstOrNull()
+            }
 
             _uiState.update {
                 it.copy(
@@ -175,9 +214,18 @@ class RoundCaptureViewModel(
                     currentProfileId = first,
                     pickerSearchEnabled = pickerSearchEnabled,
                     cameraScanEnabled = cameraScanEnabled,
+                    isDistributed = isDistributed,
                 )
             }
             rebuild()
+
+            if (isDistributed) {
+                // Only adopt status that belongs to THIS round — a stale previous-round status carries
+                // bare unitIds (profileIds) that would otherwise look "done" in the new round.
+                latestStatus = p2p.roundStatus.value?.takeIf { it.roundId == roundId }
+                advanceToNextUnit(latestStatus) // claim our own unit first
+                launch { p2p.roundStatus.collect { onRoundStatus(it) } }
+            }
 
             launch {
                 combine(
@@ -198,6 +246,91 @@ class RoundCaptureViewModel(
                     }
             }
         }
+    }
+
+    // --- P2P distributed-capture engine (Stage B) ---
+
+    /**
+     * Device-specific steal order: this device's own unit first (the host takes the Mittelfeld first so
+     * the discard is known before any Necromancer pick), then the global order [Mittelfeld?, hands by
+     * seatOrder]. All mirrors share the same participant seatOrder, so the global order is deterministic.
+     */
+    private suspend fun buildAssignOrder(
+        session: SessionState,
+        participants: List<de.morzo.realmscore.domain.model.GameParticipant>,
+    ): List<String> {
+        val seatOrderIds = participants.map { it.profileId }.filter { drafts.containsKey(it) }
+        val globalOrder = if (discardEnabled) listOf(DISCARD_ID) + seatOrderIds else seatOrderIds
+        val ownSeat = when (session) {
+            is SessionState.Hosting -> profileRepo.getLocalOwner()?.id
+            else -> p2p.ownSeatUnitId()
+        }
+        val ownFirst = when {
+            session is SessionState.Hosting && discardEnabled -> DISCARD_ID
+            ownSeat != null && ownSeat in globalOrder -> ownSeat
+            else -> globalOrder.firstOrNull()
+        }
+        return listOfNotNull(ownFirst) + globalOrder.filter { it != ownFirst }
+    }
+
+    /** Reacts to the host's authoritative lock/done broadcast: repaint, then keep this device busy. */
+    private fun onRoundStatus(status: SyncMessage.RoundStatus?) {
+        if (status != null && status.roundId != roundId) return
+        latestStatus = status
+        rebuild()
+        if (!isDistributed) return
+        // Host: once every unit of the round is done, compute + broadcast the reveal (sole authority).
+        if (isHost && !roundFinishRequested && orderedIds.isNotEmpty() &&
+            orderedIds.all { isUnitDone(it, status) }
+        ) {
+            roundFinishRequested = true
+            viewModelScope.launch { p2p.finishRound(roundId) }
+            return
+        }
+        if (isSaving) return
+        val current = _uiState.value.currentProfileId
+        // Stay on the unit we hold until it is finished; otherwise grab the next one.
+        if (current != null && isLockedByMe(current, status) && !isUnitDone(current, status)) return
+        advanceToNextUnit(status)
+    }
+
+    /** Moves to the next free+unfinished unit (requesting its lock), or shows the waiting screen. */
+    private fun advanceToNextUnit(status: SyncMessage.RoundStatus?) {
+        val next = nextAssignableUnit(status)
+        if (next == null) {
+            pendingLockUnit = null
+            _uiState.update { it.copy(currentProfileId = null, waitingForOthers = true) }
+            rebuild()
+            return
+        }
+        if (isLockedByMe(next, status)) {
+            pendingLockUnit = null
+        } else if (pendingLockUnit != next) {
+            pendingLockUnit = next
+            viewModelScope.launch { p2p.requestLock(roundId, next) }
+        }
+        _uiState.update { it.copy(currentProfileId = next, waitingForOthers = false) }
+        rebuild()
+    }
+
+    private fun nextAssignableUnit(status: SyncMessage.RoundStatus?): String? {
+        val lockedBy = status?.locks?.associate { it.unitId to it.deviceId } ?: emptyMap()
+        val done = status?.doneUnitIds?.toSet() ?: emptySet()
+        return assignOrder.firstOrNull { unit ->
+            unit !in done && (lockedBy[unit] == null || lockedBy[unit] == myDeviceId)
+        }
+    }
+
+    private fun isLockedByMe(unit: String, status: SyncMessage.RoundStatus?): Boolean =
+        status?.locks?.any { it.unitId == unit && it.deviceId == myDeviceId } == true
+
+    private fun isUnitDone(unit: String, status: SyncMessage.RoundStatus?): Boolean =
+        status?.doneUnitIds?.contains(unit) == true
+
+    /** Force-release a unit stuck on another (idle) device, then let auto-assign grab it (B3 "Übernehmen"). */
+    fun takeOverUnit(unitId: String) {
+        if (!isDistributed) return
+        viewModelScope.launch { p2p.forceUnlock(roundId, unitId) }
     }
 
     private fun requiredCountFor(id: String): Int =
@@ -235,6 +368,8 @@ class RoundCaptureViewModel(
     /** Recomputes [RoundCaptureUiState.orderedPlayers] and [RoundCaptureUiState.current]. */
     private fun rebuild() {
         val currentId = _uiState.value.currentProfileId
+        val lockByUnit = latestStatus?.locks?.associateBy { it.unitId } ?: emptyMap()
+        val doneUnits = latestStatus?.doneUnitIds?.toSet() ?: emptySet()
         val players = orderedIds.map { id ->
             val draft = drafts[id] ?: Draft()
             CapturePlayer(
@@ -244,6 +379,8 @@ class RoundCaptureViewModel(
                 captured = id in captured,
                 cardsCount = draft.slots.count { it is CardSlot.Filled },
                 requiredCount = requiredCountFor(id),
+                lockedByName = lockByUnit[id]?.takeIf { it.deviceId != myDeviceId }?.deviceName,
+                isDone = id in doneUnits,
             )
         }
         _uiState.update {
@@ -301,6 +438,8 @@ class RoundCaptureViewModel(
 
     fun switchToPlayer(profileId: String) {
         if (profileId !in drafts) return
+        // In a distributed round you may only edit a unit you currently hold the lock for.
+        if (isDistributed && !isLockedByMe(profileId, latestStatus)) return
         _uiState.update { it.copy(currentProfileId = profileId) }
         rebuild()
     }
@@ -391,6 +530,24 @@ class RoundCaptureViewModel(
             captured += id
 
             isSaving = false
+
+            if (isDistributed) {
+                // Live-sync the capture into every other device's mirror BEFORE announcing it done, so
+                // the host has the cards before it can detect "all done" and compute the reveal. Order
+                // is preserved per connection, so the host applies the cards first.
+                if (id == DISCARD_ID) {
+                    p2p.pushDiscard(roundId, draft.slots.mapNotNull { (it as? CardSlot.Filled)?.card?.key })
+                } else {
+                    p2p.pushHandCards(roundId, id, draft.toSyncData())
+                }
+                // Hand off to the host: mark this unit done (it drops the lock + re-broadcasts status).
+                // onRoundStatus then auto-grabs the next free unit, or shows the waiting screen. The
+                // host owns the reveal (B4), so this device never navigates there itself.
+                p2p.markUnitDone(roundId, id)
+                rebuild()
+                return@launch
+            }
+
             val next = orderedIds.firstOrNull { it !in captured }
             when {
                 // All captured but a card sits in two entries — don't proceed to the reveal; the
@@ -449,6 +606,14 @@ class RoundCaptureViewModel(
         return jokers.all { joker -> draft.jokerAssignments[joker.key]?.targetCardKey != null }
     }
 
+    /** Maps the current draft to the wire shape for live card sync (Stage B), mirroring [saveHand]. */
+    private fun Draft.toSyncData(): List<HandCardSyncData> =
+        slots.mapIndexedNotNull { idx, slot ->
+            val card = (slot as? CardSlot.Filled)?.card ?: return@mapIndexedNotNull null
+            val assignment = jokerAssignments[card.key]
+            HandCardSyncData(card.key, idx, assignment?.targetCardKey, assignment?.targetSuit?.name)
+        }
+
     private fun Draft.pruned(): Draft {
         val handKeys = slots.mapNotNull { (it as? CardSlot.Filled)?.card?.key }.toSet()
         // Every assignment (jokers, Island, Fountain, Necromancer) is keyed by its hand card, so they
@@ -472,6 +637,8 @@ class RoundCaptureViewModel(
         private val settingsRepo: SettingsRepository,
         private val engine: ScoringEngine,
         private val optimalSolver: OptimalSolver,
+        private val p2p: P2PSessionRepository,
+        private val deviceUuidProvider: DeviceUuidProvider,
         private val roundId: String,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
@@ -485,6 +652,8 @@ class RoundCaptureViewModel(
                 settingsRepo = settingsRepo,
                 engine = engine,
                 optimalSolver = optimalSolver,
+                p2p = p2p,
+                deviceUuidProvider = deviceUuidProvider,
                 roundId = roundId,
             ) as T
         }

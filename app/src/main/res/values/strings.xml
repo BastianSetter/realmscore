@@ -511,6 +511,10 @@
     <string name="p2p_connected_count">Verbundene Geräte: %1$d/%2$d</string>
     <string name="p2p_locked_by">Wird bearbeitet von %1$s</string>
     <string name="p2p_force_unlock">Entsperren</string>
+    <string name="p2p_take_over">Übernehmen</string>
+    <string name="p2p_waiting_title">Warte auf fehlende Erfassungen</string>
+    <string name="p2p_waiting_progress">%1$d von %2$d erfasst</string>
+    <string name="p2p_unit_open">Offen</string>
     <string name="p2p_reconciliation_title">Spieler zuordnen</string>
     <string name="p2p_reconciliation_done">Fertig</string>
     <string name="p2p_joined_waiting">Beigetreten – warte auf den Host</string>

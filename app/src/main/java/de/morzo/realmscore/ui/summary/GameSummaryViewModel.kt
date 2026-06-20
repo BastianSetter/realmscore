@@ -7,6 +7,7 @@ import de.morzo.realmscore.domain.model.ClosedReason
 import de.morzo.realmscore.domain.model.Profile
 import de.morzo.realmscore.domain.model.Round
 import de.morzo.realmscore.domain.model.RoundResult
+import de.morzo.realmscore.domain.p2p.P2PSessionRepository
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.RoundRepository
@@ -57,6 +58,7 @@ class GameSummaryViewModel(
     private val gameRepo: GameRepository,
     private val roundRepo: RoundRepository,
     private val profileRepo: ProfileRepository,
+    private val p2p: P2PSessionRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameSummaryUiState())
@@ -101,6 +103,9 @@ class GameSummaryViewModel(
             if (current?.closedAt == null) {
                 gameRepo.closeGame(gameId, ClosedReason.COMPLETED)
             }
+            // P2P (Stage B): distribute the finished game to all joined devices (no-op when solo). The
+            // game row is already closed, so its export carries closedAt to every client.
+            p2p.closeSharedGame(gameId)
             _uiState.update { it.copy(isClosed = true) }
             onClosed()
         }
@@ -199,6 +204,7 @@ class GameSummaryViewModel(
         private val gameRepo: GameRepository,
         private val roundRepo: RoundRepository,
         private val profileRepo: ProfileRepository,
+        private val p2p: P2PSessionRepository,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -207,6 +213,7 @@ class GameSummaryViewModel(
                 gameRepo = gameRepo,
                 roundRepo = roundRepo,
                 profileRepo = profileRepo,
+                p2p = p2p,
             ) as T
         }
     }

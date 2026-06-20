@@ -25,6 +25,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -72,6 +73,8 @@ fun RoundCaptureScreen(
             settingsRepo = container.settingsRepository,
             engine = container.scoringEngine,
             optimalSolver = container.optimalSolver,
+            p2p = container.p2pSessionRepository,
+            deviceUuidProvider = container.deviceUuidProvider,
             roundId = roundId,
         ),
     )
@@ -110,6 +113,7 @@ fun RoundCaptureScreen(
                             players = state.orderedPlayers,
                             currentProfileId = state.currentProfileId,
                             onSelectPlayer = vm::switchToPlayer,
+                            onForceUnlock = vm::takeOverUnit,
                         )
                     }
                 },
@@ -146,6 +150,17 @@ fun RoundCaptureScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) { CircularProgressIndicator() }
+            return@Scaffold
+        }
+
+        // P2P (Stage B): this device finished its share — show the remaining units and let the user
+        // take over a stuck one. The host computes the reveal once every unit is done (B4).
+        if (state.waitingForOthers) {
+            WaitingForOthersContent(
+                modifier = Modifier.padding(padding),
+                players = state.orderedPlayers,
+                onTakeOver = vm::takeOverUnit,
+            )
             return@Scaffold
         }
 
@@ -204,6 +219,65 @@ fun RoundCaptureScreen(
     }
 }
 
+/**
+ * P2P pre-reveal waiting screen (Stage B): this device captured all the units it could grab; the round
+ * isn't done yet. Lists the units still outstanding with who is on them, and offers "Übernehmen" to
+ * force-release a unit stuck on an idle device so this device can take it over.
+ */
+@Composable
+private fun WaitingForOthersContent(
+    modifier: Modifier = Modifier,
+    players: List<CapturePlayer>,
+    onTakeOver: (String) -> Unit,
+) {
+    val doneCount = players.count { it.isDone }
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            Text(
+                text = stringResource(R.string.p2p_waiting_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        Text(
+            text = stringResource(R.string.p2p_waiting_progress, doneCount, players.size),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        players.filterNot { it.isDone }.forEach { player ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ColorDot(colorArgb = player.colorArgb)
+                Column(Modifier.weight(1f)) {
+                    Text(player.name)
+                    Text(
+                        text = player.lockedByName?.let { stringResource(R.string.p2p_locked_by, it) }
+                            ?: stringResource(R.string.p2p_unit_open),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (player.lockedByName != null) {
+                    OutlinedButton(onClick = { onTakeOver(player.profileId) }) {
+                        Text(stringResource(R.string.p2p_take_over))
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun DuplicateWarning(names: List<String>) {
     Surface(
@@ -227,6 +301,7 @@ private fun PlayerDropdown(
     players: List<CapturePlayer>,
     currentProfileId: String?,
     onSelectPlayer: (String) -> Unit,
+    onForceUnlock: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val current = players.firstOrNull { it.profileId == currentProfileId }
@@ -253,29 +328,50 @@ private fun PlayerDropdown(
             players.forEach { player ->
                 DropdownMenuItem(
                     text = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            ColorDot(colorArgb = player.colorArgb)
-                            Text(
-                                text = "${player.name} (${player.cardsCount}/${player.requiredCount})",
-                                fontWeight = if (player.profileId == currentProfileId) {
-                                    FontWeight.SemiBold
-                                } else {
-                                    FontWeight.Normal
-                                },
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            if (player.captured) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = stringResource(
-                                        R.string.round_entry_status_completed,
-                                    ),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp),
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                ColorDot(colorArgb = player.colorArgb)
+                                Text(
+                                    text = "${player.name} (${player.cardsCount}/${player.requiredCount})",
+                                    fontWeight = if (player.profileId == currentProfileId) {
+                                        FontWeight.SemiBold
+                                    } else {
+                                        FontWeight.Normal
+                                    },
                                 )
+                                Spacer(Modifier.width(4.dp))
+                                if (player.captured || player.isDone) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = stringResource(
+                                            R.string.round_entry_status_completed,
+                                        ),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            }
+                            // P2P: another device is capturing this unit — show by whom + "Entsperren".
+                            if (player.lockedByName != null && !player.isDone) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.p2p_locked_by, player.lockedByName),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    TextButton(onClick = {
+                                        onForceUnlock(player.profileId)
+                                        expanded = false
+                                    }) {
+                                        Text(stringResource(R.string.p2p_force_unlock))
+                                    }
+                                }
                             }
                         }
                     },

@@ -285,7 +285,16 @@ class NewGameViewModel(
         broadcastRoster()
     }
 
-    fun startGame(onSuccess: (String) -> Unit) {
+    /**
+     * Starts the game. Without a live host session this behaves as before: [onGameStarted] navigates to
+     * the in-progress game hub. **While hosting a P2P session** (Stage B), it instead mints round 1,
+     * distributes the game to all joined devices and routes the host straight into round capture via
+     * [onSharedRoundStarted] — every phone enters the same round together on shared UUIDs.
+     */
+    fun startGame(
+        onGameStarted: (gameId: String) -> Unit,
+        onSharedRoundStarted: (roundId: String) -> Unit,
+    ) {
         val current = _uiState.value
         if (!current.canStart || current.isStarting) return
         _uiState.update { it.copy(isStarting = true) }
@@ -296,7 +305,15 @@ class NewGameViewModel(
                     target = current.targetValue,
                     participantProfileIds = current.participants.map { it.profileId },
                 )
-                onSuccess(game.id)
+                if (p2p.sessionState.value is SessionState.Hosting) {
+                    p2p.startSharedSession(game.id)
+                        .onSuccess { roundId -> onSharedRoundStarted(roundId) }
+                        // Distribution failed (e.g. a client dropped mid-start): fall back to solo flow
+                        // so the host can still play; clients simply won't follow.
+                        .onFailure { onGameStarted(game.id) }
+                } else {
+                    onGameStarted(game.id)
+                }
             } catch (t: Throwable) {
                 _uiState.update { it.copy(isStarting = false) }
             }

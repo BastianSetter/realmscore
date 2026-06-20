@@ -11,6 +11,7 @@ import de.morzo.realmscore.data.db.migration.MIGRATION_6_7
 import de.morzo.realmscore.data.db.migration.MIGRATION_7_8
 import de.morzo.realmscore.data.p2p.BluetoothRfcommManager
 import de.morzo.realmscore.data.p2p.CompanionDeviceHelper
+import de.morzo.realmscore.data.p2p.GameMirrorSync
 import de.morzo.realmscore.data.p2p.HandshakeManager
 import de.morzo.realmscore.data.p2p.SessionManager
 import de.morzo.realmscore.data.repository.BackupRepositoryImpl
@@ -210,11 +211,24 @@ class AppContainer(private val applicationContext: Context) {
         CompanionDeviceHelper(applicationContext)
     }
 
+    val gameMirrorSync: GameMirrorSync by lazy {
+        GameMirrorSync(
+            backupRepository = backupRepository,
+            handCardRepo = handCardRepository,
+            roundRepo = roundRepository,
+            cardLookup = cardLookup,
+            engine = scoringEngine,
+        )
+    }
+
     val p2pSessionRepository: P2PSessionRepository by lazy {
         SessionManager(
             bluetooth = bluetoothRfcommManager,
             handshake = handshakeManager,
             deviceUuidProvider = deviceUuidProvider,
+            roundRepo = roundRepository,
+            backupRepository = backupRepository,
+            mirrorSync = gameMirrorSync,
         )
     }
 

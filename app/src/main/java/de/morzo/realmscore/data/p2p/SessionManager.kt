@@ -5,15 +5,23 @@ import de.morzo.realmscore.data.datastore.DeviceUuidProvider
 import de.morzo.realmscore.domain.p2p.P2PSessionRepository
 import de.morzo.realmscore.domain.p2p.model.BluetoothStatus
 import de.morzo.realmscore.domain.p2p.model.ConnectedDevice
+import de.morzo.realmscore.domain.p2p.model.HandCardSyncData
 import de.morzo.realmscore.domain.p2p.model.HandshakePayload
+import de.morzo.realmscore.domain.p2p.model.NavSignal
 import de.morzo.realmscore.domain.p2p.model.ParticipantInfo
 import de.morzo.realmscore.domain.p2p.model.SessionRole
 import de.morzo.realmscore.domain.p2p.model.SessionState
 import de.morzo.realmscore.domain.p2p.model.SyncMessage
+import de.morzo.realmscore.domain.p2p.model.UnitLock
+import de.morzo.realmscore.domain.repository.BackupRepository
+import de.morzo.realmscore.domain.repository.RoundRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -34,6 +42,9 @@ class SessionManager(
     private val bluetooth: BluetoothRfcommManager,
     private val handshake: HandshakeManager,
     private val deviceUuidProvider: DeviceUuidProvider,
+    private val roundRepo: RoundRepository,
+    private val backupRepository: BackupRepository,
+    private val mirrorSync: GameMirrorSync,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob()),
 ) : P2PSessionRepository {
 
@@ -48,12 +59,42 @@ class SessionManager(
     override val joinedParticipants: StateFlow<List<ParticipantInfo>> =
         _joinedParticipants.asStateFlow()
 
+    private val _navSignals = MutableSharedFlow<NavSignal>(extraBufferCapacity = 16)
+    override val navSignals: SharedFlow<NavSignal> = _navSignals.asSharedFlow()
+
+    private val _roundStatus = MutableStateFlow<SyncMessage.RoundStatus?>(null)
+    override val roundStatus: StateFlow<SyncMessage.RoundStatus?> = _roundStatus.asStateFlow()
+
+    /** Host-only authoritative lock registry; clients drive it via [SyncMessage] over Bluetooth. */
+    private val lockManager = LockManager()
+
+    /** deviceId → display name, for the "wird bearbeitet von X" indicator (host resolves this). */
+    private val deviceNamesById = mutableMapOf<String, String>()
+
+    /** This device's id, cached once the session opens (avoids a suspend read on every lock op). */
+    private var myDeviceId: String? = null
+
     /** Open connections: many (one per client) on the host, exactly one on a client. */
     private val connections = mutableListOf<P2PConnection>()
     private val lock = Any()
 
     private var serverSocket: BluetoothServerSocket? = null
     private var latestParticipants: List<ParticipantInfo> = emptyList()
+
+    /**
+     * Client-side: the `originDeviceId` this device announced as its own seat (set in [connectToHost]),
+     * and the canonical (host-assigned) profile id the host gave that seat — resolved from the roster.
+     * Used at game end to reattribute the mirror's self seat to the local owner profile (B7).
+     */
+    private var mySeatOriginDeviceId: String? = null
+    private var mySeatCanonicalId: String? = null
+
+    // --- Heartbeat / reconnect (B6). Per-connection liveness + the active game/round for catch-up. ---
+    private val connectionDeviceId = mutableMapOf<P2PConnection, String>()
+    private val connectionLastSeen = mutableMapOf<P2PConnection, Long>()
+    private var heartbeatJob: kotlinx.coroutines.Job? = null
+    private var activeGameId: String? = null
+    private var activeRoundId: String? = null
 
     override fun bluetoothStatus(): BluetoothStatus = when {
         !bluetooth.isBluetoothSupported -> BluetoothStatus.UNSUPPORTED
@@ -71,6 +112,8 @@ class SessionManager(
         check(bluetoothStatus() == BluetoothStatus.READY) { "Bluetooth not ready" }
         val deviceId = deviceUuidProvider.get()
         val name = bluetooth.localBluetoothName() ?: "RealmScore"
+        myDeviceId = deviceId
+        synchronized(lock) { deviceNamesById[deviceId] = name }
         val hostSession = handshake.openHostSession(gameId, deviceId, name)
         latestParticipants = participants
 
@@ -92,21 +135,157 @@ class SessionManager(
                 onClientConnected(connection)
             }
         }
+        startHeartbeat()
         Unit
     }
 
     private fun onClientConnected(connection: P2PConnection) {
-        synchronized(lock) { connections += connection }
-        // Send the joining client the current roster immediately.
-        scope.launch { runCatching { connection.send(SyncMessage.PlayerListUpdate(latestParticipants)) } }
+        synchronized(lock) {
+            connections += connection
+            connectionLastSeen[connection] = System.currentTimeMillis()
+        }
         scope.launch {
-            connection.receive().collect { message -> routeMessage(message, connection) }
+            // Send the joining client the current roster immediately.
+            runCatching { connection.send(SyncMessage.PlayerListUpdate(latestParticipants)) }
+            // Reconnect catch-up (B6): if a game is already running, bring the (re)joining device fully
+            // up to date — the shared mirror, the live lock state, and a StartRound to navigate it in.
+            val gameId = activeGameId
+            val roundId = activeRoundId
+            if (gameId != null && roundId != null) {
+                backupRepository.exportGame(gameId)?.let { snap ->
+                    runCatching { connection.send(SyncMessage.FullGameState(snap.game, snap.profiles)) }
+                }
+                _roundStatus.value?.let { runCatching { connection.send(it) } }
+                runCatching { connection.send(SyncMessage.StartRound(gameId, roundId)) }
+            }
+        }
+        scope.launch {
+            try {
+                connection.receive().collect { message -> routeMessage(message, connection) }
+            } finally {
+                onConnectionLost(connection)
+            }
         }
     }
 
     override suspend fun broadcastParticipants(participants: List<ParticipantInfo>) {
         latestParticipants = participants
         broadcast(SyncMessage.PlayerListUpdate(participants))
+    }
+
+    override suspend fun startSharedSession(gameId: String): Result<String> = runCatching {
+        // Mint the first round, then distribute the whole game so every client builds the same-UUID
+        // mirror before being told to navigate in.
+        val round = roundRepo.startRound(gameId)
+        val snapshot = backupRepository.exportGame(gameId)
+            ?: error("Game $gameId not found for distribution")
+        activeGameId = gameId
+        activeRoundId = round.id
+        broadcast(SyncMessage.FullGameState(snapshot.game, snapshot.profiles))
+        broadcast(SyncMessage.StartRound(gameId, round.id))
+        round.id
+    }
+
+    // --- Stage B: distributed optimistic locking (host-authoritative) ---
+
+    override fun ownSeatUnitId(): String? = mySeatCanonicalId
+
+    private fun isHost(): Boolean = _sessionState.value is SessionState.Hosting
+
+    override suspend fun requestLock(roundId: String, unitId: String) {
+        val deviceId = myDeviceId ?: deviceUuidProvider.get().also { myDeviceId = it }
+        if (isHost()) {
+            lockManager.tryLock(roundId, unitId, deviceId)
+            rebuildAndBroadcastStatus(roundId)
+        } else {
+            sendToHost(SyncMessage.LockRequest(profileId = unitId, roundId = roundId, deviceId = deviceId))
+        }
+    }
+
+    override suspend fun releaseLock(roundId: String, unitId: String) {
+        val deviceId = myDeviceId ?: deviceUuidProvider.get().also { myDeviceId = it }
+        if (isHost()) {
+            lockManager.release(roundId, unitId, deviceId)
+            rebuildAndBroadcastStatus(roundId)
+        } else {
+            sendToHost(SyncMessage.LockRelease(profileId = unitId, roundId = roundId))
+        }
+    }
+
+    override suspend fun forceUnlock(roundId: String, unitId: String) {
+        if (isHost()) {
+            lockManager.forceUnlock(roundId, unitId)
+            rebuildAndBroadcastStatus(roundId)
+        } else {
+            sendToHost(SyncMessage.UnlockRequest(profileId = unitId, roundId = roundId))
+        }
+    }
+
+    override suspend fun markUnitDone(roundId: String, unitId: String) {
+        if (isHost()) {
+            lockManager.markDone(roundId, unitId)
+            rebuildAndBroadcastStatus(roundId)
+        } else {
+            sendToHost(SyncMessage.UnitDone(roundId = roundId, unitId = unitId))
+        }
+    }
+
+    /** Host: rebuild [RoundStatus] from the registry (resolving device names) and fan it out. */
+    private suspend fun rebuildAndBroadcastStatus(roundId: String) {
+        val snapshot = lockManager.snapshot(roundId)
+        val locks = synchronized(lock) {
+            snapshot.locks.map { (unitId, deviceId) ->
+                UnitLock(unitId, deviceId, deviceNamesById[deviceId] ?: deviceId)
+            }
+        }
+        val status = SyncMessage.RoundStatus(roundId, locks, snapshot.doneUnitIds)
+        activeRoundId = roundId
+        _roundStatus.value = status
+        broadcast(status)
+    }
+
+    override suspend fun pushHandCards(
+        roundId: String,
+        unitId: String,
+        cards: List<HandCardSyncData>,
+    ) {
+        val message = SyncMessage.HandCardUpdate(roundId = roundId, profileId = unitId, cards = cards)
+        if (isHost()) broadcast(message) else sendToHost(message)
+    }
+
+    override suspend fun pushDiscard(roundId: String, cards: List<String>) {
+        val message = SyncMessage.DiscardUpdate(roundId = roundId, cards = cards)
+        if (isHost()) broadcast(message) else sendToHost(message)
+    }
+
+    override suspend fun finishRound(roundId: String) {
+        if (!isHost()) return
+        val round = roundRepo.getRoundById(roundId) ?: return
+        val snapshot = backupRepository.exportGame(round.gameId) ?: return
+        // Distribute the canonical results, then tell everyone to reveal (host navigates locally too).
+        broadcast(SyncMessage.FullGameState(snapshot.game, snapshot.profiles))
+        broadcast(SyncMessage.RoundComplete(roundId))
+        _navSignals.emit(NavSignal.OpenReveal(roundId))
+    }
+
+    override suspend fun closeSharedGame(gameId: String) {
+        if (!isHost()) return
+        // The game row is already closed locally; export carries closedAt to every client.
+        val snapshot = backupRepository.exportGame(gameId) ?: return
+        broadcast(SyncMessage.FullGameState(snapshot.game, snapshot.profiles))
+        broadcast(SyncMessage.GameClosed(gameId, System.currentTimeMillis()))
+    }
+
+    /** Client: send a message over the single host connection. */
+    private suspend fun sendToHost(message: SyncMessage) {
+        val connection = synchronized(lock) { connections.firstOrNull() }
+        connection?.let { runCatching { it.send(message) } }
+    }
+
+    /** Host: fan a message out to every client except the one it came from (avoids echoing it back). */
+    private suspend fun broadcastExcept(message: SyncMessage, except: P2PConnection) {
+        val snapshot = synchronized(lock) { connections.filter { it !== except } }
+        snapshot.forEach { runCatching { it.send(message) } }
     }
 
     override suspend fun connectToHost(
@@ -117,10 +296,17 @@ class SessionManager(
         check(bluetoothStatus() == BluetoothStatus.READY) { "Bluetooth not ready" }
         _sessionState.value = SessionState.Connecting
         val connection = bluetooth.connect(macAddress)
-        synchronized(lock) { connections += connection }
+        synchronized(lock) {
+            connections += connection
+            connectionLastSeen[connection] = System.currentTimeMillis()
+        }
+
+        // Remember which seat is ours so we can reconcile it to the local owner at game end (B7).
+        mySeatOriginDeviceId = selfParticipant.originDeviceId
 
         val deviceId = deviceUuidProvider.get()
         val name = bluetooth.localBluetoothName() ?: "RealmScore"
+        myDeviceId = deviceId
         connection.send(SyncMessage.DeviceJoined(deviceId, name, selfParticipant))
 
         _sessionState.value = SessionState.Connected(
@@ -128,8 +314,13 @@ class SessionManager(
             gameId = payload.gameId,
         )
         scope.launch {
-            connection.receive().collect { message -> routeMessage(message, connection) }
+            try {
+                connection.receive().collect { message -> routeMessage(message, connection) }
+            } finally {
+                onConnectionLost(connection)
+            }
         }
+        startHeartbeat()
         Unit
     }.onFailure {
         _sessionState.value = SessionState.Error(it.message ?: "connect failed")
@@ -137,9 +328,15 @@ class SessionManager(
 
     /** Single inbound-message dispatch. Stage B hangs lock / card-sync / full-state handling here. */
     private suspend fun routeMessage(message: SyncMessage, from: P2PConnection) {
+        // Any traffic counts as a heartbeat: keep this connection marked alive (B6).
+        synchronized(lock) { connectionLastSeen[from] = System.currentTimeMillis() }
         when (message) {
             is SyncMessage.DeviceJoined -> {
                 addConnectedDevice(ConnectedDevice(message.deviceId, message.deviceName))
+                synchronized(lock) {
+                    deviceNamesById[message.deviceId] = message.deviceName
+                    connectionDeviceId[from] = message.deviceId
+                }
                 // "Join adds a player": surface the joiner's own player so the host roster picks it up
                 // (deduped by originDeviceId — one player per device, latest wins).
                 message.participant?.let { joined ->
@@ -151,12 +348,70 @@ class SessionManager(
                 runCatching { from.send(SyncMessage.PlayerListUpdate(latestParticipants)) }
             }
 
-            is SyncMessage.PlayerListUpdate ->
+            is SyncMessage.PlayerListUpdate -> {
                 _incomingParticipants.value = message.participants
+                // Resolve our canonical (host-assigned) profile id from the roster (B7 reconcile).
+                mySeatOriginDeviceId?.let { own ->
+                    message.participants.firstOrNull { it.originDeviceId == own }
+                        ?.let { mySeatCanonicalId = it.profileId }
+                }
+            }
+
+            // Client: fold the host's game snapshot into the local mirror (same UUIDs everywhere).
+            is SyncMessage.FullGameState -> mirrorSync.applyFullGameState(message)
+
+            // Client: the host opened a round — navigate everyone into capture together.
+            is SyncMessage.StartRound -> _navSignals.emit(NavSignal.OpenRound(message.roundId))
+
+            // Client: adopt the host's authoritative lock + done state.
+            is SyncMessage.RoundStatus -> _roundStatus.value = message
+
+            // A live capture from another device: fold it into our mirror. The host also relays it on
+            // to the other clients (the hub), skipping the sender to avoid an echo.
+            is SyncMessage.HandCardUpdate -> {
+                mirrorSync.applyHandCardUpdate(message)
+                if (isHost()) broadcastExcept(message, from)
+            }
+
+            is SyncMessage.DiscardUpdate -> {
+                mirrorSync.applyDiscardUpdate(message)
+                if (isHost()) broadcastExcept(message, from)
+            }
+
+            // Client: the host finished the round (its FullGameState arrived just before this) — reveal.
+            is SyncMessage.RoundComplete -> _navSignals.emit(NavSignal.OpenReveal(message.roundId))
+
+            // Client: the host closed the game. The final FullGameState was merged just before this;
+            // now reattribute our own seat from the host's canonical profile to our local owner so the
+            // finished game shows under us in stats.
+            is SyncMessage.GameClosed ->
+                mySeatCanonicalId?.let { canonical -> backupRepository.reconcileSelfSeat(canonical) }
+
+            // Host: a client requests/releases a lock or finishes a unit → arbitrate and re-broadcast.
+            is SyncMessage.LockRequest -> if (isHost()) {
+                lockManager.tryLock(message.roundId, message.profileId, message.deviceId)
+                rebuildAndBroadcastStatus(message.roundId)
+            }
+
+            is SyncMessage.LockRelease -> if (isHost()) {
+                // The holder is releasing its own unit; we trust the sender (no deviceId on the wire).
+                lockManager.forceUnlock(message.roundId, message.profileId)
+                rebuildAndBroadcastStatus(message.roundId)
+            }
+
+            is SyncMessage.UnlockRequest -> if (isHost()) {
+                lockManager.forceUnlock(message.roundId, message.profileId)
+                rebuildAndBroadcastStatus(message.roundId)
+            }
+
+            is SyncMessage.UnitDone -> if (isHost()) {
+                lockManager.markDone(message.roundId, message.unitId)
+                rebuildAndBroadcastStatus(message.roundId)
+            }
 
             SyncMessage.Ping -> runCatching { from.send(SyncMessage.Pong) }
 
-            else -> Unit // Stage B: locks, card updates, full game state, …
+            else -> Unit // Stage B: incremental card updates, reveal, …
         }
     }
 
@@ -187,17 +442,87 @@ class SessionManager(
         snapshot.forEach { runCatching { it.send(message) } }
     }
 
+    // --- Heartbeat + auto-reclaim (B6) ---
+
+    /** Pings every connection every [HEARTBEAT_INTERVAL_MS] and reaps any silent for [HEARTBEAT_TIMEOUT_MS]. */
+    private fun startHeartbeat() {
+        if (heartbeatJob?.isActive == true) return
+        heartbeatJob = scope.launch {
+            while (isActive) {
+                kotlinx.coroutines.delay(HEARTBEAT_INTERVAL_MS)
+                val conns = synchronized(lock) { connections.toList() }
+                conns.forEach { c -> runCatching { c.send(SyncMessage.Ping) } }
+                val now = System.currentTimeMillis()
+                val dead = synchronized(lock) {
+                    conns.filter { now - (connectionLastSeen[it] ?: now) > HEARTBEAT_TIMEOUT_MS }
+                }
+                dead.forEach { onConnectionLost(it) }
+            }
+        }
+    }
+
+    /**
+     * A connection died (stream ended or heartbeat timeout). On the host: free the dropped device's
+     * locks so its units return to the pool and re-broadcast the round status. On a client: mark the
+     * session [SessionState.Disconnected] — local play continues on the mirror until a manual rejoin
+     * (whereupon the host's catch-up in [onClientConnected] resyncs it).
+     */
+    private fun onConnectionLost(connection: P2PConnection) {
+        val deviceId = synchronized(lock) {
+            val present = connections.remove(connection)
+            if (!present) return // already reaped (finally + watchdog can both fire)
+            connectionLastSeen.remove(connection)
+            connectionDeviceId.remove(connection)
+        }
+        runCatching { connection.close() }
+        if (isHost()) {
+            deviceId?.let { lockManager.releaseAllHeldBy(it) }
+            _sessionState.update { state ->
+                if (state is SessionState.Hosting) {
+                    state.copy(connectedDevices = state.connectedDevices.filterNot { it.deviceId == deviceId })
+                } else {
+                    state
+                }
+            }
+            activeRoundId?.let { roundId -> scope.launch { rebuildAndBroadcastStatus(roundId) } }
+        } else {
+            val gameId = (_sessionState.value as? SessionState.Connected)?.gameId ?: activeGameId.orEmpty()
+            _sessionState.value = SessionState.Disconnected(
+                role = SessionRole.CLIENT,
+                gameId = gameId,
+                reason = "connection lost",
+            )
+        }
+    }
+
     override fun close() {
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         synchronized(lock) {
             connections.forEach { it.close() }
             connections.clear()
+            connectionLastSeen.clear()
+            connectionDeviceId.clear()
         }
         runCatching { serverSocket?.close() }
         serverSocket = null
         handshake.closeHostSession()
         latestParticipants = emptyList()
+        mySeatOriginDeviceId = null
+        mySeatCanonicalId = null
+        myDeviceId = null
+        activeGameId = null
+        activeRoundId = null
+        lockManager.reset()
+        synchronized(lock) { deviceNamesById.clear() }
+        _roundStatus.value = null
         _incomingParticipants.value = emptyList()
         _joinedParticipants.value = emptyList()
         _sessionState.value = SessionState.Idle
+    }
+
+    private companion object {
+        const val HEARTBEAT_INTERVAL_MS = 5_000L
+        const val HEARTBEAT_TIMEOUT_MS = 30_000L
     }
 }

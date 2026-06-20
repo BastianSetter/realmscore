@@ -39,6 +39,24 @@ interface RoundDao {
     @Query("UPDATE rounds SET updatedAt = :ts WHERE id = :id")
     suspend fun touch(id: String, ts: Long)
 
+    /**
+     * Phase 28 Stage B: overwrite the mutable round fields from a newer mirror copy (LWW). The
+     * identity columns (id/gameId/createdAt/originDeviceId) are never touched.
+     */
+    @Query(
+        "UPDATE rounds SET roundNumber = :roundNumber, startedAt = :startedAt, " +
+            "completedAt = :completedAt, discardScanned = :discardScanned, updatedAt = :updatedAt " +
+            "WHERE id = :id"
+    )
+    suspend fun updateRoundMeta(
+        id: String,
+        roundNumber: Int,
+        startedAt: Long,
+        completedAt: Long?,
+        discardScanned: Boolean,
+        updatedAt: Long,
+    )
+
     @Query(
         "UPDATE rounds SET completedAt = :ts, updatedAt = :ts " +
             "WHERE id = :id AND completedAt IS NULL"
