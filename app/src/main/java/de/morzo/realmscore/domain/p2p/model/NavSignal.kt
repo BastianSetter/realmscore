@@ -12,4 +12,7 @@ sealed interface NavSignal {
 
     /** Open the reveal for [roundId] — the host has computed and broadcast the round's results. */
     data class OpenReveal(val roundId: String) : NavSignal
+
+    /** Open the final game summary for [gameId] — the host closed the game. */
+    data class OpenGameSummary(val gameId: String) : NavSignal
 }

@@ -44,10 +44,10 @@ class JoinSessionViewModel(
     val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
-        // The P2P session is a process-wide singleton; a previous join may have left it Connected with
-        // a stale roster. Reset it so re-entering the join screen starts fresh at the QR scanner
-        // instead of jumping straight to the old "joined" view.
-        p2p.close()
+        // The P2P session is a process-wide singleton; a previous *finished* join may have left it
+        // Connected with a stale roster. Reset it so re-entering the join screen starts fresh at the QR
+        // scanner — but NOT while a game is in progress (that would silently drop us from the live game).
+        if (!p2p.isInActiveGame()) p2p.close()
     }
 
     fun bluetoothStatus(): BluetoothStatus = p2p.bluetoothStatus()

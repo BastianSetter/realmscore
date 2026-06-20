@@ -41,6 +41,12 @@ interface P2PSessionRepository {
      */
     val roundStatus: StateFlow<SyncMessage.RoundStatus?>
 
+    /**
+     * True while a shared game is in progress (a round has been distributed and the game isn't closed).
+     * The new-game / join screens use this so merely visiting them doesn't tear down a live session.
+     */
+    fun isInActiveGame(): Boolean
+
     fun bluetoothStatus(): BluetoothStatus
 
     /** The local Bluetooth adapter name the host advertises (so the joiner can find it in CDM). */

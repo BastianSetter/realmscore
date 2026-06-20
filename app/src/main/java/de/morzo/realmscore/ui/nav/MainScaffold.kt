@@ -126,6 +126,8 @@ fun MainScaffold(container: AppContainer) {
                         popUpTo(Routes.ROUND_CAPTURE) { inclusive = true }
                         launchSingleTop = true
                     }
+                is NavSignal.OpenGameSummary ->
+                    tabNavController.navigateAcross(Routes.gameSummaryRoute(signal.gameId))
             }
         }
     }

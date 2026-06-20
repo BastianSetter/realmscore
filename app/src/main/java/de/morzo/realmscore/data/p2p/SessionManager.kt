@@ -110,12 +110,15 @@ class SessionManager(
         participants: List<ParticipantInfo>,
     ): Result<Unit> = runCatching {
         check(bluetoothStatus() == BluetoothStatus.READY) { "Bluetooth not ready" }
+        // Opening for joins is an explicit "host a fresh session" action: tear down any prior session
+        // (e.g. a leftover from an abandoned game) so we don't run two RFCOMM servers on one service UUID.
+        close()
         val deviceId = deviceUuidProvider.get()
         val name = bluetooth.localBluetoothName() ?: "RealmScore"
         myDeviceId = deviceId
         synchronized(lock) { deviceNamesById[deviceId] = name }
         val hostSession = handshake.openHostSession(gameId, deviceId, name)
-        latestParticipants = participants
+        latestParticipants = participants.distinctBy { it.profileId }
 
         val server = bluetooth.openServerSocket()
         serverSocket = server
@@ -169,9 +172,14 @@ class SessionManager(
     }
 
     override suspend fun broadcastParticipants(participants: List<ParticipantInfo>) {
-        latestParticipants = participants
-        broadcast(SyncMessage.PlayerListUpdate(participants))
+        // Dedup by profileId: several devices/players can collide on one host-side profile (e.g. same
+        // name, or a re-join), and a duplicate key would crash the roster's LazyColumn on every device.
+        val deduped = participants.distinctBy { it.profileId }
+        latestParticipants = deduped
+        broadcast(SyncMessage.PlayerListUpdate(deduped))
     }
+
+    override fun isInActiveGame(): Boolean = activeGameId != null
 
     override suspend fun startSharedSession(gameId: String): Result<String> = runCatching {
         // Mint the first round, then distribute the whole game so every client builds the same-UUID
@@ -274,6 +282,9 @@ class SessionManager(
         val snapshot = backupRepository.exportGame(gameId) ?: return
         broadcast(SyncMessage.FullGameState(snapshot.game, snapshot.profiles))
         broadcast(SyncMessage.GameClosed(gameId, System.currentTimeMillis()))
+        // Game over: the session is no longer guarding an in-progress game.
+        activeGameId = null
+        activeRoundId = null
     }
 
     /** Client: send a message over the single host connection. */
@@ -294,6 +305,8 @@ class SessionManager(
         selfParticipant: ParticipantInfo,
     ): Result<Unit> = runCatching {
         check(bluetoothStatus() == BluetoothStatus.READY) { "Bluetooth not ready" }
+        // Joining is an explicit commit: drop any prior session so a re-join starts clean.
+        close()
         _sessionState.value = SessionState.Connecting
         val connection = bluetooth.connect(macAddress)
         synchronized(lock) {
@@ -349,7 +362,7 @@ class SessionManager(
             }
 
             is SyncMessage.PlayerListUpdate -> {
-                _incomingParticipants.value = message.participants
+                _incomingParticipants.value = message.participants.distinctBy { it.profileId }
                 // Resolve our canonical (host-assigned) profile id from the roster (B7 reconcile).
                 mySeatOriginDeviceId?.let { own ->
                     message.participants.firstOrNull { it.originDeviceId == own }
@@ -360,8 +373,13 @@ class SessionManager(
             // Client: fold the host's game snapshot into the local mirror (same UUIDs everywhere).
             is SyncMessage.FullGameState -> mirrorSync.applyFullGameState(message)
 
-            // Client: the host opened a round — navigate everyone into capture together.
-            is SyncMessage.StartRound -> _navSignals.emit(NavSignal.OpenRound(message.roundId))
+            // Client: the host opened a round — record it as the active game (so visiting Home/Join
+            // doesn't tear the live session down) and navigate everyone into capture together.
+            is SyncMessage.StartRound -> {
+                activeGameId = message.gameId
+                activeRoundId = message.roundId
+                _navSignals.emit(NavSignal.OpenRound(message.roundId))
+            }
 
             // Client: adopt the host's authoritative lock + done state.
             is SyncMessage.RoundStatus -> _roundStatus.value = message
@@ -384,8 +402,14 @@ class SessionManager(
             // Client: the host closed the game. The final FullGameState was merged just before this;
             // now reattribute our own seat from the host's canonical profile to our local owner so the
             // finished game shows under us in stats.
-            is SyncMessage.GameClosed ->
+            is SyncMessage.GameClosed -> {
                 mySeatCanonicalId?.let { canonical -> backupRepository.reconcileSelfSeat(canonical) }
+                // The game is over — the session is no longer "in a game", so a later Home/Join visit
+                // is free to reset it for a fresh session.
+                activeGameId = null
+                activeRoundId = null
+                _navSignals.emit(NavSignal.OpenGameSummary(message.gameId))
+            }
 
             // Host: a client requests/releases a lock or finishes a unit → arbitrate and re-broadcast.
             is SyncMessage.LockRequest -> if (isHost()) {

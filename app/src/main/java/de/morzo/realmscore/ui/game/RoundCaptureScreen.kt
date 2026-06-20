@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -328,7 +330,7 @@ private fun PlayerDropdown(
             players.forEach { player ->
                 DropdownMenuItem(
                     text = {
-                        Column {
+                        Column(Modifier.widthIn(max = 280.dp)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -355,6 +357,7 @@ private fun PlayerDropdown(
                                 }
                             }
                             // P2P: another device is capturing this unit — show by whom + "Entsperren".
+                            // The name takes the remaining width and wraps; the button stays one line.
                             if (player.lockedByName != null && !player.isDone) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -364,12 +367,20 @@ private fun PlayerDropdown(
                                         text = stringResource(R.string.p2p_locked_by, player.lockedByName),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f),
                                     )
-                                    TextButton(onClick = {
-                                        onForceUnlock(player.profileId)
-                                        expanded = false
-                                    }) {
-                                        Text(stringResource(R.string.p2p_force_unlock))
+                                    TextButton(
+                                        onClick = {
+                                            onForceUnlock(player.profileId)
+                                            expanded = false
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 8.dp),
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.p2p_force_unlock),
+                                            maxLines = 1,
+                                            softWrap = false,
+                                        )
                                     }
                                 }
                             }

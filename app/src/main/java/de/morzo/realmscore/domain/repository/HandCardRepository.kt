@@ -38,4 +38,11 @@ interface HandCardRepository {
         roundId: String,
         excludeProfileId: String,
     ): Flow<Set<String>>
+
+    /**
+     * Every persisted hand card of [roundId] grouped by owning profile. The distributed capture screen
+     * (Phase 28 Stage B) excludes cards entered in other players' hands on other devices, which only
+     * reach this device through the synced mirror — not its in-memory drafts.
+     */
+    fun observeHandCardKeysByProfile(roundId: String): Flow<Map<String, Set<String>>>
 }

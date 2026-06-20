@@ -150,6 +150,10 @@ class RoundCaptureViewModel(
     private var discardScanned = false
     private var discardCards: List<CardDefinition> = emptyList()
 
+    // P2P (Stage B): hand cards captured on OTHER devices, from the synced mirror — they are not in this
+    // VM's in-memory drafts, so they must be excluded from the picker separately. profileId -> cardKeys.
+    private var syncedCardsByProfile: Map<String, Set<String>> = emptyMap()
+
     private val _uiState = MutableStateFlow(RoundCaptureUiState())
     val uiState: StateFlow<RoundCaptureUiState> = _uiState.asStateFlow()
 
@@ -225,6 +229,13 @@ class RoundCaptureViewModel(
                 latestStatus = p2p.roundStatus.value?.takeIf { it.roundId == roundId }
                 advanceToNextUnit(latestStatus) // claim our own unit first
                 launch { p2p.roundStatus.collect { onRoundStatus(it) } }
+                // Keep the picker's "used elsewhere" set current with hands captured on other devices.
+                launch {
+                    handCardRepo.observeHandCardKeysByProfile(roundId).collect { byProfile ->
+                        syncedCardsByProfile = byProfile
+                        rebuild()
+                    }
+                }
             }
 
             launch {
@@ -410,12 +421,22 @@ class RoundCaptureViewModel(
         if (profileId == null) return PlayerHandEntryUiState(isLoading = false)
         val draft = drafts[profileId] ?: Draft()
         val isDiscard = profileId == DISCARD_ID
-        // A physical card can be in only one place, so exclude everything already placed elsewhere
-        // (other hands and the Mittelfeld).
-        val usedByOthers = drafts.asSequence()
-            .filter { it.key != profileId }
-            .flatMap { (_, d) -> d.slots.asSequence().mapNotNull { (it as? CardSlot.Filled)?.card?.key } }
-            .toSet()
+        // A physical card can be in only one place, so exclude everything already placed elsewhere:
+        // this device's other in-memory drafts, plus — for a distributed round — hands captured on
+        // other devices (synced mirror) and the Mittelfeld captured elsewhere.
+        val usedByOthers = buildSet {
+            drafts.asSequence()
+                .filter { it.key != profileId }
+                .forEach { (_, d) ->
+                    d.slots.forEach { slot -> (slot as? CardSlot.Filled)?.card?.key?.let { add(it) } }
+                }
+            syncedCardsByProfile.asSequence()
+                .filter { it.key != profileId }
+                .forEach { addAll(it.value) }
+            if (profileId != DISCARD_ID) {
+                discardCards.forEach { add(it.key) }
+            }
+        }
         return PlayerHandEntryUiState(
             isLoading = false,
             playerName = nameById[profileId] ?: "",

@@ -113,10 +113,11 @@ class NewGameViewModel(
     }
 
     init {
-        // P2P session is a process-wide singleton; a prior game may have left it Hosting. Reset it so
-        // a fresh new-game setup starts Idle (button shown again) instead of resurrecting the old QR/
-        // code — and so the next openForJoins mints a fresh code + re-triggers the discoverable flow.
-        p2p.close()
+        // P2P session is a process-wide singleton; a prior *finished* game may have left it Hosting.
+        // Reset it so a fresh new-game setup starts Idle (button shown again) instead of resurrecting
+        // the old QR/code. But do NOT close a session that is still guarding an in-progress game — the
+        // user may just be glancing at this screen mid-game (closing it would drop everyone).
+        if (!p2p.isInActiveGame()) p2p.close()
         viewModelScope.launch {
             val owner = profileRepo.getLocalOwner()
                 ?: error("Local owner not found – onboarding must run first.")
@@ -156,12 +157,17 @@ class NewGameViewModel(
     private suspend fun mergeJoinedParticipants(joined: List<ParticipantInfo>) {
         if (joined.isEmpty()) return
         val knownDeviceIds = _uiState.value.participants.mapNotNull { it.originDeviceId.ifBlank { null } }.toSet()
-        val newcomers = joined.filter { it.originDeviceId !in knownDeviceIds }
+        val newcomers = joined.filter { it.originDeviceId.isNotBlank() && it.originDeviceId !in knownDeviceIds }
         if (newcomers.isEmpty()) return
 
-        val rows = newcomers.map { participant ->
-            val localProfileId = resolveLocalProfile(participant)
-            ParticipantRow(
+        val rows = mutableListOf<ParticipantRow>()
+        for (participant in newcomers) {
+            // Resolve against the ids already seated (incl. ones resolved in this pass) so two players
+            // never collapse onto one profile — which would make startGame's distinct-check throw.
+            val taken = (_uiState.value.participants.map { it.profileId } + rows.map { it.profileId }).toSet()
+            val localProfileId = runCatching { resolveLocalProfile(participant, taken) }.getOrNull() ?: continue
+            if (localProfileId in taken) continue
+            rows += ParticipantRow(
                 profileId = localProfileId,
                 name = participant.name,
                 colorArgb = participant.colorArgb,
@@ -169,25 +175,51 @@ class NewGameViewModel(
                 originDeviceId = participant.originDeviceId,
             )
         }
+        if (rows.isEmpty()) return
         _uiState.update { state ->
             // Re-check inside the update in case the roster changed while resolving profiles.
-            val existing = state.participants.map { it.originDeviceId }.toSet()
-            state.copy(participants = state.participants + rows.filter { it.originDeviceId !in existing })
+            val existingDevices = state.participants.map { it.originDeviceId }.toSet()
+            val existingProfiles = state.participants.map { it.profileId }.toSet()
+            state.copy(
+                participants = state.participants + rows.filter {
+                    it.originDeviceId !in existingDevices && it.profileId !in existingProfiles
+                },
+            )
         }
         scheduleSuggestionRefresh()
         broadcastRoster()
     }
 
     /**
-     * Map a joined device to a local profile id (host-side reconciliation). Reuses a remembered
-     * mapping when present; otherwise mirrors the remote player as a new local profile and records the
-     * mapping so the same device maps to the same profile in future sessions.
+     * Map a joined device to a *distinct* local profile id (host-side reconciliation), never throwing:
+     *  1. reuse the remembered device→profile mapping if it still exists and isn't already seated;
+     *  2. else reuse an existing profile that exactly matches the name and isn't already seated
+     *     (identity continuity for a returning player);
+     *  3. else create a fresh profile, uniquifying the name so [ProfileRepository.createProfile] (which
+     *     rejects duplicate names) can't fail.
+     *
+     * [taken] are the profile ids already on the roster — never return one of those (that would give two
+     * devices one seat and make `startGame`'s distinct-participant check throw → "Spiel starten" no-op).
      */
-    private suspend fun resolveLocalProfile(participant: ParticipantInfo): String {
+    private suspend fun resolveLocalProfile(participant: ParticipantInfo, taken: Set<String>): String {
         mappingRepo.getProfileFor(participant.originDeviceId)?.let { mapped ->
-            if (profileRepo.getById(mapped) != null) return mapped
+            if (mapped !in taken && profileRepo.getById(mapped) != null) return mapped
         }
-        val created = profileRepo.createProfile(participant.name)
+
+        val nameMatch = profileRepo.searchByNamePrefix(participant.name)
+            .firstOrNull { it.name.equals(participant.name, ignoreCase = true) && it.id !in taken }
+        if (nameMatch != null) {
+            mappingRepo.map(participant.originDeviceId, nameMatch.id)
+            return nameMatch.id
+        }
+
+        var name = participant.name
+        var suffix = 2
+        while (profileRepo.existsByName(name)) {
+            name = "${participant.name} ($suffix)"
+            suffix++
+        }
+        val created = profileRepo.createProfile(name)
         profileRepo.updateColor(created.id, participant.colorArgb)
         mappingRepo.map(participant.originDeviceId, created.id)
         return created.id
