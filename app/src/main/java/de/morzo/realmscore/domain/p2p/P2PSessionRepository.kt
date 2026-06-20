@@ -42,6 +42,14 @@ interface P2PSessionRepository {
     val roundStatus: StateFlow<SyncMessage.RoundStatus?>
 
     /**
+     * Live, uncommitted card selections of the units currently being captured on *other* devices
+     * (Stage B+): unitId → its in-progress card keys. The round-capture picker folds these into its
+     * "used elsewhere" greying so a physical card can't be picked twice while two hands are edited at
+     * once — before either is submitted. Empty when no session/round is active.
+     */
+    val liveDrafts: StateFlow<Map<String, Set<String>>>
+
+    /**
      * True while a shared game is in progress (a round has been distributed and the game isn't closed).
      * The new-game / join screens use this so merely visiting them doesn't tear down a live session.
      */
@@ -89,6 +97,13 @@ interface P2PSessionRepository {
 
     /** Propagate the freshly captured Mittelfeld (discard pile) to the other devices' mirrors. */
     suspend fun pushDiscard(roundId: String, cards: List<String>)
+
+    /**
+     * Stream this device's *in-progress* selection for [unitId] (card keys only) so the other devices
+     * can grey those cards out live (Stage B+). Sent on every pick/clear; the host relays it. Clearing
+     * is host-driven, so callers only ever push non-empty selections.
+     */
+    suspend fun pushHandDraft(roundId: String, unitId: String, cardKeys: List<String>)
 
     /**
      * Host: every unit of [roundId] is captured — distribute the canonical mirror ([FullGameState]) and

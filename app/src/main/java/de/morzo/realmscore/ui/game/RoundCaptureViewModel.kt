@@ -154,6 +154,11 @@ class RoundCaptureViewModel(
     // VM's in-memory drafts, so they must be excluded from the picker separately. profileId -> cardKeys.
     private var syncedCardsByProfile: Map<String, Set<String>> = emptyMap()
 
+    // P2P (Stage B+): live, uncommitted selections of units being captured on OTHER devices, from the
+    // transient draft channel — folded into the picker so a card can't be picked on two phones at once
+    // before either hand is submitted (the mirror only catches up on submit). unitId -> cardKeys.
+    private var liveDraftsByUnit: Map<String, Set<String>> = emptyMap()
+
     private val _uiState = MutableStateFlow(RoundCaptureUiState())
     val uiState: StateFlow<RoundCaptureUiState> = _uiState.asStateFlow()
 
@@ -233,6 +238,13 @@ class RoundCaptureViewModel(
                 launch {
                     handCardRepo.observeHandCardKeysByProfile(roundId).collect { byProfile ->
                         syncedCardsByProfile = byProfile
+                        rebuild()
+                    }
+                }
+                // And with the *in-progress* selections still being typed on other devices (Stage B+).
+                launch {
+                    p2p.liveDrafts.collect { drafts ->
+                        liveDraftsByUnit = drafts
                         rebuild()
                     }
                 }
@@ -433,6 +445,9 @@ class RoundCaptureViewModel(
             syncedCardsByProfile.asSequence()
                 .filter { it.key != profileId }
                 .forEach { addAll(it.value) }
+            liveDraftsByUnit.asSequence()
+                .filter { it.key != profileId }
+                .forEach { addAll(it.value) }
             if (profileId != DISCARD_ID) {
                 discardCards.forEach { add(it.key) }
             }
@@ -453,8 +468,16 @@ class RoundCaptureViewModel(
     private fun updateCurrentDraft(transform: (Draft) -> Draft) {
         val id = _uiState.value.currentProfileId ?: return
         val current = drafts[id] ?: Draft()
-        drafts[id] = transform(current).pruned()
+        val updated = transform(current).pruned()
+        drafts[id] = updated
         rebuild()
+        // P2P (Stage B+): stream the in-progress selection for the unit we hold so the other devices
+        // grey these cards out live. The current key set (empty after clearing the last card) is the
+        // truth; lifecycle clears (commit / release / disconnect) are host-driven.
+        if (isDistributed) {
+            val keys = updated.slots.mapNotNull { (it as? CardSlot.Filled)?.card?.key }
+            viewModelScope.launch { p2p.pushHandDraft(roundId, id, keys) }
+        }
     }
 
     fun switchToPlayer(profileId: String) {

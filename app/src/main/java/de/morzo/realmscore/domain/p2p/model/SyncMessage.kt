@@ -53,6 +53,21 @@ sealed class SyncMessage {
     data class DiscardUpdate(val roundId: String, val cards: List<String>) : SyncMessage()
 
     /**
+     * Live, *uncommitted* card selection for a unit currently being captured (Stage B+). Streamed on
+     * every pick/clear while a hand is in progress so the other devices can grey out cards a physical
+     * deck can only hold once. Carries card keys only — never persisted, never scored (an incomplete
+     * hand must not enter the mirror). The host relays it and is the sole authority for clearing it
+     * (on commit / release / disconnect), emitting an empty [cardKeys] so every device clears in step.
+     */
+    @Serializable
+    data class HandDraftUpdate(
+        val roundId: String,
+        val unitId: String,
+        val deviceId: String,
+        val cardKeys: List<String>,
+    ) : SyncMessage()
+
+    /**
      * Host → all: a round is now open for capture (Stage B). Sent right after the [FullGameState] that
      * seeds every device's mirror with the shared game/round/profile UUIDs, so all phones navigate into
      * the round-capture screen together. Reused for each subsequent round.

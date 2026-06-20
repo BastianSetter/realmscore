@@ -65,6 +65,15 @@ class SessionManager(
     private val _roundStatus = MutableStateFlow<SyncMessage.RoundStatus?>(null)
     override val roundStatus: StateFlow<SyncMessage.RoundStatus?> = _roundStatus.asStateFlow()
 
+    /**
+     * Live, uncommitted per-unit card selections (Stage B+): unitId → in-progress card keys. Fed by
+     * [SyncMessage.HandDraftUpdate]; the host relays these and is the sole authority for clearing them.
+     * [liveDraftOwner] tracks which device owns each draft so a disconnect can free its in-progress cards.
+     */
+    private val _liveDrafts = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
+    override val liveDrafts: StateFlow<Map<String, Set<String>>> = _liveDrafts.asStateFlow()
+    private val liveDraftOwner = mutableMapOf<String, String>() // unitId -> deviceId
+
     /** Host-only authoritative lock registry; clients drive it via [SyncMessage] over Bluetooth. */
     private val lockManager = LockManager()
 
@@ -189,6 +198,7 @@ class SessionManager(
             ?: error("Game $gameId not found for distribution")
         activeGameId = gameId
         activeRoundId = round.id
+        clearAllDrafts() // a fresh round: no in-progress drafts carry over
         broadcast(SyncMessage.FullGameState(snapshot.game, snapshot.profiles))
         broadcast(SyncMessage.StartRound(gameId, round.id))
         round.id
@@ -214,6 +224,7 @@ class SessionManager(
         val deviceId = myDeviceId ?: deviceUuidProvider.get().also { myDeviceId = it }
         if (isHost()) {
             lockManager.release(roundId, unitId, deviceId)
+            clearDraftAndBroadcast(roundId, unitId)
             rebuildAndBroadcastStatus(roundId)
         } else {
             sendToHost(SyncMessage.LockRelease(profileId = unitId, roundId = roundId))
@@ -223,6 +234,7 @@ class SessionManager(
     override suspend fun forceUnlock(roundId: String, unitId: String) {
         if (isHost()) {
             lockManager.forceUnlock(roundId, unitId)
+            clearDraftAndBroadcast(roundId, unitId)
             rebuildAndBroadcastStatus(roundId)
         } else {
             sendToHost(SyncMessage.UnlockRequest(profileId = unitId, roundId = roundId))
@@ -232,6 +244,7 @@ class SessionManager(
     override suspend fun markUnitDone(roundId: String, unitId: String) {
         if (isHost()) {
             lockManager.markDone(roundId, unitId)
+            clearDraftAndBroadcast(roundId, unitId)
             rebuildAndBroadcastStatus(roundId)
         } else {
             sendToHost(SyncMessage.UnitDone(roundId = roundId, unitId = unitId))
@@ -264,6 +277,43 @@ class SessionManager(
     override suspend fun pushDiscard(roundId: String, cards: List<String>) {
         val message = SyncMessage.DiscardUpdate(roundId = roundId, cards = cards)
         if (isHost()) broadcast(message) else sendToHost(message)
+    }
+
+    // --- Live in-progress card drafts (Stage B+): availability greying before a hand is submitted ---
+
+    override suspend fun pushHandDraft(roundId: String, unitId: String, cardKeys: List<String>) {
+        val deviceId = myDeviceId ?: deviceUuidProvider.get().also { myDeviceId = it }
+        val message = SyncMessage.HandDraftUpdate(roundId, unitId, deviceId, cardKeys)
+        applyDraft(message)
+        if (isHost()) broadcast(message) else sendToHost(message)
+    }
+
+    /** Fold a draft update into [_liveDrafts] (host + client). Empty keys clear the unit. Active round only. */
+    private fun applyDraft(message: SyncMessage.HandDraftUpdate) {
+        val active = activeRoundId
+        if (active != null && message.roundId != active) return
+        synchronized(lock) {
+            if (message.cardKeys.isEmpty()) liveDraftOwner.remove(message.unitId)
+            else liveDraftOwner[message.unitId] = message.deviceId
+        }
+        _liveDrafts.update { current ->
+            if (message.cardKeys.isEmpty()) current - message.unitId
+            else current + (message.unitId to message.cardKeys.toSet())
+        }
+    }
+
+    /** Host: clear one unit's in-progress draft on every device (on commit / release / takeover). */
+    private suspend fun clearDraftAndBroadcast(roundId: String, unitId: String) {
+        if (synchronized(lock) { unitId !in liveDraftOwner }) return
+        val deviceId = myDeviceId ?: deviceUuidProvider.get()
+        val message = SyncMessage.HandDraftUpdate(roundId, unitId, deviceId, emptyList())
+        applyDraft(message)
+        broadcast(message)
+    }
+
+    private fun clearAllDrafts() {
+        synchronized(lock) { liveDraftOwner.clear() }
+        _liveDrafts.value = emptyMap()
     }
 
     override suspend fun finishRound(roundId: String) {
@@ -378,6 +428,7 @@ class SessionManager(
             is SyncMessage.StartRound -> {
                 activeGameId = message.gameId
                 activeRoundId = message.roundId
+                clearAllDrafts() // a fresh round: drop any leftover in-progress drafts
                 _navSignals.emit(NavSignal.OpenRound(message.roundId))
             }
 
@@ -393,6 +444,13 @@ class SessionManager(
 
             is SyncMessage.DiscardUpdate -> {
                 mirrorSync.applyDiscardUpdate(message)
+                if (isHost()) broadcastExcept(message, from)
+            }
+
+            // Live in-progress draft from another device: fold into the availability set; the host
+            // (the hub) relays it on to the other clients, skipping the sender to avoid an echo.
+            is SyncMessage.HandDraftUpdate -> {
+                applyDraft(message)
                 if (isHost()) broadcastExcept(message, from)
             }
 
@@ -420,16 +478,19 @@ class SessionManager(
             is SyncMessage.LockRelease -> if (isHost()) {
                 // The holder is releasing its own unit; we trust the sender (no deviceId on the wire).
                 lockManager.forceUnlock(message.roundId, message.profileId)
+                clearDraftAndBroadcast(message.roundId, message.profileId)
                 rebuildAndBroadcastStatus(message.roundId)
             }
 
             is SyncMessage.UnlockRequest -> if (isHost()) {
                 lockManager.forceUnlock(message.roundId, message.profileId)
+                clearDraftAndBroadcast(message.roundId, message.profileId)
                 rebuildAndBroadcastStatus(message.roundId)
             }
 
             is SyncMessage.UnitDone -> if (isHost()) {
                 lockManager.markDone(message.roundId, message.unitId)
+                clearDraftAndBroadcast(message.roundId, message.unitId)
                 rebuildAndBroadcastStatus(message.roundId)
             }
 
@@ -508,7 +569,17 @@ class SessionManager(
                     state
                 }
             }
-            activeRoundId?.let { roundId -> scope.launch { rebuildAndBroadcastStatus(roundId) } }
+            activeRoundId?.let { roundId ->
+                scope.launch {
+                    // Free the dropped device's in-progress drafts too, so its half-picked cards
+                    // become available again on the others (it left its locks AND its draft behind).
+                    val orphaned = synchronized(lock) {
+                        liveDraftOwner.filterValues { it == deviceId }.keys.toList()
+                    }
+                    orphaned.forEach { clearDraftAndBroadcast(roundId, it) }
+                    rebuildAndBroadcastStatus(roundId)
+                }
+            }
         } else {
             val gameId = (_sessionState.value as? SessionState.Connected)?.gameId ?: activeGameId.orEmpty()
             _sessionState.value = SessionState.Disconnected(
@@ -538,6 +609,7 @@ class SessionManager(
         activeGameId = null
         activeRoundId = null
         lockManager.reset()
+        clearAllDrafts()
         synchronized(lock) { deviceNamesById.clear() }
         _roundStatus.value = null
         _incomingParticipants.value = emptyList()
