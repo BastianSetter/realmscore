@@ -15,4 +15,7 @@ sealed interface NavSignal {
 
     /** Open the final game summary for [gameId] — the host closed the game. */
     data class OpenGameSummary(val gameId: String) : NavSignal
+
+    /** Show the "host is preparing the next game" waiting screen — the host started a new-game setup. */
+    data object OpenNewGameWait : NavSignal
 }

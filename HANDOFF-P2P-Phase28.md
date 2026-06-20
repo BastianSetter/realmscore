@@ -19,6 +19,16 @@ Stage B = multi-device live-capture (committed `244a4e5`, device-fixes `7c9f84a`
   distribution + self-seat reconcile) — **working on-device 2026-06-20.** Builds both flavors,
   F-Droid check clean, DB still **v8** (no new entities — only query-only DAO additions).
 
+- **Game-end flow rework** (2026-06-20, built + installed both phones, **device test pending**):
+  closing now happens on the **first** button (RoundSummary "Spiel abschließen" → `completeGame` =
+  `closeGame` + `closeSharedGame`), so clients reach the game-end screen *then*. The closed game-end
+  view shows [Statistik] + **[Neues Spiel starten]** for host/solo (seeds the prev game's players +
+  settings via `Routes.newGameRoute(seedGameId, continueSession)`; host also brings clients along via
+  new `SyncMessage.NewGameSetup` → `NavSignal.OpenNewGameWait` → `NewGameWaitScreen`, then the existing
+  `OpenRound` pulls everyone into capture). A joined phone (`isP2pClient`) keeps **[Zur Startseite]**.
+  Seeding skips device-mapped profiles when continuing (they repopulate from the live
+  `joinedParticipants`). New sealed `SyncMessage` subclass → no `SyncProtocol` change.
+
 ### Verified on device (Pixel 8 host `38011FDJH000N5`, Redmi `cef2e19b`)
 Both phones start the game together; each captures its own hand then auto-steals the next free
 unit; used cards entered on one phone are excluded on the other; the early-finisher gets the waiting

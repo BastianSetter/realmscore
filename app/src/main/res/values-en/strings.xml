@@ -122,6 +122,7 @@
     <string name="game_summary_back_to_game">Back to game</string>
     <string name="game_summary_back_home">Back to main menu</string>
     <string name="game_summary_show_stats">View stats</string>
+    <string name="game_summary_new_game">Start new game</string>
 
     <string name="new_game_title">New Game</string>
     <string name="new_game_mode_section">Game mode</string>
@@ -518,6 +519,8 @@
     <string name="p2p_reconciliation_title">Assign players</string>
     <string name="p2p_reconciliation_done">Done</string>
     <string name="p2p_joined_waiting">Joined – waiting for the host</string>
+    <string name="p2p_new_game_wait_title">Preparing the next game</string>
+    <string name="p2p_new_game_wait_message">The host is setting up the next game. It will continue here automatically once it starts.</string>
     <string name="p2p_map_local_profile">Assign local profile</string>
     <string name="p2p_sync_complete">Game data synced</string>
     <string name="p2p_bluetooth_off_title">Bluetooth is off</string>

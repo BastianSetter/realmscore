@@ -103,6 +103,14 @@ sealed class SyncMessage {
     @Serializable
     data class GameClosed(val gameId: String, val closedAt: Long) : SyncMessage()
 
+    /**
+     * Host → all: the host is setting up the *next* game with this group (it tapped "Neues Spiel
+     * starten" on the game-end screen). Clients show a waiting screen until the host starts the next
+     * round (then the usual [StartRound] pulls them into capture).
+     */
+    @Serializable
+    data object NewGameSetup : SyncMessage()
+
     /** Full game snapshot for reconnect delta-sync and end-of-game distribution. */
     @Serializable
     data class FullGameState(

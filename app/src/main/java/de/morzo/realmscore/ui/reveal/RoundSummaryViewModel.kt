@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.domain.model.CardDefinition
+import de.morzo.realmscore.domain.model.ClosedReason
 import de.morzo.realmscore.domain.model.Game
 import de.morzo.realmscore.domain.model.GameMode
 import de.morzo.realmscore.domain.p2p.P2PSessionRepository
@@ -154,6 +155,25 @@ class RoundSummaryViewModel(
             } else {
                 onStarted(roundRepo.startRound(gameId).id)
             }
+        }
+    }
+
+    /**
+     * Finish the game from the round summary (the "Spiel abschließen" button). Persists the game as
+     * closed *here* (previously this only happened on the second button in the game summary), then —
+     * while hosting a P2P session — distributes the close so every joined phone follows to the game-end
+     * screen now. [onCompleted] then navigates this device to the (already-closed) game summary.
+     */
+    fun completeGame(onCompleted: (gameId: String) -> Unit) {
+        viewModelScope.launch {
+            val gameId = _uiState.value.gameId
+            if (gameId.isEmpty()) return@launch
+            if (gameRepo.getById(gameId)?.closedAt == null) {
+                gameRepo.closeGame(gameId, ClosedReason.COMPLETED)
+            }
+            // Host → broadcast GameClosed so clients jump to the game-end screen; no-op when solo.
+            p2p.closeSharedGame(gameId)
+            onCompleted(gameId)
         }
     }
 

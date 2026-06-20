@@ -8,6 +8,7 @@ import de.morzo.realmscore.domain.model.Profile
 import de.morzo.realmscore.domain.model.Round
 import de.morzo.realmscore.domain.model.RoundResult
 import de.morzo.realmscore.domain.p2p.P2PSessionRepository
+import de.morzo.realmscore.domain.p2p.model.SessionState
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.RoundRepository
@@ -51,6 +52,10 @@ data class GameSummaryUiState(
     val totalsByProfile: Map<String, Int> = emptyMap(),
     val players: List<Profile> = emptyList(),
     val gameStats: GameStats? = null,
+    /** True on the P2P host: "Neues Spiel starten" should bring the joined phones along. */
+    val isP2pHost: Boolean = false,
+    /** True on a joined phone: it can't start the next game, so it keeps "Zur Startseite". */
+    val isP2pClient: Boolean = false,
 )
 
 class GameSummaryViewModel(
@@ -91,6 +96,8 @@ class GameSummaryViewModel(
                         totalsByProfile = totals,
                         players = players,
                         gameStats = stats,
+                        isP2pHost = p2p.sessionState.value is SessionState.Hosting,
+                        isP2pClient = p2p.sessionState.value is SessionState.Connected,
                     )
                 }
             }
@@ -108,6 +115,19 @@ class GameSummaryViewModel(
             p2p.closeSharedGame(gameId)
             _uiState.update { it.copy(isClosed = true) }
             onClosed()
+        }
+    }
+
+    /**
+     * "Neues Spiel starten" from the game-end screen. On the P2P host, first tell the joined phones the
+     * next game is being set up (they show a waiting screen) and proceed with [continueSession] = true so
+     * the new-game screen keeps the live session and brings them along. Solo just opens a fresh setup.
+     */
+    fun prepareNewGame(onProceed: (continueSession: Boolean) -> Unit) {
+        viewModelScope.launch {
+            val hosting = p2p.sessionState.value is SessionState.Hosting
+            if (hosting) p2p.announceNewGameSetup()
+            onProceed(hosting)
         }
     }
 

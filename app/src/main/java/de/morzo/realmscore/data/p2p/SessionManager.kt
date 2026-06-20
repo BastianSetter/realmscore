@@ -326,6 +326,13 @@ class SessionManager(
         _navSignals.emit(NavSignal.OpenReveal(roundId))
     }
 
+    override suspend fun announceNewGameSetup() {
+        if (!isHost()) return
+        // The session stays alive across a game close (closeSharedGame only cleared activeGameId), so we
+        // can tell the still-connected clients to wait while the host builds the next game.
+        broadcast(SyncMessage.NewGameSetup)
+    }
+
     override suspend fun closeSharedGame(gameId: String) {
         if (!isHost()) return
         // The game row is already closed locally; export carries closedAt to every client.
@@ -468,6 +475,10 @@ class SessionManager(
                 activeRoundId = null
                 _navSignals.emit(NavSignal.OpenGameSummary(message.gameId))
             }
+
+            // Client: the host is preparing the next game with this group — show the waiting screen
+            // until the host starts the next round (StartRound then pulls us into capture).
+            is SyncMessage.NewGameSetup -> _navSignals.emit(NavSignal.OpenNewGameWait)
 
             // Host: a client requests/releases a lock or finishes a unit → arbitrate and re-broadcast.
             is SyncMessage.LockRequest -> if (isHost()) {

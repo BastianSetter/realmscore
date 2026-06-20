@@ -148,7 +148,7 @@ fun RoundSummaryScreen(
 
                 if (!state.isP2pClient) {
                     OutlinedButton(
-                        onClick = { onCompleteGame(state.gameId) },
+                        onClick = { vm.completeGame(onCompleteGame) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(stringResource(R.string.round_summary_complete_game))

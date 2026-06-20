@@ -20,7 +20,9 @@ object Routes {
 
     const val GAME_HUB = "game_hub"
 
-    const val NEW_GAME = "new_game"
+    const val NEW_GAME = "new_game?seedGameId={seedGameId}&continueSession={continueSession}"
+    const val ARG_SEED_GAME_ID = "seedGameId"
+    const val ARG_CONTINUE_SESSION = "continueSession"
     const val USERNAME_CHANGE = "settings/username_change"
     const val PROFILE_MANAGEMENT = "settings/profiles"
     const val SCAN_DEBUG = "settings/scan_debug"
@@ -36,6 +38,7 @@ object Routes {
 
     // Phase 28 P2P sync.
     const val JOIN_SESSION = "p2p/join"
+    const val NEW_GAME_WAIT = "p2p/new_game_wait"
 
     const val GAME_IN_PROGRESS = "game/{gameId}"
     const val ROUND_ENTRY = "round/{roundId}"
@@ -56,6 +59,9 @@ object Routes {
     const val ARG_PROFILE_ID_A = "profileIdA"
     const val ARG_PROFILE_ID_B = "profileIdB"
     const val ARG_CARD_KEY = "cardKey"
+
+    fun newGameRoute(seedGameId: String = "", continueSession: Boolean = false): String =
+        "new_game?seedGameId=$seedGameId&continueSession=$continueSession"
 
     fun gameRoute(gameId: String): String = "game/$gameId"
     fun roundEntryRoute(roundId: String): String = "round/$roundId"

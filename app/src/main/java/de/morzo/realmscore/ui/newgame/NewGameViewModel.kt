@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -71,6 +72,10 @@ class NewGameViewModel(
     private val gameRepo: GameRepository,
     private val p2p: P2PSessionRepository,
     private val mappingRepo: DeviceProfileMappingRepository,
+    /** When set, pre-fill players + settings from this previous game ("Neues Spiel starten"). */
+    private val seedGameId: String = "",
+    /** When true, keep the live host session alive and bring the joined phones into the next game. */
+    private val continueSession: Boolean = false,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NewGameUiState())
@@ -116,8 +121,9 @@ class NewGameViewModel(
         // P2P session is a process-wide singleton; a prior *finished* game may have left it Hosting.
         // Reset it so a fresh new-game setup starts Idle (button shown again) instead of resurrecting
         // the old QR/code. But do NOT close a session that is still guarding an in-progress game — the
-        // user may just be glancing at this screen mid-game (closing it would drop everyone).
-        if (!p2p.isInActiveGame()) p2p.close()
+        // user may just be glancing at this screen mid-game (closing it would drop everyone) — and do
+        // NOT close it when we're intentionally continuing with the same group ("Neues Spiel starten").
+        if (!continueSession && !p2p.isInActiveGame()) p2p.close()
         viewModelScope.launch {
             val owner = profileRepo.getLocalOwner()
                 ?: error("Local owner not found – onboarding must run first.")
@@ -135,6 +141,8 @@ class NewGameViewModel(
                     ),
                 )
             }
+            // "Neues Spiel starten": pre-fill the previous game's settings + players.
+            if (seedGameId.isNotBlank()) seedFromPreviousGame(seedGameId, owner.id)
             // Now that the owner is known, pre-compute suggestions so the empty/on-focus picker
             // already has relevance-ranked entries to show without any typing.
             refreshSuggestions(_uiState.value.addQuery.trim())
@@ -152,6 +160,46 @@ class NewGameViewModel(
         viewModelScope.launch {
             p2p.joinedParticipants.collect { joined -> mergeJoinedParticipants(joined) }
         }
+    }
+
+    /**
+     * Pre-fill the roster + settings from [seedGameId] (the just-finished game). Settings always carry
+     * over. Players carry over too, except that when [continueSession] is set the device-mapped (remote)
+     * seats are left out here — they repopulate from the still-live [P2PSessionRepository.joinedParticipants]
+     * with their correct remote `originDeviceId`, which is what lets each client re-resolve its own seat.
+     */
+    private suspend fun seedFromPreviousGame(gameId: String, ownerId: String) {
+        val game = gameRepo.getById(gameId) ?: return
+        setMode(game.mode)
+        when (game.mode) {
+            GameMode.FIXED_ROUNDS -> game.targetRounds?.let { setTarget(it) }
+            GameMode.POINT_LIMIT -> game.targetPoints?.let { setTarget(it) }
+        }
+
+        val deviceMappedProfiles =
+            if (continueSession) mappingRepo.observeAll().first().values.toSet() else emptySet()
+
+        val seededRows = mutableListOf<ParticipantRow>()
+        for (participant in gameRepo.getParticipants(gameId).sortedBy { it.seatOrder }) {
+            if (participant.profileId == ownerId) continue
+            if (participant.profileId in deviceMappedProfiles) continue
+            val profile = profileRepo.getById(participant.profileId) ?: continue
+            seededRows += ParticipantRow(
+                profileId = profile.id,
+                name = profile.name,
+                colorArgb = profile.colorArgb,
+                isOwner = false,
+                originDeviceId = profile.originDeviceId,
+            )
+        }
+        if (seededRows.isNotEmpty()) {
+            _uiState.update { state ->
+                val taken = state.participants.map { it.profileId }.toSet()
+                state.copy(participants = state.participants + seededRows.filter { it.profileId !in taken })
+            }
+        }
+        // Continuing a live host session: push the seeded roster so connected clients re-resolve seats.
+        if (continueSession) broadcastRoster()
     }
 
     private suspend fun mergeJoinedParticipants(joined: List<ParticipantInfo>) {
@@ -382,10 +430,14 @@ class NewGameViewModel(
         private val gameRepo: GameRepository,
         private val p2p: P2PSessionRepository,
         private val mappingRepo: DeviceProfileMappingRepository,
+        private val seedGameId: String = "",
+        private val continueSession: Boolean = false,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return NewGameViewModel(profileRepo, gameRepo, p2p, mappingRepo) as T
+            return NewGameViewModel(
+                profileRepo, gameRepo, p2p, mappingRepo, seedGameId, continueSession,
+            ) as T
         }
     }
 }

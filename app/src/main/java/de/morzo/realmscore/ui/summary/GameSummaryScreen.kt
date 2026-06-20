@@ -55,6 +55,7 @@ fun GameSummaryScreen(
     container: AppContainer,
     gameId: String,
     onCloseGameDone: () -> Unit,
+    onNewGame: (continueSession: Boolean) -> Unit,
     onShowStats: () -> Unit,
     onBackToGame: () -> Unit,
     onMoveToSandbox: (gameId: String, roundId: String, profileId: String) -> Unit,
@@ -129,11 +130,25 @@ fun GameSummaryScreen(
                     Text(stringResource(R.string.game_summary_show_stats))
                 }
                 Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = onCloseGameDone,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.game_summary_back_home))
+                // The game is already closed here (closing now happens on the round-summary "Spiel
+                // abschließen"). The host/solo primary action starts the next game with the same
+                // players + settings (and, when hosting, brings the joined phones along). A joined
+                // phone can't start the next game, so it keeps "Zur Startseite" — the host pulls it
+                // into the next game via the central OpenRound signal regardless.
+                if (state.isP2pClient) {
+                    Button(
+                        onClick = onCloseGameDone,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.game_summary_back_home))
+                    }
+                } else {
+                    Button(
+                        onClick = { vm.prepareNewGame(onNewGame) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.game_summary_new_game))
+                    }
                 }
             } else {
                 Button(

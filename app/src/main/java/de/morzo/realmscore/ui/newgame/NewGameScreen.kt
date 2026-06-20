@@ -68,6 +68,8 @@ fun NewGameScreen(
     onGameStarted: (gameId: String) -> Unit,
     onSharedRoundStarted: (roundId: String) -> Unit,
     onBack: () -> Unit,
+    seedGameId: String = "",
+    continueSession: Boolean = false,
 ) {
     val vm: NewGameViewModel = viewModel(
         factory = NewGameViewModel.Factory(
@@ -75,6 +77,8 @@ fun NewGameScreen(
             gameRepo = container.gameRepository,
             p2p = container.p2pSessionRepository,
             mappingRepo = container.deviceProfileMappingRepository,
+            seedGameId = seedGameId,
+            continueSession = continueSession,
         ),
     )
     val state by vm.uiState.collectAsStateWithLifecycle()

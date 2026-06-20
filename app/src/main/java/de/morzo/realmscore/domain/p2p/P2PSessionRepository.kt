@@ -120,6 +120,13 @@ interface P2PSessionRepository {
     suspend fun closeSharedGame(gameId: String)
 
     /**
+     * Host: announce that the next game is being set up with this group (the host tapped "Neues Spiel
+     * starten" on the game-end screen) so every client shows a waiting screen. The actual next round
+     * still arrives via [startSharedSession] → [SyncMessage.StartRound]. No-op on a client.
+     */
+    suspend fun announceNewGameSetup()
+
+    /**
      * Client: connect to the host at [macAddress] (resolved via CompanionDeviceManager) using the
      * handshake [payload]. Announces this device as [selfParticipant] (the joiner's own player) and
      * starts receiving roster updates.
