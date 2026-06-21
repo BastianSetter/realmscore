@@ -74,6 +74,14 @@ interface P2PSessionRepository {
     val rejoinInfo: StateFlow<RejoinInfo?>
 
     /**
+     * Forget the persisted last host ([rejoinInfo] → null, DataStore cleared) so the join flow stops
+     * auto-reconnecting to it and the user can scan a *different* session. Needed because a game that
+     * was abandoned / killed (not formally closed) never fired [SyncMessage.GameClosed], leaving the
+     * stored host pinned. Does not touch the live connection — call [close] first to drop a stale one.
+     */
+    fun clearRejoinInfo()
+
+    /**
      * True while a shared game is in progress (a round has been distributed and the game isn't closed).
      * The new-game / join screens use this so merely visiting them doesn't tear down a live session.
      */
@@ -112,6 +120,12 @@ interface P2PSessionRepository {
 
     /** Force-release a unit locked by another device (manual "Übernehmen"). */
     suspend fun forceUnlock(roundId: String, unitId: String)
+
+    /**
+     * Re-open a finished [unitId] for correction before the reveal (§6 #4): the host un-dones it and
+     * locks it to this device, then re-broadcasts [roundStatus]. Any device may correct a finished unit.
+     */
+    suspend fun reopenUnit(roundId: String, unitId: String)
 
     /** Mark [unitId] finished (captured): the host records it done and re-broadcasts [roundStatus]. */
     suspend fun markUnitDone(roundId: String, unitId: String)

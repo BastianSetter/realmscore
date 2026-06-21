@@ -63,6 +63,7 @@ fun RoundCaptureScreen(
     container: AppContainer,
     roundId: String,
     onAllPlayersCaptured: () -> Unit,
+    onDoneEditing: () -> Unit,
     onBack: () -> Unit,
 ) {
     val vm: RoundCaptureViewModel = viewModel(
@@ -161,7 +162,10 @@ fun RoundCaptureScreen(
             WaitingForOthersContent(
                 modifier = Modifier.padding(padding),
                 players = state.orderedPlayers,
+                isEditing = state.isEditingCompletedRound,
                 onTakeOver = vm::takeOverUnit,
+                onCorrect = vm::switchToPlayer,
+                onDone = onDoneEditing,
             )
             return@Scaffold
         }
@@ -222,15 +226,23 @@ fun RoundCaptureScreen(
 }
 
 /**
- * P2P pre-reveal waiting screen (Stage B): this device captured all the units it could grab; the round
- * isn't done yet. Lists the units still outstanding with who is on them, and offers "Übernehmen" to
- * force-release a unit stuck on an idle device so this device can take it over.
+ * P2P waiting / correction screen (Stage B + §6 #4). Two modes:
+ * - **Waiting** (default): this device captured all the units it could grab but the round isn't done.
+ *   Lists the units still outstanding with who is on them + "Übernehmen" to steal a stuck one.
+ * - **Editing** ([isEditing], reached via the round summary's "Diese Runde bearbeiten" after the reveal):
+ *   the round is complete; only the finished-unit correction list + a "Fertig" button are shown.
+ *
+ * In both modes the already-finished units are listed with a "Korrigieren" button so any device may
+ * re-open and fix a submitted hand; the fix propagates to every mirror and rescores deterministically.
  */
 @Composable
 private fun WaitingForOthersContent(
     modifier: Modifier = Modifier,
     players: List<CapturePlayer>,
+    isEditing: Boolean,
     onTakeOver: (String) -> Unit,
+    onCorrect: (String) -> Unit,
+    onDone: () -> Unit,
 ) {
     val doneCount = players.count { it.isDone }
     Column(
@@ -239,42 +251,82 @@ private fun WaitingForOthersContent(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+        if (isEditing) {
             Text(
-                text = stringResource(R.string.p2p_waiting_title),
+                text = stringResource(R.string.round_capture_edit_title),
                 style = MaterialTheme.typography.titleMedium,
             )
-        }
-        Text(
-            text = stringResource(R.string.p2p_waiting_progress, doneCount, players.size),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        players.filterNot { it.isDone }.forEach { player ->
+        } else {
             Row(
-                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                ColorDot(colorArgb = player.colorArgb)
-                Column(Modifier.weight(1f)) {
-                    Text(player.name)
-                    Text(
-                        text = player.lockedByName?.let { stringResource(R.string.p2p_locked_by, it) }
-                            ?: stringResource(R.string.p2p_unit_open),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (player.lockedByName != null) {
-                    OutlinedButton(onClick = { onTakeOver(player.profileId) }) {
-                        Text(stringResource(R.string.p2p_take_over))
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                Text(
+                    text = stringResource(R.string.p2p_waiting_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            Text(
+                text = stringResource(R.string.p2p_waiting_progress, doneCount, players.size),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            players.filterNot { it.isDone }.forEach { player ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ColorDot(colorArgb = player.colorArgb)
+                    Column(Modifier.weight(1f)) {
+                        Text(player.name)
+                        Text(
+                            text = player.lockedByName?.let { stringResource(R.string.p2p_locked_by, it) }
+                                ?: stringResource(R.string.p2p_unit_open),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (player.lockedByName != null) {
+                        OutlinedButton(onClick = { onTakeOver(player.profileId) }) {
+                            Text(stringResource(R.string.p2p_take_over))
+                        }
                     }
                 }
+            }
+        }
+
+        // Already-finished units: re-openable for correction (§6 #4) in both modes.
+        val doneUnits = players.filter { it.isDone }
+        if (doneUnits.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.p2p_correct_done_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            doneUnits.forEach { player ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ColorDot(colorArgb = player.colorArgb)
+                    Text(player.name, modifier = Modifier.weight(1f))
+                    OutlinedButton(onClick = { onCorrect(player.profileId) }) {
+                        Text(stringResource(R.string.p2p_correct_hand))
+                    }
+                }
+            }
+        }
+
+        if (isEditing) {
+            Spacer(Modifier.weight(1f))
+            androidx.compose.material3.Button(
+                onClick = onDone,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.round_capture_edit_done))
             }
         }
     }
@@ -356,6 +408,14 @@ private fun PlayerDropdown(
                                     )
                                 }
                             }
+                            // A finished unit can be re-opened for correction by tapping it (§6 #4).
+                            if (player.isDone) {
+                                Text(
+                                    text = stringResource(R.string.p2p_correct_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             // P2P: another device is capturing this unit — show by whom + "Entsperren".
                             // The name takes the remaining width and wraps; the button stays one line.
                             if (player.lockedByName != null && !player.isDone) {
@@ -387,7 +447,11 @@ private fun PlayerDropdown(
                         }
                     },
                     onClick = {
-                        onSelectPlayer(player.profileId)
+                        // A unit locked by another device isn't switchable (use "Entsperren");
+                        // otherwise tap to grab a free unit, re-open a finished one, or focus our own.
+                        if (player.lockedByName == null || player.isDone) {
+                            onSelectPlayer(player.profileId)
+                        }
                         expanded = false
                     },
                 )

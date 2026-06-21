@@ -74,26 +74,6 @@ class RoundSummaryViewModel(
             val participants = gameRepo.getParticipants(round.gameId)
                 .sortedBy { it.seatOrder }
 
-            val rawSummaries = participants.mapNotNull { participant ->
-                val profile = profileRepo.getById(participant.profileId) ?: return@mapNotNull null
-                val saved = handCardRepo.getHand(roundId, participant.profileId)
-                    ?: return@mapNotNull null
-                val breakdown = withContext(Dispatchers.Default) {
-                    rescore(saved.cards)
-                }
-                PlayerSummary(
-                    profileId = profile.id,
-                    name = profile.name,
-                    colorArgb = profile.colorArgb,
-                    totalScore = saved.totalScore,
-                    positiveContribution = breakdown.positive,
-                    negativeContribution = breakdown.negative,
-                    blankedCount = breakdown.blankedCount,
-                )
-            }.sortedByDescending { it.totalScore }
-
-            val winnerId = rawSummaries.firstOrNull()?.profileId
-
             roundRepo.markRoundCompleted(roundId)
 
             // Discard pile (Mittelfeld) is editable after the reveal, so observe it reactively.
@@ -108,36 +88,55 @@ class RoundSummaryViewModel(
                 }
             }
 
+            // Player scores + order are recomputed reactively from this game's results so a cross-device
+            // correction (§6 #4) refreshes the summary in place — the corrected HandCardUpdate updates
+            // the mirror's round_results, which re-emits here — without re-playing the reveal animation.
             launch {
                 combine(
                     roundRepo.observeRoundsForGame(game.id),
                     roundRepo.observeResultsForGame(game.id),
-                ) { rounds, results ->
-                    val maxRoundNumber = rounds.maxOfOrNull { it.roundNumber } ?: round.roundNumber
-                    val isLast = round.roundNumber >= maxRoundNumber
-                    val totalsByProfile: Map<String, Int> = participants
-                        .map { it.profileId }
-                        .associateWith { pid ->
-                            results.filter { it.profileId == pid }.sumOf { it.totalScore }
+                ) { rounds, results -> rounds to results }
+                    .collect { (rounds, results) ->
+                        val summaries = participants.mapNotNull { participant ->
+                            val profile = profileRepo.getById(participant.profileId)
+                                ?: return@mapNotNull null
+                            val saved = handCardRepo.getHand(roundId, participant.profileId)
+                                ?: return@mapNotNull null
+                            val breakdown = withContext(Dispatchers.Default) { rescore(saved.cards) }
+                            PlayerSummary(
+                                profileId = profile.id,
+                                name = profile.name,
+                                colorArgb = profile.colorArgb,
+                                totalScore = saved.totalScore,
+                                positiveContribution = breakdown.positive,
+                                negativeContribution = breakdown.negative,
+                                blankedCount = breakdown.blankedCount,
+                            )
+                        }.sortedByDescending { it.totalScore }
+
+                        val maxRoundNumber = rounds.maxOfOrNull { it.roundNumber } ?: round.roundNumber
+                        val isLast = round.roundNumber >= maxRoundNumber
+                        val totalsByProfile: Map<String, Int> = participants
+                            .map { it.profileId }
+                            .associateWith { pid ->
+                                results.filter { it.profileId == pid }.sumOf { it.totalScore }
+                            }
+                        val canNext = canStartNextRound(game, totalsByProfile, rounds.size)
+                        val isP2pClient = p2p.sessionState.value is SessionState.Connected
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                gameId = game.id,
+                                roundNumber = round.roundNumber,
+                                players = summaries,
+                                winnerId = summaries.firstOrNull()?.profileId,
+                                canStartNextRound = canNext && isLast,
+                                canEditRound = isLast,
+                                isLastRound = isLast,
+                                isP2pClient = isP2pClient,
+                            )
                         }
-                    val canNext = canStartNextRound(game, totalsByProfile, rounds.size)
-                    Triple(isLast, canNext, totalsByProfile.size)
-                }.collect { (isLast, canNext, _) ->
-                    val isP2pClient = p2p.sessionState.value is SessionState.Connected
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            gameId = game.id,
-                            roundNumber = round.roundNumber,
-                            players = rawSummaries,
-                            winnerId = winnerId,
-                            canStartNextRound = canNext && isLast,
-                            canEditRound = isLast,
-                            isLastRound = isLast,
-                            isP2pClient = isP2pClient,
-                        )
                     }
-                }
             }
         }
     }

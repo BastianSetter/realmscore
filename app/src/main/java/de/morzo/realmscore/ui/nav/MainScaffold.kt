@@ -371,6 +371,13 @@ fun MainScaffold(container: AppContainer) {
                                 popUpTo(Routes.ROUND_CAPTURE) { inclusive = true }
                             }
                         },
+                        onDoneEditing = {
+                            // Correcting an already-revealed round (§6 #4): return to the (reactive)
+                            // round summary, which re-reads the corrected scores from the mirror.
+                            tabNavController.navigate(Routes.roundSummaryRoute(roundId)) {
+                                popUpTo(Routes.ROUND_CAPTURE) { inclusive = true }
+                            }
+                        },
                         onBack = { tabNavController.popBackStack() },
                     )
                 }

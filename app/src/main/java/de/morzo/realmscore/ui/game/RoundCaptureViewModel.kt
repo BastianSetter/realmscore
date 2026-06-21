@@ -79,6 +79,8 @@ data class RoundCaptureUiState(
     val waitingForOthers: Boolean = false,
     /** P2P (Stage B): the session is distributing this round across devices (locks/auto-assign active). */
     val isDistributed: Boolean = false,
+    /** P2P (§6 #4): re-entered an already-revealed round to correct it — show the edit affordances. */
+    val isEditingCompletedRound: Boolean = false,
 ) {
     val allCaptured: Boolean
         get() = orderedPlayers.isNotEmpty() && orderedPlayers.all { it.captured }
@@ -138,6 +140,12 @@ class RoundCaptureViewModel(
     // --- P2P distributed capture (Stage B). Inert when no session is active. ---
     private var isDistributed = false
     private var isHost = false
+    /**
+     * Re-entered an already-revealed round to correct it (§6 #4, post-reveal). The host then must NOT
+     * auto-reveal again on every submit — corrections propagate via the mirror and refresh each device's
+     * (reactive) round summary in place; the corrector returns to the summary via "Fertig".
+     */
+    private var isEditingCompletedRound = false
     /** Host-only guard so the reveal is computed + broadcast exactly once per round. */
     private var roundFinishRequested = false
     private var myDeviceId: String = ""
@@ -145,6 +153,8 @@ class RoundCaptureViewModel(
     private var assignOrder: List<String> = emptyList()
     /** The unit we last asked the host to lock for us (awaiting confirmation via roundStatus). */
     private var pendingLockUnit: String? = null
+    /** An explicit user target (manual grab / correction) awaiting the host's lock grant. */
+    private var pendingSwitchUnit: String? = null
     private var latestStatus: SyncMessage.RoundStatus? = null
 
     // Saved discard state, kept in sync via the observer below; powers the Necromancer filtering.
@@ -209,6 +219,8 @@ class RoundCaptureViewModel(
             val session = p2p.sessionState.value
             isHost = session is SessionState.Hosting
             isDistributed = session is SessionState.Hosting || session is SessionState.Connected
+            // A completed round re-opened for capture means we're correcting an already-revealed round.
+            isEditingCompletedRound = isDistributed && round.completedAt != null
             val first = if (isDistributed) {
                 myDeviceId = deviceUuidProvider.get()
                 assignOrder = buildAssignOrder(session, participants)
@@ -225,6 +237,7 @@ class RoundCaptureViewModel(
                     pickerSearchEnabled = pickerSearchEnabled,
                     cameraScanEnabled = cameraScanEnabled,
                     isDistributed = isDistributed,
+                    isEditingCompletedRound = isEditingCompletedRound,
                 )
             }
             rebuild()
@@ -313,13 +326,35 @@ class RoundCaptureViewModel(
         latestStatus = status
         rebuild()
         if (!isDistributed) return
-        // Host: once every unit of the round is done, compute + broadcast the reveal (sole authority).
-        if (isHost && !roundFinishRequested && orderedIds.isNotEmpty() &&
-            orderedIds.all { isUnitDone(it, status) }
-        ) {
-            roundFinishRequested = true
-            viewModelScope.launch { p2p.finishRound(roundId) }
+
+        // Honor an explicit user target (manual grab from the dropdown / correction of a finished
+        // hand) once the host grants us its lock; until then don't let auto-assign steal focus.
+        val target = pendingSwitchUnit
+        if (target != null) {
+            if (isLockedByMe(target, status) && !isUnitDone(target, status)) {
+                pendingSwitchUnit = null
+                viewModelScope.launch {
+                    // A hand captured on another device lives in our Room mirror but not in this VM's
+                    // in-memory drafts — reload so a corrector starts from the latest entered cards.
+                    drafts[target] = if (target == DISCARD_ID) loadDiscardDraft() else loadDraft(target)
+                    selectUnit(target)
+                }
+            }
             return
+        }
+
+        val allDone = orderedIds.isNotEmpty() && orderedIds.all { isUnitDone(it, status) }
+        if (isHost && !isEditingCompletedRound) {
+            // Host is the sole reveal authority: compute + broadcast it once every unit is done.
+            // Re-arm if a correction re-opens a unit (un-revealed window, §6 #4), so the reveal
+            // fires again after the corrected hand is re-submitted. Skipped when correcting an
+            // already-revealed round — those corrections refresh each summary in place, no re-reveal.
+            if (allDone && !roundFinishRequested) {
+                roundFinishRequested = true
+                viewModelScope.launch { p2p.finishRound(roundId) }
+                return
+            }
+            if (!allDone) roundFinishRequested = false
         }
         if (isSaving) return
         val current = _uiState.value.currentProfileId
@@ -343,7 +378,12 @@ class RoundCaptureViewModel(
             pendingLockUnit = next
             viewModelScope.launch { p2p.requestLock(roundId, next) }
         }
-        _uiState.update { it.copy(currentProfileId = next, waitingForOthers = false) }
+        selectUnit(next)
+    }
+
+    /** Focus [id] for capture and leave the waiting screen. */
+    private fun selectUnit(id: String) {
+        _uiState.update { it.copy(currentProfileId = id, waitingForOthers = false) }
         rebuild()
     }
 
@@ -357,6 +397,9 @@ class RoundCaptureViewModel(
 
     private fun isLockedByMe(unit: String, status: SyncMessage.RoundStatus?): Boolean =
         status?.locks?.any { it.unitId == unit && it.deviceId == myDeviceId } == true
+
+    private fun isLockedByOther(unit: String, status: SyncMessage.RoundStatus?): Boolean =
+        status?.locks?.any { it.unitId == unit && it.deviceId != myDeviceId } == true
 
     private fun isUnitDone(unit: String, status: SyncMessage.RoundStatus?): Boolean =
         status?.doneUnitIds?.contains(unit) == true
@@ -448,18 +491,25 @@ class RoundCaptureViewModel(
         // this device's other in-memory drafts, plus — for a distributed round — hands captured on
         // other devices (synced mirror) and the Mittelfeld captured elsewhere.
         val usedByOthers = buildSet {
+            // This device's other in-memory drafts.
             drafts.asSequence()
                 .filter { it.key != profileId }
                 .forEach { (_, d) ->
                     d.slots.forEach { slot -> (slot as? CardSlot.Filled)?.card?.key?.let { add(it) } }
                 }
+            // Hands captured on other devices (synced mirror). A unit currently being edited elsewhere
+            // is skipped here and taken from its live draft instead, so a card freed mid-edit (e.g. a
+            // correction swapping one card for another) is released live — the mirror still holds the
+            // pre-correction hand until it is re-submitted.
             syncedCardsByProfile.asSequence()
-                .filter { it.key != profileId }
+                .filter { it.key != profileId && it.key !in liveDraftsByUnit }
                 .forEach { addAll(it.value) }
+            // In-progress selections on other devices (live draft channel): the authoritative current keys.
             liveDraftsByUnit.asSequence()
                 .filter { it.key != profileId }
                 .forEach { addAll(it.value) }
-            if (profileId != DISCARD_ID) {
+            // The Mittelfeld: its live draft while being edited, else the persisted pile.
+            if (profileId != DISCARD_ID && DISCARD_ID !in liveDraftsByUnit) {
                 discardCards.forEach { add(it.key) }
             }
         }
@@ -491,12 +541,36 @@ class RoundCaptureViewModel(
         }
     }
 
+    /**
+     * Switch the capture focus to [profileId]. In a distributed round this routes through the host:
+     * a unit we already hold is selected directly; a free (unlocked + unfinished) unit is grabbed; a
+     * finished unit is re-opened for correction (any device may, §6 #4); a unit locked by another
+     * device is left alone (the UI disables it). The grab/correction completes asynchronously once the
+     * host's [RoundStatus] grants us the lock (see [onRoundStatus]).
+     */
     fun switchToPlayer(profileId: String) {
         if (profileId !in drafts) return
-        // In a distributed round you may only edit a unit you currently hold the lock for.
-        if (isDistributed && !isLockedByMe(profileId, latestStatus)) return
-        _uiState.update { it.copy(currentProfileId = profileId) }
-        rebuild()
+        if (!isDistributed) {
+            _uiState.update { it.copy(currentProfileId = profileId) }
+            rebuild()
+            return
+        }
+        val status = latestStatus
+        when {
+            isLockedByMe(profileId, status) -> {
+                pendingSwitchUnit = null
+                selectUnit(profileId)
+            }
+            isUnitDone(profileId, status) -> {
+                pendingSwitchUnit = profileId
+                viewModelScope.launch { p2p.reopenUnit(roundId, profileId) }
+            }
+            isLockedByOther(profileId, status) -> Unit // not switchable while another device holds it
+            else -> {
+                pendingSwitchUnit = profileId
+                viewModelScope.launch { p2p.requestLock(roundId, profileId) }
+            }
+        }
     }
 
     fun setCardInSlot(slotIndex: Int, card: CardDefinition) {

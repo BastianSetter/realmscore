@@ -521,11 +521,17 @@
     <string name="p2p_waiting_title">Waiting for the remaining hands</string>
     <string name="p2p_waiting_progress">%1$d of %2$d captured</string>
     <string name="p2p_unit_open">Open</string>
+    <string name="p2p_correct_hand">Correct</string>
+    <string name="p2p_correct_hint">Tap to correct</string>
+    <string name="p2p_correct_done_title">Already captured</string>
+    <string name="round_capture_edit_title">Edit round</string>
+    <string name="round_capture_edit_done">Done</string>
     <string name="p2p_reconciliation_title">Assign players</string>
     <string name="p2p_reconciliation_done">Done</string>
     <string name="p2p_joined_waiting">Joined – waiting for the host</string>
     <string name="p2p_rejoin_session">Rejoin session</string>
     <string name="p2p_rejoin_session_body">Reconnect to your last session — no QR re-scan needed.</string>
+    <string name="p2p_join_other_session">Join a different session (scan QR)</string>
     <string name="p2p_show_qr">Show session QR</string>
     <string name="p2p_show_qr_body">Re-display the QR code so a device can rejoin.</string>
     <string name="p2p_new_game_wait_title">Preparing the next game</string>

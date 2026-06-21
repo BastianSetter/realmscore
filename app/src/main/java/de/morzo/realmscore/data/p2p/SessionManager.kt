@@ -219,6 +219,13 @@ class SessionManager(
 
     override fun isInActiveGame(): Boolean = activeGameId != null
 
+    override fun clearRejoinInfo() {
+        // Forget the persisted last host so the join flow stops auto-reconnecting to it (e.g. after an
+        // abandoned game that never fired GameClosed). Mirrors the GameClosed cleanup, minus navigation.
+        _rejoinInfo.value = null
+        scope.launch { lastSessionStore.clear() }
+    }
+
     override fun resetJoinedRoster() {
         // Clear leftover joiners without touching connections/sockets (a fresh new-game setup; the live
         // join re-announces over the existing or a re-scanned connection).
@@ -292,6 +299,18 @@ class SessionManager(
             rebuildAndBroadcastStatus(roundId)
         } else {
             sendToHost(SyncMessage.UnlockRequest(profileId = unitId, roundId = roundId))
+        }
+    }
+
+    override suspend fun reopenUnit(roundId: String, unitId: String) {
+        val deviceId = myDeviceId ?: deviceUuidProvider.get().also { myDeviceId = it }
+        if (isHost()) {
+            // Un-done the unit and lock it to us; this also re-opens the round's all-done gate, so the
+            // host won't compute the reveal until the correction is re-submitted.
+            lockManager.reopen(roundId, unitId, deviceId)
+            rebuildAndBroadcastStatus(roundId)
+        } else {
+            sendToHost(SyncMessage.ReopenUnit(roundId = roundId, unitId = unitId, deviceId = deviceId))
         }
     }
 
@@ -564,6 +583,13 @@ class SessionManager(
             is SyncMessage.UnlockRequest -> if (isHost()) {
                 lockManager.forceUnlock(message.roundId, message.profileId)
                 clearDraftAndBroadcast(message.roundId, message.profileId)
+                rebuildAndBroadcastStatus(message.roundId)
+            }
+
+            is SyncMessage.ReopenUnit -> if (isHost()) {
+                // A device wants to correct a finished hand (un-revealed window, §6 #4): un-done it
+                // and lock it to that device, then re-broadcast so its done flag clears everywhere.
+                lockManager.reopen(message.roundId, message.unitId, message.deviceId)
                 rebuildAndBroadcastStatus(message.roundId)
             }
 

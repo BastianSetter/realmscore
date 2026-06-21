@@ -47,6 +47,12 @@ Stage B = multi-device live-capture (committed `244a4e5`, device-fixes `7c9f84a`
   re-show its QR mid-game as the fallback. New: `data/p2p/LastSessionStore.kt`, `domain/p2p/model/RejoinInfo.kt`,
   `ui/p2p/HostQrDialog.kt`; tri-state Home card in `HomeViewModel`/`HomeScreen`. DataStore only, DB v8, F-Droid clean.
 
+- **Corrections to finished hands (§6 #4)** (2026-06-21, **device-VERIFIED on 2 phones**): any device can
+  re-open and fix a submitted hand (un-revealed *and* post-reveal), the fix propagates to every mirror and
+  rescores; corrected card availability is live, and the round summary refreshes in place. Also fixed the
+  duplicate-`round_result` merge bug (was double-counting + retaining freed cards) and added a stale-rejoin
+  escape hatch. See §6 #4 for the full breakdown. DB still v8, F-Droid clean.
+
 - **Game-end flow rework** (2026-06-20, built + installed both phones, **device test pending**):
   closing now happens on the **first** button (RoundSummary "Spiel abschließen" → `completeGame` =
   `closeGame` + `closeSharedGame`), so clients reach the game-end screen *then*. The closed game-end
@@ -175,10 +181,38 @@ These are known gaps / good next steps for a fresh session:
    **idle** → "Session beitreten". Direct RFCOMM reconnect to the stored MAC works without re-running CDM
    (the association persists; `connect()` needs only `BLUETOOTH_CONNECT`). No new protocol message, no DB
    change (DataStore only, v8). F-Droid clean.
-3. **End-of-game confirmation.** No "Spieldaten synchronisiert (N Runden)" toast on clients yet (data
-   does sync). `ImportResult.roundsAdded`/`roundsUpdated` is available to surface it.
-4. **Corrections to finished hands.** MVP never reassigns a `done` unit; there is no "re-scan / edit a
-   submitted hand" across devices.
+3. ~~End-of-game confirmation.~~ **Dropped (2026-06-21):** the end-game data sync is already silent and
+   complete (B7 — each client merges the full game and shows it under its own owner, device-verified).
+   #3 only ever proposed *adding* a "Spieldaten synchronisiert (N Runden)" toast on top; the user wants
+   it to stay silent, so there is nothing to do.
+4. **Corrections to finished hands — DONE + device-VERIFIED 2026-06-21** (any-device, reactive). Any
+   device may re-open a finished hand and fix it; the fix relocks, re-captures, re-pushes into every
+   mirror and rescores. Core primitive: `LockManager.reopen` (un-done + lock to requester) driven by a
+   new auto-registered `SyncMessage.ReopenUnit` (no `SyncProtocol` change) via
+   `P2PSessionRepository.reopenUnit`. **Un-revealed window:** `RoundCaptureViewModel.switchToPlayer`
+   now routes by lock state — own→select, free→grab, **done→re-open for correction**, locked-by-other→
+   ignored (folds in the "tap any open hand" dropdown); `pendingSwitchUnit` honours the explicit target
+   once the host grants it and reloads the draft from the mirror. **Post-reveal:** re-entering a
+   completed round (`round.completedAt != null`) sets `isEditingCompletedRound` → the host's auto-reveal
+   is suppressed and `WaitingForOthersContent` shows an "Runde bearbeiten" list with **Korrigieren** per
+   hand + a **Fertig** button (`onDoneEditing` → back to the summary). `RoundSummaryViewModel` now
+   recomputes scores+order **reactively** from `observeResultsForGame`, so a correction refreshes every
+   device's summary *in place* (no re-reveal animation). Card availability is **live during a
+   correction**: `RoundCaptureViewModel.buildCurrent` skips a unit's stale mirror copy when it has a
+   live draft, so a swapped card frees on the other phone the moment it's picked (not on submit).
+   - **Root-cause fix that actually unblocked it:** `mergeGame` reconciled `round_result`s **by result
+     id**, but every device mints its own UUID in `HandCardRepositoryImpl.saveHand`, so each
+     `FullGameState` merge (e.g. at a reveal) inserted a **duplicate** `round_result` per seat —
+     `observeHandCardKeysByProfile` then reported both the old and new card (and stats double-counted
+     scores). `BackupRepositoryImpl.mergeExistingRound` now reconciles **by (round, profile)**,
+     overwriting the existing row in place. Pre-fix games may still hold duplicate rows; test fresh.
+   - **Stale-rejoin escape hatch (separate bug surfaced while testing):** `rejoinInfo` was only cleared
+     on `GameClosed`, so an abandoned/killed game left the client pinned to the old host with no way to
+     scan a different session. Added `P2PSessionRepository.clearRejoinInfo()` + a "Andere Session
+     beitreten (QR scannen)" button on the join screen (`JoinSessionViewModel.forgetLastSession`).
+   - Files: `LockManager`, `SessionManager`, `SyncMessage`, `P2PSessionRepository`,
+     `RoundCaptureViewModel`/`Screen`, `RoundSummaryViewModel`, `MainScaffold`,
+     `JoinSession{ViewModel,Screen}`, `BackupRepositoryImpl`, strings. DB still **v8**, F-Droid clean.
 5. **Necromancer race.** Mittelfeld is assigned first to minimise it, but a Necromancer hand finished
    before the discard syncs can pick from a stale candidate list (host recompute is authoritative).
 6. **Duplicate client profiles across sessions.** `resolveLocalProfile` now auto-suffixes names on

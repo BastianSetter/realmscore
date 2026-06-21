@@ -104,6 +104,16 @@ class JoinSessionViewModel(
         connect(info.payload, info.macAddress)
     }
 
+    /**
+     * Drop the current (possibly stale) connection and forget the stored last host, so the screen falls
+     * back to the QR scanner and the user can join a *different* session. Needed when a previous game was
+     * abandoned/killed (no GameClosed) and the persisted host keeps auto-rejoining.
+     */
+    fun forgetLastSession() {
+        p2p.close()
+        p2p.clearRejoinInfo()
+    }
+
     fun mapDevice(deviceId: String, profileId: String) {
         viewModelScope.launch { mappingRepo.map(deviceId, profileId) }
     }

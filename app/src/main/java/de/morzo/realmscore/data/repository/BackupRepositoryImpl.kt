@@ -327,9 +327,15 @@ class BackupRepositoryImpl(
             }
             changed = true
         }
-        val existingResults = db.roundResultDao().getResultsForRounds(listOf(round.id)).associateBy { it.id }
+        // Reconcile results by (roundId, profileId), NOT by result id: every device mints its own
+        // round_result UUID in HandCardRepositoryImpl.saveHand, so the incoming snapshot's id won't match
+        // the local incremental row. Keying by id would insert a *second* row for the same seat — the
+        // mirror would then report a card both before and after a correction (and double scores in stats).
+        // Overwrite the existing local row in place (keeping its id) so a seat always has exactly one row.
+        val existingResults =
+            db.roundResultDao().getResultsForRounds(listOf(round.id)).associateBy { it.profileId }
         for (result in round.results) {
-            val existingResult = existingResults[result.id]
+            val existingResult = existingResults[result.profileId]
             when {
                 existingResult == null -> {
                     db.roundResultDao().insert(result.toEntity(round.id))
@@ -339,10 +345,10 @@ class BackupRepositoryImpl(
                     changed = true
                 }
                 result.updatedAt > existingResult.updatedAt -> {
-                    db.roundResultDao().updateScore(result.id, result.totalScore, result.updatedAt)
-                    db.handCardDao().deleteAllForRoundResult(result.id)
+                    db.roundResultDao().updateScore(existingResult.id, result.totalScore, result.updatedAt)
+                    db.handCardDao().deleteAllForRoundResult(existingResult.id)
                     if (result.handCards.isNotEmpty()) {
-                        db.handCardDao().insertAll(result.handCards.map { it.toEntity(result.id) })
+                        db.handCardDao().insertAll(result.handCards.map { it.toEntity(existingResult.id) })
                     }
                     changed = true
                 }

@@ -93,6 +93,18 @@ sealed class SyncMessage {
     data class UnitDone(val roundId: String, val unitId: String) : SyncMessage()
 
     /**
+     * Client → host: re-open a finished [unitId] in [roundId] for correction (Phase 28 §6 #4,
+     * un-revealed window). The host clears the unit's done flag and locks it to [deviceId], then
+     * re-broadcasts [RoundStatus]; the corrector re-captures and re-submits. Any device may do this.
+     */
+    @Serializable
+    data class ReopenUnit(
+        val roundId: String,
+        val unitId: String,
+        val deviceId: String,
+    ) : SyncMessage()
+
+    /**
      * Host → all: the authoritative lock + done state of a round (Stage B). Drives the capture-screen
      * lock indicators ("wird bearbeitet von X"), the deterministic auto-assignment of free units, and
      * the pre-reveal waiting screen. A unit absent from both lists is free to grab.

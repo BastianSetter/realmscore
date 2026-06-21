@@ -53,6 +53,18 @@ class LockManager {
         done += key
     }
 
+    /**
+     * Re-open a finished unit for correction (Phase 28 §6 #4): clears its done flag and grants its
+     * lock to [deviceId]. A done unit holds no lock, so any device can take it — un-doing it also
+     * re-opens the round's all-done gate until it is submitted again. Used only before the reveal.
+     */
+    @Synchronized
+    fun reopen(roundId: String, unitId: String, deviceId: String) {
+        val key = DeviceLock.key(roundId, unitId)
+        done.remove(key)
+        locks[key] = deviceId
+    }
+
     /** Frees every lock held by a (disconnected) device so its units return to the pool (B6). */
     @Synchronized
     fun releaseAllHeldBy(deviceId: String) {

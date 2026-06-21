@@ -157,32 +157,46 @@ fun JoinSessionScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            when {
-                sessionState is SessionState.Connected ->
-                    JoinedContent(
-                        participants = participants,
-                        onDone = onDone,
-                    )
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    sessionState is SessionState.Connected ->
+                        JoinedContent(
+                            participants = participants,
+                            onDone = onDone,
+                        )
 
-                sessionState is SessionState.Connecting ->
-                    CenterStatus(stringResource(R.string.p2p_connecting), showSpinner = true)
+                    sessionState is SessionState.Connecting ->
+                        CenterStatus(stringResource(R.string.p2p_connecting), showSpinner = true)
 
-                btStatus != BluetoothStatus.READY ->
-                    CenterStatus(bluetoothMessage(btStatus), showSpinner = false)
+                    btStatus != BluetoothStatus.READY ->
+                        CenterStatus(bluetoothMessage(btStatus), showSpinner = false)
 
-                else ->
-                    ScanContent(
-                        container = container,
-                        error = error,
-                        onQrScanned = { text ->
-                            val parsed = vm.parseQr(text)
-                            if (parsed != null) startAssociation(parsed)
-                        },
-                        onManualCode = { code ->
-                            startAssociation(vm.payloadForManualCode(code))
-                        },
-                    )
+                    else ->
+                        ScanContent(
+                            container = container,
+                            error = error,
+                            onQrScanned = { text ->
+                                val parsed = vm.parseQr(text)
+                                if (parsed != null) startAssociation(parsed)
+                            },
+                            onManualCode = { code ->
+                                startAssociation(vm.payloadForManualCode(code))
+                            },
+                        )
+                }
+            }
+
+            // Escape hatch: an auto-rejoin to the persisted host (§6 #2) otherwise hijacks this screen
+            // with no way to scan a *different* session. While connecting/connected, let the user drop it
+            // and forget the stored host so the QR scanner comes back.
+            if (sessionState is SessionState.Connecting || sessionState is SessionState.Connected) {
+                TextButton(
+                    onClick = { vm.forgetLastSession() },
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                ) {
+                    Text(stringResource(R.string.p2p_join_other_session))
+                }
             }
         }
     }
