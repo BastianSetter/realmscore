@@ -37,9 +37,18 @@ interface GameDao {
     @Query("SELECT * FROM games WHERE closedAt IS NULL ORDER BY updatedAt DESC")
     fun observeOpenGames(): Flow<List<GameEntity>>
 
+    /**
+     * History ordering: sort by the last *gameplay* action, i.e. the newest round activity
+     * (`MAX(rounds.updatedAt)` — bumped by adding a round, scanning the discard, saving hands or
+     * completing a round). Closing/abandoning a game only touches the `games` row, never `rounds`,
+     * so an abandoned game keeps its position instead of jumping to the front. Games without any
+     * rounds fall back to `startedAt`.
+     */
     @Query(
-        "SELECT * FROM games " +
-            "ORDER BY CASE WHEN closedAt IS NULL THEN updatedAt ELSE closedAt END DESC"
+        "SELECT games.* FROM games " +
+            "LEFT JOIN (SELECT gameId, MAX(updatedAt) AS lastActionAt FROM rounds GROUP BY gameId) " +
+            "r ON r.gameId = games.id " +
+            "ORDER BY COALESCE(r.lastActionAt, games.startedAt) DESC"
     )
     fun observeAllGames(): Flow<List<GameEntity>>
 
