@@ -5,6 +5,7 @@ import de.morzo.realmscore.domain.p2p.model.HandshakePayload
 import de.morzo.realmscore.domain.p2p.model.HandCardSyncData
 import de.morzo.realmscore.domain.p2p.model.NavSignal
 import de.morzo.realmscore.domain.p2p.model.ParticipantInfo
+import de.morzo.realmscore.domain.p2p.model.RejoinInfo
 import de.morzo.realmscore.domain.p2p.model.SessionState
 import de.morzo.realmscore.domain.p2p.model.SyncMessage
 import kotlinx.coroutines.flow.SharedFlow
@@ -63,6 +64,14 @@ interface P2PSessionRepository {
      * once — before either is submitted. Empty when no session/round is active.
      */
     val liveDrafts: StateFlow<Map<String, Set<String>>>
+
+    /**
+     * The host this device last joined as a client, persisted across an app restart (Phase 28, §6 #2),
+     * or null when there's nothing to rejoin (never joined, or the joined game has since closed). The
+     * home / join screens read it to relabel "Session beitreten" → "Session erneut beitreten" and to
+     * reconnect via [connectToHost] without a fresh QR scan. Cleared on [SyncMessage.GameClosed].
+     */
+    val rejoinInfo: StateFlow<RejoinInfo?>
 
     /**
      * True while a shared game is in progress (a round has been distributed and the game isn't closed).

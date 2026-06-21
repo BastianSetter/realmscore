@@ -1,6 +1,6 @@
 # Handoff — Phase 28 P2P-Sync — Stage A + Stage B device-VERIFIED
 
-**Updated:** 2026-06-20 · **Branch:** `v1.3.0` · **Spec:** `specs/27-P2P-Sync.md` ("Phase 28")
+**Updated:** 2026-06-21 · **Branch:** `v1.3.0` · **Spec:** `specs/27-P2P-Sync.md` ("Phase 28")
 **Plan:** `C:\Users\basti\.claude\plans\please-prepare-a-plan-rustling-iverson.md` (Stufe B = §155-189)
 **Stage-B plan (this session):** `C:\Users\basti\.claude\plans\glistening-noodling-seal.md`
 **Memory:** `…/memory/project_p2p_handshake_cdm.md` (load it; running fix log)
@@ -41,6 +41,11 @@ Stage B = multi-device live-capture (committed `244a4e5`, device-fixes `7c9f84a`
     `P2PSessionRepository.resetJoinedRoster()` (clears stale joiners on a fresh new game without
     dropping live connections). Rule: a roster row's `originDeviceId` = "device that captures this seat"
     (host for owner/locals, remote only for true joins), never "device the profile was created on".
+
+- **Silent rejoin after app-kill / BT-drop + host QR re-display** (2026-06-21, **device-VERIFIED on 2
+  phones**): see §6 #2 — the client reconnects to the persisted host MAC with no QR re-scan; the host can
+  re-show its QR mid-game as the fallback. New: `data/p2p/LastSessionStore.kt`, `domain/p2p/model/RejoinInfo.kt`,
+  `ui/p2p/HostQrDialog.kt`; tri-state Home card in `HomeViewModel`/`HomeScreen`. DataStore only, DB v8, F-Droid clean.
 
 - **Game-end flow rework** (2026-06-20, built + installed both phones, **device test pending**):
   closing now happens on the **first** button (RoundSummary "Spiel abschließen" → `completeGame` =
@@ -153,12 +158,23 @@ F-Droid check (must be empty): `./gradlew.bat :app:dependencies --configuration 
 
 These are known gaps / good next steps for a fresh session:
 
-1. **Return to a running game from the tabs.** A client thrown into capture by the host has no obvious
-   "back to the game" entry point if it navigates away. The session now survives tab-switching, so
-   re-entering via Game tab → open game → "Runde fortsetzen" *should* resync — but there's no dedicated
-   button and the path isn't polished. Add a clear "rejoin running round" affordance.
-2. **Real auto-reconnect.** A genuine BT drop / app kill currently needs a manual QR re-scan (the host
-   then catches the rejoiner up). Consider client-side reconnect to the known host MAC.
+1. ~~Return to a running game from the tabs.~~ **Decided unnecessary (2026-06-21):** while the app
+   stays open you can't lose the connection to the active round — you just navigate back via the Game
+   tab, which holds the live session. The only real loss-of-connection case is app close / BT drop,
+   covered by #2 below. (An earlier "Laufende Runde fortsetzen" Home button was built and reverted.)
+2. **Real auto-reconnect — DONE + device-VERIFIED 2026-06-21.** A client whose app was killed or whose
+   Bluetooth dropped silently reconnects to the last host (no QR re-scan). The CDM-resolved host MAC +
+   handshake payload are persisted in a new `data/p2p/LastSessionStore.kt` (DataStore `p2p_session_prefs`),
+   written on a successful `connectToHost`, **loaded on `SessionManager` init**, and **cleared on
+   `GameClosed`** (NOT on `close()`, which fires on every new-game/join visit). Exposed as
+   `P2PSessionRepository.rejoinInfo: StateFlow<RejoinInfo?>`. The Home "session" card is now tri-state
+   (`HomeViewModel.P2pCardState`): **Hosting** → "Session-QR anzeigen" (re-shows the QR live from
+   `SessionState.Hosting` via the new `ui/p2p/HostQrDialog.kt`, the re-scan fallback); **client with a
+   stored host** → "Session erneut beitreten" → the join screen auto-fires `vm.rejoin()` which **reuses
+   `connectToHost`** with the stored MAC+payload (no CDM, no QR), and on failure shows the normal scanner;
+   **idle** → "Session beitreten". Direct RFCOMM reconnect to the stored MAC works without re-running CDM
+   (the association persists; `connect()` needs only `BLUETOOTH_CONNECT`). No new protocol message, no DB
+   change (DataStore only, v8). F-Droid clean.
 3. **End-of-game confirmation.** No "Spieldaten synchronisiert (N Runden)" toast on clients yet (data
    does sync). `ImportResult.roundsAdded`/`roundsUpdated` is available to surface it.
 4. **Corrections to finished hands.** MVP never reassigns a `done` unit; there is no "re-scan / edit a

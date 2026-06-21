@@ -30,6 +30,9 @@ class JoinSessionViewModel(
     val sessionState = p2p.sessionState
     val incomingParticipants = p2p.incomingParticipants
 
+    /** The last joined host, if any (§6 #2): drives the silent "Session erneut beitreten" reconnect. */
+    val rejoinInfo = p2p.rejoinInfo
+
     /** Host-driven navigation: when the host starts a round, follow it into capture (Stage B). */
     val navSignals = p2p.navSignals
 
@@ -90,6 +93,15 @@ class JoinSessionViewModel(
             p2p.connectToHost(payload, macAddress, self)
                 .onFailure { _error.value = it.message ?: "connect_failed" }
         }
+    }
+
+    /**
+     * Silent rejoin (§6 #2): reconnect to the last host with the persisted MAC + payload, no QR scan.
+     * Reuses [connect] (and thus the normal connect path) so a failure surfaces the scanner as usual.
+     */
+    fun rejoin() {
+        val info = rejoinInfo.value ?: return
+        connect(info.payload, info.macAddress)
     }
 
     fun mapDevice(deviceId: String, profileId: String) {

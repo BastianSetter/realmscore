@@ -9,6 +9,7 @@ import de.morzo.realmscore.domain.p2p.model.HandCardSyncData
 import de.morzo.realmscore.domain.p2p.model.HandshakePayload
 import de.morzo.realmscore.domain.p2p.model.NavSignal
 import de.morzo.realmscore.domain.p2p.model.ParticipantInfo
+import de.morzo.realmscore.domain.p2p.model.RejoinInfo
 import de.morzo.realmscore.domain.p2p.model.SessionRole
 import de.morzo.realmscore.domain.p2p.model.SessionState
 import de.morzo.realmscore.domain.p2p.model.SyncMessage
@@ -45,11 +46,26 @@ class SessionManager(
     private val roundRepo: RoundRepository,
     private val backupRepository: BackupRepository,
     private val mirrorSync: GameMirrorSync,
+    private val lastSessionStore: LastSessionStore,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob()),
 ) : P2PSessionRepository {
 
     private val _sessionState = MutableStateFlow<SessionState>(SessionState.Idle)
     override val sessionState: StateFlow<SessionState> = _sessionState.asStateFlow()
+
+    private val _rejoinInfo = MutableStateFlow<RejoinInfo?>(null)
+    override val rejoinInfo: StateFlow<RejoinInfo?> = _rejoinInfo.asStateFlow()
+
+    init {
+        // Load any persisted "last joined host" so the rejoin button is live right after an app start.
+        scope.launch {
+            lastSessionStore.get()?.let { stored ->
+                runCatching { SyncProtocol.decodeHandshake(stored.payloadJson) }.getOrNull()?.let { payload ->
+                    _rejoinInfo.value = RejoinInfo(stored.macAddress, payload)
+                }
+            }
+        }
+    }
 
     private val _incomingParticipants = MutableStateFlow<List<ParticipantInfo>>(emptyList())
     override val incomingParticipants: StateFlow<List<ParticipantInfo>> =
@@ -417,6 +433,11 @@ class SessionManager(
         // Remember which seat is ours so we can reconcile it to the local owner at game end (B7).
         mySeatOriginDeviceId = selfParticipant.originDeviceId
 
+        // Persist the host coordinates so a later app-kill / BT-drop can silently rejoin (§6 #2). NOT
+        // cleared by close() (which fires on every new-game/join visit) — only when the game closes.
+        _rejoinInfo.value = RejoinInfo(macAddress, payload)
+        scope.launch { lastSessionStore.save(macAddress, SyncProtocol.encodeHandshake(payload)) }
+
         val deviceId = deviceUuidProvider.get()
         val name = bluetooth.localBluetoothName() ?: "RealmScore"
         myDeviceId = deviceId
@@ -517,6 +538,9 @@ class SessionManager(
                 // is free to reset it for a fresh session.
                 activeGameId = null
                 activeRoundId = null
+                // Nothing left to rejoin once the joined game has closed.
+                _rejoinInfo.value = null
+                scope.launch { lastSessionStore.clear() }
                 _navSignals.emit(NavSignal.OpenGameSummary(message.gameId))
             }
 

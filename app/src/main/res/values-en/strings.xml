@@ -524,6 +524,10 @@
     <string name="p2p_reconciliation_title">Assign players</string>
     <string name="p2p_reconciliation_done">Done</string>
     <string name="p2p_joined_waiting">Joined – waiting for the host</string>
+    <string name="p2p_rejoin_session">Rejoin session</string>
+    <string name="p2p_rejoin_session_body">Reconnect to your last session — no QR re-scan needed.</string>
+    <string name="p2p_show_qr">Show session QR</string>
+    <string name="p2p_show_qr_body">Re-display the QR code so a device can rejoin.</string>
     <string name="p2p_new_game_wait_title">Preparing the next game</string>
     <string name="p2p_new_game_wait_message">The host is setting up the next game. It will continue here automatically once it starts.</string>
     <string name="p2p_map_local_profile">Assign local profile</string>

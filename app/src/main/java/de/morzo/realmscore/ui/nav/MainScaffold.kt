@@ -112,6 +112,7 @@ fun MainScaffold(container: AppContainer) {
         gameRepo = container.gameRepository,
         roundRepo = container.roundRepository,
         pickRandomStatUseCase = container.pickRandomStatUseCase,
+        p2pSessionRepo = container.p2pSessionRepository,
     )
 
     // P2P (Phase 28, Stage B): one place follows the host through the shared game flow. The host

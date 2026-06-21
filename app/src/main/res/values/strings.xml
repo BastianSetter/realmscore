@@ -524,6 +524,10 @@
     <string name="p2p_reconciliation_title">Spieler zuordnen</string>
     <string name="p2p_reconciliation_done">Fertig</string>
     <string name="p2p_joined_waiting">Beigetreten – warte auf den Host</string>
+    <string name="p2p_rejoin_session">Session erneut beitreten</string>
+    <string name="p2p_rejoin_session_body">Verbindung zur letzten Session wiederherstellen – ohne erneuten QR-Scan.</string>
+    <string name="p2p_show_qr">Session-QR anzeigen</string>
+    <string name="p2p_show_qr_body">Zeige den QR-Code erneut, damit ein Gerät erneut beitreten kann.</string>
     <string name="p2p_new_game_wait_title">Nächstes Spiel wird vorbereitet</string>
     <string name="p2p_new_game_wait_message">Der Host stellt das nächste Spiel zusammen. Sobald es startet, geht es hier automatisch weiter.</string>
     <string name="p2p_map_local_profile">Lokales Profil zuordnen</string>

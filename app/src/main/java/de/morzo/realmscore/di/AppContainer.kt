@@ -13,6 +13,7 @@ import de.morzo.realmscore.data.p2p.BluetoothRfcommManager
 import de.morzo.realmscore.data.p2p.CompanionDeviceHelper
 import de.morzo.realmscore.data.p2p.GameMirrorSync
 import de.morzo.realmscore.data.p2p.HandshakeManager
+import de.morzo.realmscore.data.p2p.LastSessionStore
 import de.morzo.realmscore.data.p2p.SessionManager
 import de.morzo.realmscore.data.repository.BackupRepositoryImpl
 import de.morzo.realmscore.data.repository.DeviceProfileMappingRepositoryImpl
@@ -221,6 +222,8 @@ class AppContainer(private val applicationContext: Context) {
         )
     }
 
+    val lastSessionStore: LastSessionStore by lazy { LastSessionStore(applicationContext) }
+
     val p2pSessionRepository: P2PSessionRepository by lazy {
         SessionManager(
             bluetooth = bluetoothRfcommManager,
@@ -229,6 +232,7 @@ class AppContainer(private val applicationContext: Context) {
             roundRepo = roundRepository,
             backupRepository = backupRepository,
             mirrorSync = gameMirrorSync,
+            lastSessionStore = lastSessionStore,
         )
     }
 

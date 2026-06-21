@@ -76,6 +76,7 @@ fun JoinSessionScreen(
     val sessionState by vm.sessionState.collectAsStateWithLifecycle()
     val participants by vm.incomingParticipants.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
+    val rejoin by vm.rejoinInfo.collectAsStateWithLifecycle()
 
     var payload by remember { mutableStateOf<HandshakePayload?>(null) }
 
@@ -97,6 +98,21 @@ fun JoinSessionScreen(
             !container.bluetoothRfcommManager.hasConnectPermission()
         ) {
             connectLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+    }
+
+    // Silent rejoin (§6 #2): when this screen is opened with a persisted last host (the "erneut
+    // beitreten" path), reconnect straight away — no QR. On failure the normal scanner shows as the
+    // fallback (the host can re-display its QR). Fire once, only when nothing is already connecting.
+    var rejoinAttempted by remember { mutableStateOf(false) }
+    LaunchedEffect(rejoin, btStatus, sessionState) {
+        if (!rejoinAttempted && rejoin != null &&
+            btStatus == BluetoothStatus.READY &&
+            sessionState !is SessionState.Connected &&
+            sessionState !is SessionState.Connecting
+        ) {
+            rejoinAttempted = true
+            vm.rejoin()
         }
     }
 
