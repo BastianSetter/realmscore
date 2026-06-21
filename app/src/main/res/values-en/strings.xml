@@ -55,6 +55,11 @@
     <string name="history_player_filter_clear">All</string>
     <string name="history_player_filter_selected_mark">✓</string>
     <string name="history_avatar_overflow">+%1$d</string>
+    <string name="history_abandon">Abandon game</string>
+    <string name="history_abandon_confirm_title">Abandon game?</string>
+    <string name="history_abandon_confirm_message">This in-progress game will be marked as abandoned.</string>
+    <string name="history_abandon_confirm_action">Abandon</string>
+    <string name="history_abandon_dismiss">Back</string>
 
     <string name="date_today">today</string>
     <string name="date_yesterday">yesterday</string>

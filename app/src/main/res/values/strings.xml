@@ -55,6 +55,11 @@
     <string name="history_player_filter_clear">Alle</string>
     <string name="history_player_filter_selected_mark">✓</string>
     <string name="history_avatar_overflow">+%1$d</string>
+    <string name="history_abandon">Spiel abbrechen</string>
+    <string name="history_abandon_confirm_title">Spiel abbrechen?</string>
+    <string name="history_abandon_confirm_message">Dieses laufende Spiel wird als abgebrochen markiert.</string>
+    <string name="history_abandon_confirm_action">Abbrechen</string>
+    <string name="history_abandon_dismiss">Zurück</string>
 
     <string name="date_today">heute</string>
     <string name="date_yesterday">gestern</string>

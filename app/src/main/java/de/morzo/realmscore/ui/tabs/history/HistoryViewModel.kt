@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.combineTransform
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class ParticipantBadge(
@@ -128,6 +129,16 @@ class HistoryViewModel(
 
     fun setSearchQuery(query: String) {
         _filters.update { it.copy(searchQuery = query) }
+    }
+
+    /** Marks a running ([HistoryStatus.OPEN]) game as abandoned. */
+    fun abandonGame(gameId: String) {
+        viewModelScope.launch {
+            val game = gameRepo.getById(gameId)
+            if (game?.closedAt == null) {
+                gameRepo.closeGame(gameId, ClosedReason.ABANDONED)
+            }
+        }
     }
 
     private suspend fun buildRawState(

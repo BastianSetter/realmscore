@@ -18,8 +18,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
@@ -35,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -106,6 +109,7 @@ fun HistoryScreen(
                                 onClick = {
                                     onOpenGame(item.gameId, item.status != HistoryStatus.OPEN)
                                 },
+                                onAbandon = { vm.abandonGame(item.gameId) },
                             )
                         }
                     }
@@ -241,7 +245,9 @@ private fun PlayerFilterRow(
 private fun HistoryListItem(
     item: HistoryItem,
     onClick: () -> Unit,
+    onAbandon: () -> Unit,
 ) {
+    var showAbandonConfirm by remember { mutableStateOf(false) }
     Card(
         onClick = onClick,
         modifier = Modifier
@@ -292,7 +298,39 @@ private fun HistoryListItem(
                     )
                 }
             }
+            if (item.status == HistoryStatus.OPEN) {
+                IconButton(onClick = { showAbandonConfirm = true }) {
+                    Icon(
+                        imageVector = Icons.Filled.Block,
+                        contentDescription = stringResource(R.string.history_abandon),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
         }
+    }
+
+    if (showAbandonConfirm) {
+        AlertDialog(
+            onDismissRequest = { showAbandonConfirm = false },
+            title = { Text(stringResource(R.string.history_abandon_confirm_title)) },
+            text = { Text(stringResource(R.string.history_abandon_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showAbandonConfirm = false
+                        onAbandon()
+                    },
+                ) {
+                    Text(stringResource(R.string.history_abandon_confirm_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAbandonConfirm = false }) {
+                    Text(stringResource(R.string.history_abandon_dismiss))
+                }
+            },
+        )
     }
 }
 
