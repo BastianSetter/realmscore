@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -37,16 +38,39 @@ class JoinSessionViewModel(
     /**
      * Gültige lokale Merge-Ziele für eingehende Profile: aktive (nicht archiviert, nicht selbst gemergt)
      * Profile inkl. Owner — geräteunabhängig (Ziel darf ein zuvor von einem anderen Host kopiertes
-     * Profil sein). Das ist die A/B/C/D-Auswahl aus dem Spec.
+     * Profil sein). Zusätzlich werden Profile ausgeblendet, die bereits im Spiel sind: entweder selbst
+     * im Roster sitzen oder schon als Merge-Ziel eines Roster-Teilnehmers gewählt wurden (verhindert,
+     * dass zwei Teilnehmer demselben lokalen Profil zugewiesen werden). Das ist die A/B/C/D-Auswahl.
      */
     val localProfiles: StateFlow<List<LocalProfile>> =
+        combine(profileRepo.observeAll(), incomingParticipants) { profiles, roster ->
+            val rosterIds = roster.map { it.profileId }.toSet()
+            // Lokale Profile, die bereits als Merge-Ziel eines sitzenden Roster-Teilnehmers dienen.
+            val assignedTargetIds = profiles
+                .filter { it.id in rosterIds && it.mergeTargetId != null }
+                .mapNotNull { it.mergeTargetId }
+                .toSet()
+            val inGame = rosterIds + assignedTargetIds
+            profiles
+                .filter { !it.isArchived && it.mergeTargetId == null && it.id !in inGame }
+                .map { LocalProfile(it.id, it.name, it.colorArgb) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Bereits erfolgte Zuordnungen: fremde Roster-`profileId` → Name des lokalen Merge-Ziels. Speist
+     * die „Zusammengeführt mit …“-Anzeige im Roster. Aufgelöst aus dem Merge-Zeiger des (lokal via
+     * [ProfileRepository.ensureRemoteProfile] angelegten) fremden Profils.
+     */
+    val assignments: StateFlow<Map<String, String>> =
         profileRepo.observeAll()
             .map { profiles ->
+                val byId = profiles.associateBy { it.id }
                 profiles
-                    .filter { !it.isArchived && it.mergeTargetId == null }
-                    .map { LocalProfile(it.id, it.name, it.colorArgb) }
+                    .filter { it.mergeTargetId != null }
+                    .mapNotNull { p -> byId[p.mergeTargetId]?.let { p.id to it.name } }
+                    .toMap()
             }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
@@ -126,6 +150,14 @@ class JoinSessionViewModel(
      */
     fun assignMerge(incoming: ParticipantInfo, localProfileId: String) {
         viewModelScope.launch {
+            _error.value = null
+            // Das eigene Owner-Profil ist im Roster sichtbar, lässt sich aber nicht zusammenführen
+            // (ProfileRepository.setMergeTarget wirft). Vorab abfangen → freundliche Meldung statt
+            // verschluckter Exception.
+            if (profileRepo.getById(incoming.profileId)?.isLocalOwner == true) {
+                _error.value = ERROR_ASSIGN_OWNER
+                return@launch
+            }
             runCatching {
                 profileRepo.ensureRemoteProfile(
                     id = incoming.profileId,
@@ -134,7 +166,7 @@ class JoinSessionViewModel(
                     originDeviceId = incoming.originDeviceId,
                 )
                 profileRepo.setMergeTarget(incoming.profileId, localProfileId)
-            }.onFailure { _error.value = it.message ?: "assign_failed" }
+            }.onFailure { _error.value = ERROR_ASSIGN_FAILED }
         }
     }
 
@@ -150,5 +182,11 @@ class JoinSessionViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
             JoinSessionViewModel(p2p, handshake, profileRepo) as T
+    }
+
+    companion object {
+        /** Stabile Fehler-Keys; die UI übersetzt sie in lokalisierte Texte. */
+        const val ERROR_ASSIGN_OWNER = "assign_owner"
+        const val ERROR_ASSIGN_FAILED = "assign_failed"
     }
 }

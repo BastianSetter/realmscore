@@ -541,6 +541,9 @@
     <string name="p2p_assign_local_profile">Zuweisen</string>
     <string name="p2p_assign_pick_title">Welches lokale Profil ist „%1$s“?</string>
     <string name="p2p_assign_no_candidates">Keine lokalen Profile zum Zuweisen vorhanden.</string>
+    <string name="p2p_merged_with">Zusammengeführt mit %1$s</string>
+    <string name="p2p_assign_owner_error">Das eigene Profil kann keinem anderen zugewiesen werden.</string>
+    <string name="p2p_assign_failed">Zuweisen fehlgeschlagen. Bitte erneut versuchen.</string>
     <string name="p2p_rejoin_session">Session erneut beitreten</string>
     <string name="p2p_rejoin_session_body">Verbindung zur letzten Session wiederherstellen – ohne erneuten QR-Scan.</string>
     <string name="p2p_join_other_session">Andere Session beitreten (QR scannen)</string>
