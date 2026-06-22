@@ -97,6 +97,10 @@ fun JokerSection(
     // In narrow columns (multi-hand compare) each joker row stacks its pieces vertically instead of
     // on one line, which would otherwise wrap into an unreadable mess (spec 25.6).
     compact: Boolean = false,
+    // Whether this round's Mittelfeld has been captured. When false the Necromancer pull can't be
+    // optimised (the candidate pool is unknown), so the optimiser is gated on a manual pick. Defaults
+    // true so the sandbox / multi-hand tools — which have no Mittelfeld — keep optimising normally.
+    mittelfeldScanned: Boolean = true,
 ) {
     if (jokers.isEmpty() && necromancer == null) return
 
@@ -144,17 +148,41 @@ fun JokerSection(
                 row()
             }
             if (onOptimal != null) {
-                Button(
-                    onClick = onOptimal,
-                    enabled = !optimalRunning,
+                // Necromancer + un-scanned Mittelfeld: the pull can't be optimised (the candidate
+                // pool is unknown), so gate the optimiser on a manual pick. Before a pick it is
+                // disabled with a "set it manually" hint; once picked it runs but leaves the pull
+                // untouched (the hint then explains why the pull stays as chosen). P2P §6 #5.
+                val necromancerNeedsManual =
+                    necromancer != null && !mittelfeldScanned && necromancer.pickedCard == null
+                val necromancerHint: String? = when {
+                    necromancer == null || mittelfeldScanned -> null
+                    necromancer.pickedCard == null ->
+                        stringResource(R.string.necromancer_optimal_needs_manual)
+                    else -> stringResource(R.string.necromancer_optimal_skipped)
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (optimalRunning) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
+                    Button(
+                        onClick = onOptimal,
+                        enabled = !optimalRunning && !necromancerNeedsManual,
+                    ) {
+                        if (optimalRunning) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Text(stringResource(R.string.player_hand_optimal))
+                        }
+                    }
+                    if (necromancerHint != null) {
+                        Text(
+                            text = necromancerHint,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    } else {
-                        Text(stringResource(R.string.player_hand_optimal))
                     }
                 }
             }

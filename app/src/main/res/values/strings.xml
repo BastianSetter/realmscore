@@ -212,6 +212,9 @@
     <string name="necromancer_suit_hint">Nur Armeen, Zauberer, Anführer oder Bestien</string>
     <string name="necromancer_clear">Auswahl entfernen</string>
     <string name="necromancer_breakdown_tag">Vom Totenbeschwörer geholt</string>
+    <!-- Optimiser gating when the Mittelfeld is not (yet) scanned (P2P §6 #5) -->
+    <string name="necromancer_optimal_needs_manual">Mittelfeld nicht gescannt. Bitte setze den Totenbeschwörer erst manuell.</string>
+    <string name="necromancer_optimal_skipped">Mittelfeld nicht gescannt. Totenbeschwörer wird nicht optimiert.</string>
 
     <!-- Phase 22: Sandbox-Favoriten + Multi-Hand-Vergleich -->
     <string name="sandbox_save_favorite">Als Favorit speichern</string>

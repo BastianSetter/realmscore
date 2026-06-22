@@ -32,6 +32,10 @@ data class PlayerHandEntryUiState(
     val slots: List<CardSlot> = List(PLAYER_HAND_SLOT_COUNT) { CardSlot.Empty },
     val jokerAssignments: Map<String, JokerAssignment> = emptyMap(),
     val cardsUsedByOthers: Set<String> = emptySet(),
+    // Whether this round's Mittelfeld has been captured. Gates the Necromancer optimiser (P2P §6 #5):
+    // false → the pull can't be optimised, so it must be set manually first. Defaults true for
+    // contexts without a Mittelfeld (e.g. the standalone hand entry).
+    val mittelfeldScanned: Boolean = true,
     val isOptimalRunning: Boolean = false,
     val isSaving: Boolean = false,
     /**

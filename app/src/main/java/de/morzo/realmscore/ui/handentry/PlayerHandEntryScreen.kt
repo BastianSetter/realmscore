@@ -78,8 +78,12 @@ fun PlayerHandEntryScreen(
             modifier = Modifier.padding(padding),
             state = state,
             allCards = vm.allCards,
-            necromancerCandidates = { placedKeys ->
-                container.cardLookup.getNecromancerCandidates(handKeys = placedKeys)
+            necromancerCandidates = {
+                // Standalone entry: no Mittelfeld and no other hands, so just exclude this hand's
+                // own placed cards from the eligible pool.
+                container.cardLookup.getNecromancerCandidates(
+                    handKeys = state.filledCards.map { it.key }.toSet(),
+                )
             },
             onSetCardInSlot = vm::setCardInSlot,
             onClearSlot = vm::clearSlot,

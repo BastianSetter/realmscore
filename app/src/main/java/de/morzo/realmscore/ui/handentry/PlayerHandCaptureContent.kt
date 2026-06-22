@@ -58,7 +58,7 @@ private enum class CaptureStage { CardPick, PlayerStage }
 fun PlayerHandCaptureContent(
     state: PlayerHandEntryUiState,
     allCards: List<CardDefinition>,
-    necromancerCandidates: (Set<String>) -> List<CardDefinition>,
+    necromancerCandidates: () -> List<CardDefinition>,
     onSetCardInSlot: (Int, CardDefinition) -> Unit,
     onClearSlot: (Int) -> Unit,
     onSetJokerAssignment: (String, JokerAssignment?) -> Unit,
@@ -148,7 +148,10 @@ fun PlayerHandCaptureContent(
     }
 
     if (necromancerPickerOpen) {
-        val candidates = remember(placedKeys) { necromancerCandidates(placedKeys) }
+        // Candidates exclude every card in any hand (the ViewModel handles that). A scanned Mittelfeld
+        // IS the candidate pool (the discard filter), so it must not be excluded; an un-scanned one
+        // must not leak into the pull at all (§6 #5). Recompute on each open / own-hand change.
+        val candidates = remember(placedKeys) { necromancerCandidates() }
         CardPicker(
             allCards = candidates,
             onCardChosen = { card ->
@@ -253,6 +256,7 @@ private fun PlayerStageContent(
                 onAssignmentChange = onSetJokerAssignment,
                 onOptimal = onApplyOptimal,
                 optimalRunning = state.isOptimalRunning,
+                mittelfeldScanned = state.mittelfeldScanned,
                 necromancer = if (state.necromancerInHand) {
                     NecromancerRowData(
                         card = allCards.first { it.key == "necromancer" },

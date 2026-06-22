@@ -519,6 +519,7 @@ class RoundCaptureViewModel(
             slots = draft.slots,
             jokerAssignments = draft.jokerAssignments,
             cardsUsedByOthers = usedByOthers,
+            mittelfeldScanned = discardScanned,
             isOptimalRunning = isOptimalRunning,
             isSaving = isSaving,
             isDiscard = isDiscard,
@@ -750,9 +751,34 @@ class RoundCaptureViewModel(
         return copy(jokerAssignments = jokerAssignments.filterKeys { it in handKeys })
     }
 
-    fun necromancerCandidates(handKeys: Set<String>): List<CardDefinition> =
+    /**
+     * Every card currently placed in a player hand (all seats, all sources) — never the Mittelfeld.
+     * This is the Necromancer's exclusion set: a card held by anyone (incl. the puller) can't be in
+     * the discard. The Mittelfeld is handled separately by [getNecromancerCandidates] — as the
+     * candidate pool once submitted, ignored while un-submitted — so it must not appear here (§6 #5).
+     * (Contrast [buildCurrent]'s `usedByOthers`, which is per-hand and DOES include the Mittelfeld,
+     * because the normal picker / scan must also keep discard cards out of a hand.)
+     */
+    private fun cardsInHands(): Set<String> = buildSet {
+        drafts.asSequence()
+            .filter { it.key != DISCARD_ID }
+            .forEach { (_, d) -> d.slots.forEach { s -> (s as? CardSlot.Filled)?.card?.key?.let(::add) } }
+        syncedCardsByProfile.asSequence()
+            .filter { it.key != DISCARD_ID && it.key !in liveDraftsByUnit }
+            .forEach { addAll(it.value) }
+        liveDraftsByUnit.asSequence()
+            .filter { it.key != DISCARD_ID }
+            .forEach { addAll(it.value) }
+    }
+
+    /**
+     * Necromancer pull candidates. Excludes every card in any hand; a scanned Mittelfeld then narrows
+     * the pool to the discard itself (selection), an un-scanned one leaves the full eligible pool sans
+     * hands (the discard plays no part until it is complete and submitted). §6 #5.
+     */
+    fun necromancerCandidates(): List<CardDefinition> =
         cardLookup.getNecromancerCandidates(
-            handKeys = handKeys,
+            handKeys = cardsInHands(),
             discardScanned = discardScanned,
             discardKeys = discardCards.map { it.key }.toSet(),
         )

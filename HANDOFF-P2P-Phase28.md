@@ -222,10 +222,41 @@ These are known gaps / good next steps for a fresh session:
    - Files: `LockManager`, `SessionManager`, `SyncMessage`, `P2PSessionRepository`,
      `RoundCaptureViewModel`/`Screen`, `RoundSummaryViewModel`, `MainScaffold`,
      `JoinSession{ViewModel,Screen}`, `BackupRepositoryImpl`, strings. DB still **v8**, F-Droid clean.
-5. **Necromancer race.** Mittelfeld is assigned first to minimise it, but a Necromancer hand finished
-   before the discard syncs can pick from a stale candidate list (host recompute is authoritative).
-6. **Duplicate client profiles across sessions.** `resolveLocalProfile` now auto-suffixes names on
-   collision (`"Name (2)"`); revisit whether name-based identity continuity is the right long-term model
-   vs. an explicit device→person binding.
+5. **Necromancer pick logic — REWORKED 2026-06-22 (built + installed both phones, device test pending).**
+   The earlier "host recompute is authoritative" note was wrong: scoring is deterministic from
+   `(hand, jokerAssignments)` and never reads the discard pile, so the host re-score (`GameMirrorSync`)
+   faithfully reproduces whatever pull the client chose — it neither re-validates nor re-optimises it.
+   The pull is now gated by a single rule, **identical single-phone and P2P** (a client whose Mittelfeld
+   hasn't synced simply has `discardScanned = false`, so it lands on the un-scanned path automatically):
+   - **Candidate pool (manual pick):** excludes every card held in *any* hand (own + others — a held
+     card can't be in the discard). The Mittelfeld is **never** an exclusion: scanned → it IS the pool
+     (`getNecromancerCandidates` filters to the discard keys = *selection*); un-scanned → it plays no part
+     at all (neither the in-progress draft nor the persisted pile leaks in). New VM helper
+     `RoundCaptureViewModel.cardsInHands()` (all seats, never `DISCARD_ID`); `necromancerCandidates()` is
+     now parameter-less. Distinct from `buildCurrent`'s per-hand `usedByOthers`, which *does* include the
+     Mittelfeld (the normal card-picker / camera-scan must keep discard cards out of a hand) — left
+     untouched, as it feeds the device-verified live-availability sync.
+   - **Optimiser gating** (`JokerSection`, state-driven via new `PlayerHandEntryUiState.mittelfeldScanned`):
+     Necromancer in hand + Mittelfeld un-scanned + no pick → optimiser **disabled** with the hint
+     *"Mittelfeld nicht gescannt. Bitte setze den Totenbeschwörer erst manuell."*; once a pick is set the
+     button **enables** and the hint becomes *"… Totenbeschwörer wird nicht optimiert."* (it optimises the
+     other jokers, carries the pull through). Scanned Mittelfeld (or no Necromancer) → unchanged; the
+     optimiser brute-forces the pull from the discard. Defaults keep the sandbox / multi-hand tools as-is.
+   - Files: `RoundCaptureViewModel`, `PlayerHandEntryViewModel` (state field), `JokerSection`,
+     `PlayerHandCaptureContent`, `PlayerHandEntryScreen`, strings. No DB / protocol change.
+6. ~~Duplicate client profiles across sessions.~~ **Resolved by the Profil-Rework (`c56cbb8`), 2026-06-22.**
+   The old name-based remap (`resolveLocalProfile` + auto-suffix `"Name (2)"`) is gone. Identity is now a
+   globally unique `(deviceId, profileId)`; the host takes a joined foreign profile **as-is** via the
+   idempotent `ProfileRepository.ensureRemoteProfile` (`dao.getById(id)` short-circuit), so the same person
+   re-joining from the same device (stable owner id `profileId == deviceId`) never spawns a new duplicate
+   across sessions. The design question (name-based continuity vs. explicit device→person binding) is
+   decided in favour of an explicit, **non-destructive, persisted, reversible** binding: the Join screen's
+   per-profile **Zuweisen** button (`JoinSessionViewModel.assignMerge` → `setMergeTarget`) points an
+   incoming profile at a chosen local one; the pointer survives re-joins, so you bind once and every later
+   session auto-resolves it. Residual (narrow, non-P2P): name uniqueness is generally relaxed, so a host
+   re-creating the *same local manual* profile (e.g. a deviceless "Oma") twice now silently makes two rows
+   — a normal profile-management concern, cleaned up via the merge UI, not an identity-design gap. Optional
+   future UX nicety: proactively suggest `assignMerge` when an incoming `name` matches an active local
+   profile (currently the button is purely manual).
 
 Open the Stage-B plan (`glistening-noodling-seal.md`) and the memory for the full design rationale.
