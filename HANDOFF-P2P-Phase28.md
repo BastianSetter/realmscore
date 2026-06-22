@@ -59,9 +59,18 @@ Stage B = multi-device live-capture (committed `244a4e5`, device-fixes `7c9f84a`
   view shows [Statistik] + **[Neues Spiel starten]** for host/solo (seeds the prev game's players +
   settings via `Routes.newGameRoute(seedGameId, continueSession)`; host also brings clients along via
   new `SyncMessage.NewGameSetup` → `NavSignal.OpenNewGameWait` → `NewGameWaitScreen`, then the existing
-  `OpenRound` pulls everyone into capture). A joined phone (`isP2pClient`) keeps **[Zur Startseite]**.
+  `OpenRound` pulls everyone into capture).
   Seeding skips device-mapped profiles when continuing (they repopulate from the live
   `joinedParticipants`). New sealed `SyncMessage` subclass → no `SyncProtocol` change.
+
+- **"Zurück zum Hauptmenü" on the game-end screen** (2026-06-22, device-VERIFIED both phones): every
+  device (host, joined-phone, solo) gets a **[Zurück zum Hauptmenü]** button — host/solo as a secondary
+  `OutlinedButton` under [Neues Spiel starten], the joined-phone as its only action (replacing the old
+  [Zur Startseite]). It routes through new `GameSummaryViewModel.leaveToMenu`, which calls `p2p.close()`
+  (tears down all sockets → `SessionState.Idle`) before the existing `onCloseGameDone` nav (Home +
+  `clearBackStack(SECTION_GAME)`), so the user returns to a fresh, connection-free cold-start state.
+  Safe for all roles: the game is already closed here, so the client's `rejoinInfo` was wiped by
+  `GameClosed`; solo `close()` is a no-op. Fixes the "stuck on game-end screen" feel after a P2P game.
 
 ### Verified on device (Pixel 8 host `38011FDJH000N5`, Redmi `cef2e19b`)
 Both phones start the game together; each captures its own hand then auto-steals the next free

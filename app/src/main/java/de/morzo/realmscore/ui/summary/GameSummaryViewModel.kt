@@ -119,6 +119,17 @@ class GameSummaryViewModel(
     }
 
     /**
+     * "Zurück zum Hauptmenü" from the game-end screen: drop any live P2P session (close all sockets →
+     * [SessionState.Idle]) so the user returns to a cold-start state — no open connections. The game is
+     * already closed here, so the joined phones' rejoin info was cleared by GameClosed; on a solo game
+     * this is a harmless no-op. [onLeft] then handles the navigation (home + clear the Game back stack).
+     */
+    fun leaveToMenu(onLeft: () -> Unit) {
+        p2p.close()
+        onLeft()
+    }
+
+    /**
      * "Neues Spiel starten" from the game-end screen. On the P2P host, first tell the joined phones the
      * next game is being set up (they show a waiting screen) and proceed with [continueSession] = true so
      * the new-game screen keeps the live session and brings them along. Solo just opens a fresh setup.
