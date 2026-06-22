@@ -9,21 +9,24 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class ProfileRow(
     val profile: Profile,
     val gameCount: Int,
+    /** Für gemergte Profile: Anzeigename des kanonischen Ziels (null wenn unbekannt). */
+    val mergeTargetName: String? = null,
 )
 
 data class ProfileManagementUiState(
+    val owner: ProfileRow? = null,
     val active: List<ProfileRow> = emptyList(),
+    val merged: List<ProfileRow> = emptyList(),
     val archived: List<ProfileRow> = emptyList(),
     val isLoaded: Boolean = false,
 )
 
-enum class RenameResult { SUCCESS, EMPTY, EXISTS, ERROR }
+enum class RenameResult { SUCCESS, EMPTY, ERROR }
 
 class ProfileManagementViewModel(
     private val repo: ProfileRepository,
@@ -34,17 +37,33 @@ class ProfileManagementViewModel(
 
     init {
         viewModelScope.launch {
+            // Vier disjunkte Buckets (Profil-Rework): Owner / Aktiv / Merged / Archiviert.
             combine(
+                repo.observeLocalOwner(),
                 repo.observeActiveProfiles(),
+                repo.observeMergedProfiles(),
                 repo.observeArchivedProfiles(),
-            ) { active, archived -> active to archived }
-                .collect { (active, archived) ->
-                    val activeRows = active.map { ProfileRow(it, repo.countGamesForProfile(it.id)) }
-                    val archivedRows = archived.map { ProfileRow(it, repo.countGamesForProfile(it.id)) }
-                    _uiState.update {
-                        it.copy(active = activeRows, archived = archivedRows, isLoaded = true)
-                    }
+            ) { owner, active, merged, archived ->
+                val nameById = buildMap {
+                    owner?.let { put(it.id, it.name) }
+                    active.forEach { put(it.id, it.name) }
+                    merged.forEach { put(it.id, it.name) }
+                    archived.forEach { put(it.id, it.name) }
                 }
+                ProfileManagementUiState(
+                    owner = owner?.let { ProfileRow(it, repo.countGamesForProfile(it.id)) },
+                    active = active.map { ProfileRow(it, repo.countGamesForProfile(it.id)) },
+                    merged = merged.map {
+                        ProfileRow(
+                            profile = it,
+                            gameCount = repo.countGamesForProfile(it.id),
+                            mergeTargetName = it.mergeTargetId?.let { t -> nameById[t] },
+                        )
+                    },
+                    archived = archived.map { ProfileRow(it, repo.countGamesForProfile(it.id)) },
+                    isLoaded = true,
+                )
+            }.collect { state -> _uiState.value = state }
         }
     }
 
@@ -55,12 +74,8 @@ class ProfileManagementViewModel(
             return
         }
         viewModelScope.launch {
-            val isSameName = trimmed.lowercase() == profile.name.lowercase()
-            if (!isSameName && repo.existsByName(trimmed)) {
-                onResult(RenameResult.EXISTS)
-                return@launch
-            }
             try {
+                // Namens-Eindeutigkeit gelockert (Phase 1): Duplikate erlaubt.
                 repo.updateName(profile.id, trimmed)
                 onResult(RenameResult.SUCCESS)
             } catch (t: Throwable) {
@@ -81,13 +96,14 @@ class ProfileManagementViewModel(
         viewModelScope.launch { repo.unarchiveProfile(profileId) }
     }
 
-    fun merge(keepId: String, discardId: String) {
-        viewModelScope.launch { repo.mergeProfiles(keepId, discardId) }
+    /** Verschmilzt [sourceId] non-destruktiv in [targetId] (Zeiger-Merge). */
+    fun setMergeTarget(sourceId: String, targetId: String) {
+        viewModelScope.launch { repo.setMergeTarget(sourceId, targetId) }
     }
 
-    /** Lädt die Gesamtzahl der Spiele nach dem Merge (Vereinigung, ohne Doppelzählung). */
-    fun loadCombinedGameCount(keepId: String, discardId: String, onLoaded: (Int) -> Unit) {
-        viewModelScope.launch { onLoaded(repo.countCombinedGames(keepId, discardId)) }
+    /** Hebt einen Merge wieder auf. */
+    fun unmerge(profileId: String) {
+        viewModelScope.launch { repo.clearMergeTarget(profileId) }
     }
 
     class Factory(

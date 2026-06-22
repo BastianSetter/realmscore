@@ -15,6 +15,11 @@ data class ProfileEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val originDeviceId: String,
+    // Phase 0 (Profil-Rework): explizite Identität + non-destruktiver Merge-Zeiger. Defaults halten die
+    // Phasen-Zwischenstände kompilierbar; Phase 1 belegt deviceId/profileId bei der Erzeugung.
+    val deviceId: String = "",
+    val profileId: String = "",
+    val mergeTargetId: String? = null,
 ) {
     fun toDomain(): Profile = Profile(
         id = id,
@@ -26,6 +31,9 @@ data class ProfileEntity(
         createdAt = createdAt,
         updatedAt = updatedAt,
         originDeviceId = originDeviceId,
+        deviceId = deviceId,
+        profileId = profileId,
+        mergeTargetId = mergeTargetId,
     )
 
     companion object {
@@ -39,6 +47,9 @@ data class ProfileEntity(
             createdAt = profile.createdAt,
             updatedAt = profile.updatedAt,
             originDeviceId = profile.originDeviceId,
+            deviceId = profile.deviceId,
+            profileId = profile.profileId,
+            mergeTargetId = profile.mergeTargetId,
         )
     }
 }

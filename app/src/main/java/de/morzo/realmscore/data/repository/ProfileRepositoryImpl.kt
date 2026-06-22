@@ -11,7 +11,7 @@ import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.util.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.security.MessageDigest
+import java.util.UUID
 
 class ProfileRepositoryImpl(
     private val database: AppDatabase,
@@ -35,8 +35,10 @@ class ProfileRepositoryImpl(
 
         val deviceUuid = deviceUuidProvider.get()
         val now = clock.nowEpochMillis()
+        // Owner-Identität: profileId == deviceId (Phase-1-Konvention) → an einem joinenden Profil
+        // sofort als Owner des anderen Geräts erkennbar.
         val profile = Profile(
-            id = generateProfileId(deviceUuid, trimmed),
+            id = surrogateId(deviceUuid, deviceUuid),
             name = trimmed,
             colorArgb = DEFAULT_OWNER_COLOR_ARGB,
             isLocalOwner = true,
@@ -45,6 +47,9 @@ class ProfileRepositoryImpl(
             createdAt = now,
             updatedAt = now,
             originDeviceId = deviceUuid,
+            deviceId = deviceUuid,
+            profileId = deviceUuid,
+            mergeTargetId = null,
         )
         dao.insert(ProfileEntity.fromDomain(profile))
         return profile
@@ -56,9 +61,7 @@ class ProfileRepositoryImpl(
         val current = dao.getLocalOwner()
             ?: throw IllegalStateException("No local owner present – cannot rename.")
         if (current.name == trimmed) return current.toDomain()
-        require(dao.countByName(trimmed) == 0) {
-            "A profile with name '$trimmed' already exists."
-        }
+        // Namens-Eindeutigkeit gelockert (Phase 1): Duplikate sind erlaubt, Merges regeln Dubletten.
         val now = clock.nowEpochMillis()
         dao.updateName(current.id, trimmed, now)
         return current.copy(name = trimmed, updatedAt = now).toDomain()
@@ -96,24 +99,17 @@ class ProfileRepositoryImpl(
             .map { it.toDomain() }
     }
 
-    override suspend fun existsByName(name: String): Boolean {
-        val trimmed = name.trim()
-        if (trimmed.isEmpty()) return false
-        return dao.countByName(trimmed) > 0
-    }
-
     override suspend fun createProfile(name: String): Profile {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Profile name must not be blank." }
-        require(dao.countByName(trimmed) == 0) {
-            "Profile with name '$trimmed' already exists."
-        }
+        // Namens-Eindeutigkeit gelockert (Phase 1): Duplikate erlaubt; Identität = (deviceId, profileId).
 
         val deviceUuid = deviceUuidProvider.get()
+        val newProfileId = UUID.randomUUID().toString()
         val now = clock.nowEpochMillis()
         val color = ProfilePalette.pickNextColor(dao.getAllColors())
         val profile = Profile(
-            id = generateProfileId(deviceUuid, trimmed),
+            id = surrogateId(deviceUuid, newProfileId),
             name = trimmed,
             colorArgb = color,
             isLocalOwner = false,
@@ -122,6 +118,36 @@ class ProfileRepositoryImpl(
             createdAt = now,
             updatedAt = now,
             originDeviceId = deviceUuid,
+            deviceId = deviceUuid,
+            profileId = newProfileId,
+            mergeTargetId = null,
+        )
+        dao.insert(ProfileEntity.fromDomain(profile))
+        return profile
+    }
+
+    override suspend fun ensureRemoteProfile(
+        id: String,
+        name: String,
+        colorArgb: Int,
+        originDeviceId: String,
+    ): Profile {
+        dao.getById(id)?.let { return it.toDomain() }
+        val now = clock.nowEpochMillis()
+        val profile = Profile(
+            id = id,
+            name = name,
+            colorArgb = colorArgb,
+            isLocalOwner = false,
+            isArchived = false,
+            archivedAt = null,
+            createdAt = now,
+            updatedAt = now,
+            originDeviceId = originDeviceId,
+            deviceId = originDeviceId,
+            // id-Konvention "$deviceId:$profileId" → profileId-Spalte aus der Surrogat-id ableiten.
+            profileId = id.substringAfter(':', id),
+            mergeTargetId = null,
         )
         dao.insert(ProfileEntity.fromDomain(profile))
         return profile
@@ -142,18 +168,13 @@ class ProfileRepositoryImpl(
     override suspend fun countGamesForProfile(id: String): Int =
         dao.countGamesForProfile(id)
 
-    override suspend fun countCombinedGames(keepId: String, discardId: String): Int =
-        dao.countCombinedGames(keepId, discardId)
-
     override suspend fun updateName(id: String, newName: String) {
         val trimmed = newName.trim()
         require(trimmed.isNotEmpty()) { "Profile name must not be blank." }
         val current = dao.getById(id)
             ?: throw IllegalStateException("Profile '$id' not found – cannot rename.")
         if (current.name == trimmed) return
-        require(dao.countByName(trimmed) == 0) {
-            "A profile with name '$trimmed' already exists."
-        }
+        // Namens-Eindeutigkeit gelockert (Phase 1): Duplikate erlaubt.
         dao.updateName(id, trimmed, clock.nowEpochMillis())
     }
 
@@ -169,26 +190,51 @@ class ProfileRepositoryImpl(
         dao.unarchive(id, clock.nowEpochMillis())
     }
 
-    override suspend fun mergeProfiles(keepId: String, discardId: String) {
-        require(keepId != discardId) { "Cannot merge a profile into itself." }
+    // --- Phase 2: non-destruktiver Zeiger-Merge ---
+
+    override fun observeMergedProfiles(): Flow<List<Profile>> =
+        dao.observeMerged().map { list -> list.map { it.toDomain() } }
+
+    override suspend fun setMergeTarget(id: String, targetId: String) {
+        require(id != targetId) { "Cannot merge a profile into itself." }
         database.withTransaction {
+            val source = dao.getById(id)
+                ?: throw IllegalStateException("Profile '$id' not found – cannot merge.")
+            require(!source.isLocalOwner) { "Owner profile cannot be merged." }
+
+            // Kettenende auflösen: zeigt das gewählte Ziel selbst auf etwas, folgen wir bis zum Ende
+            // ("keine Ketten, eine Wahrheit"). Dabei Zyklen erkennen (darf nie auf [id] zurückführen).
+            val visited = linkedSetOf(id)
+            var cursor = targetId
+            var depth = 0
+            while (true) {
+                require(cursor !in visited) { "Merge would create a cycle." }
+                visited += cursor
+                val node = dao.getById(cursor) ?: break // dangling target → cursor ist das Ende
+                val next = node.mergeTargetId ?: break
+                cursor = next
+                if (++depth > MAX_MERGE_DEPTH) break
+            }
+            val finalTarget = cursor
+            require(finalTarget != id) { "Merge would create a cycle." }
+
             val now = clock.nowEpochMillis()
-            // Reihenfolge wichtig: erst Kollisionen entfernen, dann umschreiben.
-            dao.deleteConflictingParticipants(keepId, discardId)
-            dao.reassignParticipants(keepId, discardId)
-            dao.reassignRoundResults(keepId, discardId)
-            dao.archive(discardId, now)
-            dao.touch(keepId, now)
+            dao.setMergeTarget(id, finalTarget, now)
+            // Vorhandene Zeiger, die auf dieses (jetzt selbst gemergte) Profil zeigen, aufs neue Ende
+            // nachziehen, damit keine Ketten entstehen.
+            dao.repointPointers(oldId = id, newTarget = finalTarget, ts = now)
+            dao.touch(finalTarget, now)
         }
     }
 
-    private fun generateProfileId(deviceUuid: String, name: String): String {
-        val input = "$deviceUuid|${name.lowercase()}"
-        val digest = MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
-        return digest.joinToString("") { "%02x".format(it) }.take(32)
+    override suspend fun clearMergeTarget(id: String) {
+        dao.clearMergeTarget(id, clock.nowEpochMillis())
     }
+
+    private fun surrogateId(deviceId: String, profileId: String): String = "$deviceId:$profileId"
 
     companion object {
         private const val DEFAULT_OWNER_COLOR_ARGB: Int = 0xFF6750A4.toInt()
+        private const val MAX_MERGE_DEPTH = 32
     }
 }

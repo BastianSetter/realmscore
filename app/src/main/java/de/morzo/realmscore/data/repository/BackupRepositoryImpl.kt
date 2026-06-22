@@ -356,22 +356,6 @@ class BackupRepositoryImpl(
         }
         return changed
     }
-
-    override suspend fun reconcileSelfSeat(canonicalProfileId: String) {
-        val ownerProfileId = db.profileDao().getLocalOwner()?.id ?: return
-        if (canonicalProfileId == ownerProfileId) return // host's own seat is already its owner
-        db.withTransaction {
-            val now = clock.nowEpochMillis()
-            val dao = db.profileDao()
-            // Mirror ProfileRepositoryImpl.mergeProfiles: clear PK collisions, reassign, then retire the
-            // now-empty canonical profile (archive rather than delete to stay FK-safe).
-            dao.deleteConflictingParticipants(keepId = ownerProfileId, discardId = canonicalProfileId)
-            dao.reassignParticipants(keepId = ownerProfileId, discardId = canonicalProfileId)
-            dao.reassignRoundResults(keepId = ownerProfileId, discardId = canonicalProfileId)
-            dao.archive(canonicalProfileId, now)
-            dao.touch(ownerProfileId, now)
-        }
-    }
 }
 
 // --- Entity → Backup ---
@@ -386,6 +370,9 @@ private fun ProfileEntity.toBackup() = BackupProfile(
     createdAt = createdAt,
     updatedAt = updatedAt,
     originDeviceId = originDeviceId,
+    deviceId = deviceId,
+    profileId = profileId,
+    mergeTargetId = mergeTargetId,
 )
 
 private fun GameEntity.toBackup(
@@ -459,6 +446,10 @@ private fun BackupProfile.toEntity(isLocalOwner: Boolean) = ProfileEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
     originDeviceId = originDeviceId,
+    // Backfill für Schema-1-Backups (Felder leer): deviceId aus originDeviceId, profileId aus der id.
+    deviceId = deviceId.ifBlank { originDeviceId },
+    profileId = profileId.ifBlank { id.substringAfter(':', id) },
+    mergeTargetId = mergeTargetId,
 )
 
 private fun BackupGame.toEntity() = GameEntity(

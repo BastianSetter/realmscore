@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
  * than this (a backup from a newer app version), but accepts equal or lower versions so old backups
  * stay importable after an app update.
  */
-const val CURRENT_BACKUP_SCHEMA_VERSION = 1
+const val CURRENT_BACKUP_SCHEMA_VERSION = 2
 
 /**
  * Versioned, self-contained snapshot of all app data (Phase 23). The DTOs intentionally carry
@@ -37,6 +37,11 @@ data class BackupProfile(
     val createdAt: Long,
     val updatedAt: Long,
     val originDeviceId: String,
+    // Profil-Rework (Backup-Schema 2): explizite Identität + non-destruktiver Merge-Zeiger reisen mit.
+    // Defaults halten ältere Schema-1-Backups deserialisierbar.
+    val deviceId: String = "",
+    val profileId: String = "",
+    val mergeTargetId: String? = null,
 )
 
 @Serializable

@@ -9,7 +9,6 @@ import de.morzo.realmscore.domain.p2p.P2PSessionRepository
 import de.morzo.realmscore.domain.p2p.model.BluetoothStatus
 import de.morzo.realmscore.domain.p2p.model.ParticipantInfo
 import de.morzo.realmscore.domain.p2p.model.SessionState
-import de.morzo.realmscore.domain.repository.DeviceProfileMappingRepository
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import kotlinx.coroutines.FlowPreview
@@ -19,7 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -71,7 +69,6 @@ class NewGameViewModel(
     private val profileRepo: ProfileRepository,
     private val gameRepo: GameRepository,
     private val p2p: P2PSessionRepository,
-    private val mappingRepo: DeviceProfileMappingRepository,
     /** When set, pre-fill players + settings from this previous game ("Neues Spiel starten"). */
     private val seedGameId: String = "",
     /** When true, keep the live host session alive and bring the joined phones into the next game. */
@@ -189,14 +186,13 @@ class NewGameViewModel(
             GameMode.POINT_LIMIT -> game.targetPoints?.let { setTarget(it) }
         }
 
-        val deviceMappedProfiles =
-            if (continueSession) mappingRepo.observeAll().first().values.toSet() else emptySet()
-
         val seededRows = mutableListOf<ParticipantRow>()
         for (participant in gameRepo.getParticipants(gameId).sortedBy { it.seatOrder }) {
             if (participant.profileId == ownerId) continue
-            if (participant.profileId in deviceMappedProfiles) continue
             val profile = profileRepo.getById(participant.profileId) ?: continue
+            // Beim Weiterspielen mit der Gruppe werden Remote-Sitze (anderes Gerät) NICHT hier geseedet
+            // — sie repopulieren live aus joinedParticipants mit korrekter remote-originDeviceId.
+            if (continueSession && profile.deviceId != hostDeviceId) continue
             seededRows += ParticipantRow(
                 profileId = profile.id,
                 name = profile.name,
@@ -223,13 +219,21 @@ class NewGameViewModel(
 
         val rows = mutableListOf<ParticipantRow>()
         for (participant in newcomers) {
-            // Resolve against the ids already seated (incl. ones resolved in this pass) so two players
-            // never collapse onto one profile — which would make startGame's distinct-check throw.
+            // Phase 4 (Profil-Rework): das fremde Profil wird mit seiner global eindeutigen Identität
+            // unverändert übernommen (kein Remap auf ein lokales Profil, kein DeviceProfileMapping).
+            // Zwei verschiedene Geräte können nie dieselbe id liefern → kein Sitz-Kollaps möglich.
             val taken = (_uiState.value.participants.map { it.profileId } + rows.map { it.profileId }).toSet()
-            val localProfileId = runCatching { resolveLocalProfile(participant, taken) }.getOrNull() ?: continue
-            if (localProfileId in taken) continue
+            if (participant.profileId in taken) continue
+            runCatching {
+                profileRepo.ensureRemoteProfile(
+                    id = participant.profileId,
+                    name = participant.name,
+                    colorArgb = participant.colorArgb,
+                    originDeviceId = participant.originDeviceId,
+                )
+            }.getOrNull() ?: continue
             rows += ParticipantRow(
-                profileId = localProfileId,
+                profileId = participant.profileId,
                 name = participant.name,
                 colorArgb = participant.colorArgb,
                 isOwner = false,
@@ -249,41 +253,6 @@ class NewGameViewModel(
         }
         scheduleSuggestionRefresh()
         broadcastRoster()
-    }
-
-    /**
-     * Map a joined device to a *distinct* local profile id (host-side reconciliation), never throwing:
-     *  1. reuse the remembered device→profile mapping if it still exists and isn't already seated;
-     *  2. else reuse an existing profile that exactly matches the name and isn't already seated
-     *     (identity continuity for a returning player);
-     *  3. else create a fresh profile, uniquifying the name so [ProfileRepository.createProfile] (which
-     *     rejects duplicate names) can't fail.
-     *
-     * [taken] are the profile ids already on the roster — never return one of those (that would give two
-     * devices one seat and make `startGame`'s distinct-participant check throw → "Spiel starten" no-op).
-     */
-    private suspend fun resolveLocalProfile(participant: ParticipantInfo, taken: Set<String>): String {
-        mappingRepo.getProfileFor(participant.originDeviceId)?.let { mapped ->
-            if (mapped !in taken && profileRepo.getById(mapped) != null) return mapped
-        }
-
-        val nameMatch = profileRepo.searchByNamePrefix(participant.name)
-            .firstOrNull { it.name.equals(participant.name, ignoreCase = true) && it.id !in taken }
-        if (nameMatch != null) {
-            mappingRepo.map(participant.originDeviceId, nameMatch.id)
-            return nameMatch.id
-        }
-
-        var name = participant.name
-        var suffix = 2
-        while (profileRepo.existsByName(name)) {
-            name = "${participant.name} ($suffix)"
-            suffix++
-        }
-        val created = profileRepo.createProfile(name)
-        profileRepo.updateColor(created.id, participant.colorArgb)
-        mappingRepo.map(participant.originDeviceId, created.id)
-        return created.id
     }
 
     fun setMode(mode: GameMode) {
@@ -344,10 +313,7 @@ class NewGameViewModel(
             return
         }
         viewModelScope.launch {
-            if (profileRepo.existsByName(name)) {
-                _uiState.update { it.copy(addError = AddError.NAME_EXISTS) }
-                return@launch
-            }
+            // Namens-Eindeutigkeit gelockert (Phase 1): Duplikate erlaubt, Merges regeln Dubletten.
             val profile = profileRepo.createProfile(name)
             _uiState.update {
                 it.copy(
@@ -443,14 +409,13 @@ class NewGameViewModel(
         private val profileRepo: ProfileRepository,
         private val gameRepo: GameRepository,
         private val p2p: P2PSessionRepository,
-        private val mappingRepo: DeviceProfileMappingRepository,
         private val seedGameId: String = "",
         private val continueSession: Boolean = false,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return NewGameViewModel(
-                profileRepo, gameRepo, p2p, mappingRepo, seedGameId, continueSession,
+                profileRepo, gameRepo, p2p, seedGameId, continueSession,
             ) as T
         }
     }

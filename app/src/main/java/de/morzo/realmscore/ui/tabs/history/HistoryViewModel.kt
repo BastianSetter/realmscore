@@ -146,6 +146,22 @@ class HistoryViewModel(
         profiles: List<Profile>,
     ): RawHistoryState {
         val profilesById = profiles.associateBy { it.id }
+        // Profil-Rework: gemergte Profile unter ihrem kanonischen Ziel anzeigen (Namen, Badges, Sieger,
+        // Filter). Folgt der mergeTargetId-Kette bis zum Ende; archivierte Profile bleiben hier aber
+        // sichtbar (Historie = Anzeige-Kontinuität, nicht Statistik-Zählung).
+        fun canonical(id: String): String {
+            var cursor = id
+            val seen = HashSet<String>()
+            var depth = 0
+            while (true) {
+                if (!seen.add(cursor)) return cursor
+                val target = profilesById[cursor]?.mergeTargetId ?: return cursor
+                if (!profilesById.containsKey(target)) return cursor
+                cursor = target
+                if (++depth > 32) return cursor
+            }
+        }
+
         val gameIds = games.map { it.id }
         val participantsByGame = gameRepo.getParticipantsForGames(gameIds)
             .groupBy { it.gameId }
@@ -156,7 +172,7 @@ class HistoryViewModel(
             val participants = participantsByGame[game.id].orEmpty()
                 .sortedBy { it.seatOrder }
                 .mapNotNull { entry ->
-                    val profile = profilesById[entry.profileId] ?: return@mapNotNull null
+                    val profile = profilesById[canonical(entry.profileId)] ?: return@mapNotNull null
                     availablePlayerIds += profile.id
                     ParticipantBadge(
                         profileId = profile.id,
@@ -164,7 +180,11 @@ class HistoryViewModel(
                         colorArgb = profile.colorArgb,
                     )
                 }
-            val totals = totalsByGame[game.id].orEmpty()
+                .distinctBy { it.profileId }
+            // Spiel-Totals auf kanonische Ids umschlüsseln (zwei gemergte Sitze im selben Spiel addieren).
+            val totals = totalsByGame[game.id].orEmpty().entries
+                .groupBy({ canonical(it.key) }, { it.value })
+                .mapValues { (_, scores) -> scores.sum() }
             val status = mapStatus(game)
             val winnerEntry = totals.entries.maxByOrNull { it.value }
             val topName = winnerEntry?.let { profilesById[it.key]?.name }

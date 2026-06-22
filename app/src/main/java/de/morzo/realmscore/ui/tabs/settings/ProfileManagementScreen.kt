@@ -42,7 +42,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -62,8 +61,8 @@ private sealed interface ProfileDialog {
     data class Rename(val row: ProfileRow) : ProfileDialog
     data class ChangeColor(val row: ProfileRow) : ProfileDialog
     data class ArchiveConfirm(val row: ProfileRow) : ProfileDialog
-    data class MergePick(val keep: ProfileRow) : ProfileDialog
-    data class MergePreview(val keep: ProfileRow, val discard: ProfileRow) : ProfileDialog
+    /** Verschmilzt [source] in ein auszuwählendes (aktives) Zielprofil. */
+    data class MergeTargetPick(val source: ProfileRow) : ProfileDialog
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +74,12 @@ fun ProfileManagementScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<ProfileDialog?>(null) }
     var archivedExpanded by rememberSaveable { mutableStateOf(false) }
+
+    // Gültige Merge-Ziele: aktive Profile + Owner (geräteunabhängig), nie das Quellprofil selbst.
+    val mergeTargets = remember(state.owner, state.active) {
+        (listOfNotNull(state.owner) + state.active)
+    }
+    val canMerge = mergeTargets.isNotEmpty()
 
     Scaffold(
         topBar = {
@@ -99,7 +104,19 @@ fun ProfileManagementScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 16.dp),
         ) {
-            if (state.isLoaded && state.active.isEmpty()) {
+            // --- Owner ---
+            state.owner?.let { owner ->
+                item(key = "owner_" + owner.profile.id) {
+                    OwnerProfileCard(
+                        row = owner,
+                        onRename = { dialog = ProfileDialog.Rename(owner) },
+                        onChangeColor = { dialog = ProfileDialog.ChangeColor(owner) },
+                    )
+                }
+            }
+
+            // --- Aktiv ---
+            if (state.isLoaded && state.active.isEmpty() && state.owner == null) {
                 item {
                     Text(
                         text = stringResource(R.string.profile_management_empty),
@@ -108,19 +125,38 @@ fun ProfileManagementScreen(
                     )
                 }
             }
+            if (state.active.isNotEmpty()) {
+                item("active_header") {
+                    SectionHeader(stringResource(R.string.profile_management_active_section))
+                }
+            }
             items(state.active, key = { it.profile.id }) { row ->
                 ActiveProfileCard(
                     row = row,
-                    canMerge = state.active.size > 1,
+                    canMerge = mergeTargets.any { it.profile.id != row.profile.id },
                     onRename = { dialog = ProfileDialog.Rename(row) },
                     onChangeColor = { dialog = ProfileDialog.ChangeColor(row) },
                     onArchive = { dialog = ProfileDialog.ArchiveConfirm(row) },
-                    onMerge = { dialog = ProfileDialog.MergePick(row) },
+                    onMerge = { dialog = ProfileDialog.MergeTargetPick(row) },
                 )
             }
 
+            // --- Merged ---
+            if (state.merged.isNotEmpty()) {
+                item("merged_header") {
+                    SectionHeader(stringResource(R.string.profile_management_merged_section))
+                }
+                items(state.merged, key = { "merged_" + it.profile.id }) { row ->
+                    MergedProfileCard(
+                        row = row,
+                        onUnmerge = { viewModel.unmerge(row.profile.id) },
+                    )
+                }
+            }
+
+            // --- Archiviert (einklappbar) ---
             if (state.archived.isNotEmpty()) {
-                item {
+                item("archived_header") {
                     ArchivedSectionHeader(
                         count = state.archived.size,
                         expanded = archivedExpanded,
@@ -131,7 +167,9 @@ fun ProfileManagementScreen(
                     items(state.archived, key = { "arch_" + it.profile.id }) { row ->
                         ArchivedProfileCard(
                             row = row,
+                            canMerge = canMerge,
                             onUnarchive = { viewModel.unarchive(row.profile.id) },
+                            onMerge = { dialog = ProfileDialog.MergeTargetPick(row) },
                         )
                     }
                 }
@@ -161,24 +199,27 @@ fun ProfileManagementScreen(
             },
             onDismiss = { dialog = null },
         )
-        is ProfileDialog.MergePick -> MergePickDialog(
-            keep = d.keep,
-            candidates = state.active.filter { it.profile.id != d.keep.profile.id },
-            onPick = { discard -> dialog = ProfileDialog.MergePreview(d.keep, discard) },
-            onDismiss = { dialog = null },
-        )
-        is ProfileDialog.MergePreview -> MergePreviewDialog(
-            keep = d.keep,
-            discard = d.discard,
-            viewModel = viewModel,
-            onConfirm = {
-                viewModel.merge(d.keep.profile.id, d.discard.profile.id)
+        is ProfileDialog.MergeTargetPick -> MergeTargetPickDialog(
+            source = d.source,
+            candidates = mergeTargets.filter { it.profile.id != d.source.profile.id },
+            onPick = { target ->
+                viewModel.setMergeTarget(d.source.profile.id, target.profile.id)
                 dialog = null
             },
             onDismiss = { dialog = null },
         )
         null -> Unit
     }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+    )
 }
 
 @Composable
@@ -194,6 +235,61 @@ private fun ProfileAvatar(profile: Profile, size: Int = 40) {
             color = Color.White,
             style = MaterialTheme.typography.titleMedium,
         )
+    }
+}
+
+@Composable
+private fun OwnerProfileCard(
+    row: ProfileRow,
+    onRename: () -> Unit,
+    onChangeColor: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ProfileAvatar(row.profile)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = row.profile.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(R.string.profile_owner_label) +
+                        " · " + stringResource(R.string.profile_games_count, row.gameCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.profile_actions_menu),
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.profile_action_rename)) },
+                        onClick = { menuExpanded = false; onRename() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.profile_action_change_color)) },
+                        onClick = { menuExpanded = false; onChangeColor() },
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -223,15 +319,8 @@ private fun ActiveProfileCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val subtitle = buildString {
-                    if (row.profile.isLocalOwner) {
-                        append(stringResource(R.string.profile_owner_label))
-                        append(" · ")
-                    }
-                    append(stringResource(R.string.profile_games_count, row.gameCount))
-                }
                 Text(
-                    text = subtitle,
+                    text = stringResource(R.string.profile_games_count, row.gameCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -272,6 +361,42 @@ private fun ActiveProfileCard(
 }
 
 @Composable
+private fun MergedProfileCard(
+    row: ProfileRow,
+    onUnmerge: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ProfileAvatar(row.profile)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = row.profile.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = row.mergeTargetName?.let {
+                        stringResource(R.string.profile_merged_into, it)
+                    } ?: stringResource(R.string.profile_merged_into_unknown),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onUnmerge) {
+                Text(stringResource(R.string.profile_action_unmerge))
+            }
+        }
+    }
+}
+
+@Composable
 private fun ArchivedSectionHeader(
     count: Int,
     expanded: Boolean,
@@ -300,8 +425,11 @@ private fun ArchivedSectionHeader(
 @Composable
 private fun ArchivedProfileCard(
     row: ProfileRow,
+    canMerge: Boolean,
     onUnarchive: () -> Unit,
+    onMerge: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -327,6 +455,26 @@ private fun ArchivedProfileCard(
             TextButton(onClick = onUnarchive) {
                 Text(stringResource(R.string.profile_action_unarchive))
             }
+            // Archivierte Profile dürfen nur reaktiviert oder gemergt werden.
+            if (canMerge) {
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.profile_actions_menu),
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profile_action_merge)) },
+                            onClick = { menuExpanded = false; onMerge() },
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -341,7 +489,6 @@ private fun RenameDialog(
     var error by remember { mutableStateOf<RenameResult?>(null) }
     val errorText = when (error) {
         RenameResult.EMPTY -> stringResource(R.string.profile_rename_error_empty)
-        RenameResult.EXISTS -> stringResource(R.string.profile_rename_error_exists)
         RenameResult.ERROR -> stringResource(R.string.state_error_default_title)
         RenameResult.SUCCESS, null -> null
     }
@@ -459,15 +606,7 @@ private fun ArchiveConfirmDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.profile_archive_confirm_title)) },
-        text = {
-            Text(
-                if (row.profile.isLocalOwner) {
-                    stringResource(R.string.profile_archive_confirm_owner_body)
-                } else {
-                    stringResource(R.string.profile_archive_confirm_body)
-                }
-            )
-        },
+        text = { Text(stringResource(R.string.profile_archive_confirm_body)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text(stringResource(R.string.profile_archive_confirm))
@@ -482,8 +621,8 @@ private fun ArchiveConfirmDialog(
 }
 
 @Composable
-private fun MergePickDialog(
-    keep: ProfileRow,
+private fun MergeTargetPickDialog(
+    source: ProfileRow,
     candidates: List<ProfileRow>,
     onPick: (ProfileRow) -> Unit,
     onDismiss: () -> Unit,
@@ -493,7 +632,7 @@ private fun MergePickDialog(
         title = { Text(stringResource(R.string.profile_merge_title)) },
         text = {
             Column {
-                Text(stringResource(R.string.profile_merge_pick_other, keep.profile.name))
+                Text(stringResource(R.string.profile_merge_pick_target, source.profile.name))
                 Spacer(Modifier.height(12.dp))
                 if (candidates.isEmpty()) {
                     Text(
@@ -518,59 +657,6 @@ private fun MergePickDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.profile_dialog_cancel))
-            }
-        },
-    )
-}
-
-@Composable
-private fun MergePreviewDialog(
-    keep: ProfileRow,
-    discard: ProfileRow,
-    viewModel: ProfileManagementViewModel,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var combined by remember { mutableIntStateOf(-1) }
-    androidx.compose.runtime.LaunchedEffect(keep.profile.id, discard.profile.id) {
-        viewModel.loadCombinedGameCount(keep.profile.id, discard.profile.id) { combined = it }
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.profile_merge_title)) },
-        text = {
-            Column {
-                Text(
-                    stringResource(
-                        R.string.profile_merge_preview,
-                        keep.profile.name,
-                        keep.gameCount,
-                        discard.profile.name,
-                        discard.gameCount,
-                        if (combined >= 0) combined else keep.gameCount + discard.gameCount,
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    stringResource(
-                        R.string.profile_merge_preview_note,
-                        keep.profile.name,
-                        discard.profile.name,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.profile_merge_confirm))
-            }
-        },
-        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.profile_dialog_cancel))
             }

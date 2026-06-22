@@ -2,7 +2,6 @@ package de.morzo.realmscore.data.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import de.morzo.realmscore.data.db.dao.DeviceProfileMappingDao
 import de.morzo.realmscore.data.db.dao.DiscardCardDao
 import de.morzo.realmscore.data.db.dao.GameDao
 import de.morzo.realmscore.data.db.dao.HandCardDao
@@ -10,7 +9,6 @@ import de.morzo.realmscore.data.db.dao.ProfileDao
 import de.morzo.realmscore.data.db.dao.RoundDao
 import de.morzo.realmscore.data.db.dao.RoundResultDao
 import de.morzo.realmscore.data.db.dao.SandboxFavoriteDao
-import de.morzo.realmscore.data.db.entity.DeviceProfileMappingEntity
 import de.morzo.realmscore.data.db.entity.DiscardCardEntity
 import de.morzo.realmscore.data.db.entity.GameEntity
 import de.morzo.realmscore.data.db.entity.GameParticipantEntity
@@ -30,9 +28,8 @@ import de.morzo.realmscore.data.db.entity.SandboxFavoriteEntity
         HandCardEntity::class,
         DiscardCardEntity::class,
         SandboxFavoriteEntity::class,
-        DeviceProfileMappingEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -43,7 +40,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun handCardDao(): HandCardDao
     abstract fun discardCardDao(): DiscardCardDao
     abstract fun sandboxFavoriteDao(): SandboxFavoriteDao
-    abstract fun deviceProfileMappingDao(): DeviceProfileMappingDao
 
     companion object {
         const val DB_NAME = "fantasy_realms.db"

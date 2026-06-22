@@ -548,11 +548,11 @@ class SessionManager(
             // Client: the host finished the round (its FullGameState arrived just before this) — reveal.
             is SyncMessage.RoundComplete -> _navSignals.emit(NavSignal.OpenReveal(message.roundId))
 
-            // Client: the host closed the game. The final FullGameState was merged just before this;
-            // now reattribute our own seat from the host's canonical profile to our local owner so the
-            // finished game shows under us in stats.
+            // Client: the host closed the game. The final FullGameState was merged just before this.
+            // Phase 4 (Profil-Rework): keine Selbst-Sitz-Reattributierung mehr nötig — der Host remappt
+            // joinende Profile nicht länger, also kommt unser Sitz bereits unter unserer eigenen Owner-id
+            // ("$ownDevice:$ownDevice") an und Merge-by-id trifft das vorhandene Owner-Profil.
             is SyncMessage.GameClosed -> {
-                mySeatCanonicalId?.let { canonical -> backupRepository.reconcileSelfSeat(canonical) }
                 // The game is over — the session is no longer "in a game", so a later Home/Join visit
                 // is free to reset it for a fresh session.
                 activeGameId = null

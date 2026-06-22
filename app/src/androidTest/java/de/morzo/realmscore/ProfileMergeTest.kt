@@ -15,12 +15,16 @@ import de.morzo.realmscore.domain.util.Clock
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/**
+ * Profil-Rework: der Merge ist jetzt ein **non-destruktiver Zeiger** (`mergeTargetId`). Diese Tests
+ * decken Zielsetzung, Kettenkollaps, Zyklenschutz, Unmerge und die Unversehrtheit der Historie ab.
+ */
 @RunWith(AndroidJUnit4::class)
 class ProfileMergeTest {
 
@@ -50,22 +54,109 @@ class ProfileMergeTest {
         db.close()
     }
 
-    private fun profile(id: String, name: String, owner: Boolean = false) = ProfileEntity(
+    private fun profile(id: String, name: String, mergeTargetId: String? = null) = ProfileEntity(
         id = id,
         name = name,
         colorArgb = 0xFF6750A4.toInt(),
-        isLocalOwner = owner,
+        isLocalOwner = false,
         isArchived = false,
         archivedAt = null,
         createdAt = 0,
         updatedAt = 0,
         originDeviceId = "dev",
+        deviceId = "dev",
+        profileId = id,
+        mergeTargetId = mergeTargetId,
     )
+
+    @Test
+    fun setMergeTarget_points_source_at_target_without_touching_target() = runBlocking {
+        val dao = db.profileDao()
+        dao.insert(profile("A", "Anna"))
+        dao.insert(profile("B", "Ana"))
+
+        repo.setMergeTarget("B", "A")
+
+        assertEquals("A", dao.getById("B")!!.mergeTargetId)
+        assertNull(dao.getById("A")!!.mergeTargetId)
+    }
+
+    @Test
+    fun setMergeTarget_does_not_rewrite_history() = runBlocking {
+        val dao = db.profileDao()
+        dao.insert(profile("A", "Anna"))
+        dao.insert(profile("B", "Ana"))
+        db.gameDao().insert(game("g1"))
+        db.gameDao().insertParticipants(listOf(GameParticipantEntity("g1", "B", 0, null)))
+        db.roundDao().insert(round("r1", "g1"))
+        db.roundResultDao().insert(result("rr1", "r1", "B"))
+
+        repo.setMergeTarget("B", "A")
+
+        // Historie bleibt unangetastet — die Auflösung passiert zur Laufzeit, nicht beim Schreiben.
+        assertEquals("B", db.roundResultDao().getResultsForRounds(listOf("r1")).single().profileId)
+        assertEquals(1, dao.countGamesForProfile("B"))
+        assertEquals(0, dao.countGamesForProfile("A"))
+    }
+
+    @Test
+    fun setMergeTarget_follows_chain_to_end() = runBlocking {
+        val dao = db.profileDao()
+        dao.insert(profile("A", "Anna"))
+        dao.insert(profile("B", "B", mergeTargetId = "A")) // B ist bereits → A gemergt
+        dao.insert(profile("C", "C"))
+
+        repo.setMergeTarget("C", "B") // Ziel B zeigt auf A → C muss direkt auf A zeigen (keine Kette)
+
+        assertEquals("A", dao.getById("C")!!.mergeTargetId)
+    }
+
+    @Test
+    fun setMergeTarget_repoints_existing_pointers() = runBlocking {
+        val dao = db.profileDao()
+        dao.insert(profile("A", "Anna"))
+        dao.insert(profile("B", "B"))
+        dao.insert(profile("C", "C"))
+
+        repo.setMergeTarget("A", "B") // A → B
+        repo.setMergeTarget("B", "C") // B → C: A wird aufs neue Ende C nachgezogen
+
+        assertEquals("C", dao.getById("A")!!.mergeTargetId)
+        assertEquals("C", dao.getById("B")!!.mergeTargetId)
+    }
+
+    @Test
+    fun setMergeTarget_rejects_cycle() = runBlocking {
+        val dao = db.profileDao()
+        dao.insert(profile("A", "Anna"))
+        dao.insert(profile("B", "B"))
+        repo.setMergeTarget("A", "B")
+
+        try {
+            repo.setMergeTarget("B", "A")
+            fail("expected a cycle to be rejected")
+        } catch (e: IllegalArgumentException) {
+            // erwartet
+        }
+        Unit
+    }
+
+    @Test
+    fun clearMergeTarget_unmerges() = runBlocking {
+        val dao = db.profileDao()
+        dao.insert(profile("A", "Anna"))
+        dao.insert(profile("B", "B"))
+        repo.setMergeTarget("B", "A")
+
+        repo.clearMergeTarget("B")
+
+        assertNull(dao.getById("B")!!.mergeTargetId)
+    }
 
     private fun game(id: String) = GameEntity(
         id = id,
         displayName = null,
-        mode = "ROUND_LIMIT",
+        mode = "FIXED_ROUNDS",
         targetRounds = 3,
         targetPoints = null,
         startedAt = 0,
@@ -97,54 +188,4 @@ class ProfileMergeTest {
         updatedAt = 0,
         originDeviceId = "dev",
     )
-
-    @Test
-    fun mergeProfiles_reassigns_data_and_archives_discarded() = runBlocking {
-        val profileDao = db.profileDao()
-        val gameDao = db.gameDao()
-        val roundDao = db.roundDao()
-        val roundResultDao = db.roundResultDao()
-
-        // Profile A (keep) und B (discard)
-        profileDao.insert(profile("A", "Anna", owner = true))
-        profileDao.insert(profile("B", "Ana"))
-
-        // game1: A und B spielen gemeinsam (Konflikt-Fall für game_participants)
-        gameDao.insert(game("g1"))
-        gameDao.insertParticipants(
-            listOf(
-                GameParticipantEntity("g1", "A", 0, null),
-                GameParticipantEntity("g1", "B", 1, null),
-            ),
-        )
-        roundDao.insert(round("r1", "g1"))
-        roundResultDao.insert(result("rr1a", "r1", "A"))
-        roundResultDao.insert(result("rr1b", "r1", "B"))
-
-        // game2: nur B spielt → wird auf A umgeschrieben
-        gameDao.insert(game("g2"))
-        gameDao.insertParticipants(listOf(GameParticipantEntity("g2", "B", 0, null)))
-        roundDao.insert(round("r2", "g2"))
-        roundResultDao.insert(result("rr2b", "r2", "B"))
-
-        // Vorschau: Vereinigung der Spiele = g1 + g2 = 2
-        assertEquals(2, repo.countCombinedGames("A", "B"))
-
-        repo.mergeProfiles(keepId = "A", discardId = "B")
-
-        // B ist archiviert
-        val b = profileDao.getById("B")
-        assertNotNull(b)
-        assertTrue(b!!.isArchived)
-        assertEquals(1_000L, b.archivedAt)
-
-        // B hat keine Teilnahmen mehr, A ist jetzt in beiden Spielen
-        assertEquals(0, repo.countGamesForProfile("B"))
-        assertEquals(2, repo.countGamesForProfile("A"))
-
-        // Keine round_results mehr auf B
-        val results = roundResultDao.getResultsForRounds(listOf("r1", "r2"))
-        assertTrue(results.none { it.profileId == "B" })
-        assertEquals(3, results.size)
-    }
 }

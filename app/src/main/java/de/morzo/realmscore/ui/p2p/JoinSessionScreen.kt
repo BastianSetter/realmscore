@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,11 +72,11 @@ fun JoinSessionScreen(
             p2p = container.p2pSessionRepository,
             handshake = container.handshakeManager,
             profileRepo = container.profileRepository,
-            mappingRepo = container.deviceProfileMappingRepository,
         ),
     )
     val sessionState by vm.sessionState.collectAsStateWithLifecycle()
     val participants by vm.incomingParticipants.collectAsStateWithLifecycle()
+    val localProfiles by vm.localProfiles.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
     val rejoin by vm.rejoinInfo.collectAsStateWithLifecycle()
 
@@ -163,6 +165,8 @@ fun JoinSessionScreen(
                     sessionState is SessionState.Connected ->
                         JoinedContent(
                             participants = participants,
+                            localProfiles = localProfiles,
+                            onAssign = { incoming, localId -> vm.assignMerge(incoming, localId) },
                             onDone = onDone,
                         )
 
@@ -260,13 +264,17 @@ private fun ScanContent(
 /**
  * Post-join view ("join adds a player"): we've announced ourselves to the host and now wait for the
  * host to start. Shows the live roster the host broadcasts so the joiner sees themselves + everyone
- * else appear in real time.
+ * else appear in real time. Per roster profile a "Zuweisen" button lets the user merge that (foreign)
+ * profile into an existing local profile (Profil-Rework Phase 6) — geräteunabhängig.
  */
 @Composable
 private fun JoinedContent(
     participants: List<ParticipantInfo>,
+    localProfiles: List<JoinSessionViewModel.LocalProfile>,
+    onAssign: (ParticipantInfo, String) -> Unit,
     onDone: () -> Unit,
 ) {
+    var assignFor by remember { mutableStateOf<ParticipantInfo?>(null) }
     Column(Modifier.fillMaxSize()) {
         Text(
             text = stringResource(R.string.p2p_joined_waiting),
@@ -282,6 +290,9 @@ private fun JoinedContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(participant.name, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { assignFor = participant }) {
+                        Text(stringResource(R.string.p2p_assign_local_profile))
+                    }
                 }
             }
         }
@@ -292,6 +303,58 @@ private fun JoinedContent(
             Text(stringResource(R.string.p2p_reconciliation_done))
         }
     }
+
+    assignFor?.let { incoming ->
+        AssignLocalProfileDialog(
+            incoming = incoming,
+            localProfiles = localProfiles,
+            onPick = { localId ->
+                onAssign(incoming, localId)
+                assignFor = null
+            },
+            onDismiss = { assignFor = null },
+        )
+    }
+}
+
+@Composable
+private fun AssignLocalProfileDialog(
+    incoming: ParticipantInfo,
+    localProfiles: List<JoinSessionViewModel.LocalProfile>,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.p2p_assign_pick_title, incoming.name)) },
+        text = {
+            Column {
+                if (localProfiles.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.p2p_assign_no_candidates),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    localProfiles.forEach { profile ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPick(profile.id) }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(profile.name, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.profile_dialog_cancel))
+            }
+        },
+    )
 }
 
 @Composable

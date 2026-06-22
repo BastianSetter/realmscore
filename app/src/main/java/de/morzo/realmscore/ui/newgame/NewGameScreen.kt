@@ -76,7 +76,6 @@ fun NewGameScreen(
             profileRepo = container.profileRepository,
             gameRepo = container.gameRepository,
             p2p = container.p2pSessionRepository,
-            mappingRepo = container.deviceProfileMappingRepository,
             seedGameId = seedGameId,
             continueSession = continueSession,
         ),

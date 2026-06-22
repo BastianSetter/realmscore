@@ -41,12 +41,4 @@ interface BackupRepository {
      * and the local owner must never be clobbered).
      */
     suspend fun mergeGame(snapshot: GameSnapshot): ImportResult
-
-    /**
-     * Phase 28 Stage B: after a game finishes, reattribute this device's own seat from the canonical
-     * (host-assigned) [canonicalProfileId] to the local owner profile so the game shows under the owner
-     * in stats. Reassigns participants + round results, then archives the now-empty canonical profile.
-     * A no-op when there is no local owner or it already is the canonical id (e.g. on the host).
-     */
-    suspend fun reconcileSelfSeat(canonicalProfileId: String)
 }

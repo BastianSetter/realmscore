@@ -8,7 +8,6 @@ import de.morzo.realmscore.domain.p2p.P2PSessionRepository
 import de.morzo.realmscore.domain.p2p.model.BluetoothStatus
 import de.morzo.realmscore.domain.p2p.model.HandshakePayload
 import de.morzo.realmscore.domain.p2p.model.ParticipantInfo
-import de.morzo.realmscore.domain.repository.DeviceProfileMappingRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,10 +21,9 @@ class JoinSessionViewModel(
     private val p2p: P2PSessionRepository,
     private val handshake: HandshakeManager,
     private val profileRepo: ProfileRepository,
-    private val mappingRepo: DeviceProfileMappingRepository,
 ) : ViewModel() {
 
-    data class LocalProfile(val id: String, val name: String)
+    data class LocalProfile(val id: String, val name: String, val colorArgb: Int)
 
     val sessionState = p2p.sessionState
     val incomingParticipants = p2p.incomingParticipants
@@ -36,10 +34,17 @@ class JoinSessionViewModel(
     /** Host-driven navigation: when the host starts a round, follow it into capture (Stage B). */
     val navSignals = p2p.navSignals
 
+    /**
+     * Gültige lokale Merge-Ziele für eingehende Profile: aktive (nicht archiviert, nicht selbst gemergt)
+     * Profile inkl. Owner — geräteunabhängig (Ziel darf ein zuvor von einem anderen Host kopiertes
+     * Profil sein). Das ist die A/B/C/D-Auswahl aus dem Spec.
+     */
     val localProfiles: StateFlow<List<LocalProfile>> =
         profileRepo.observeAll()
             .map { profiles ->
-                profiles.filterNot { it.isArchived }.map { LocalProfile(it.id, it.name) }
+                profiles
+                    .filter { !it.isArchived && it.mergeTargetId == null }
+                    .map { LocalProfile(it.id, it.name, it.colorArgb) }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -114,8 +119,23 @@ class JoinSessionViewModel(
         p2p.clearRejoinInfo()
     }
 
-    fun mapDevice(deviceId: String, profileId: String) {
-        viewModelScope.launch { mappingRepo.map(deviceId, profileId) }
+    /**
+     * Weist ein eingehendes (fremdes) Roster-Profil einem vorhandenen lokalen Profil zu: legt das fremde
+     * Profil bei Bedarf lokal an und setzt seinen Merge-Zeiger aufs gewählte lokale Profil. Ab dann
+     * zählen dessen Spiele zur Laufzeit unter dem lokalen Profil (kein destruktives Umschreiben).
+     */
+    fun assignMerge(incoming: ParticipantInfo, localProfileId: String) {
+        viewModelScope.launch {
+            runCatching {
+                profileRepo.ensureRemoteProfile(
+                    id = incoming.profileId,
+                    name = incoming.name,
+                    colorArgb = incoming.colorArgb,
+                    originDeviceId = incoming.originDeviceId,
+                )
+                profileRepo.setMergeTarget(incoming.profileId, localProfileId)
+            }.onFailure { _error.value = it.message ?: "assign_failed" }
+        }
     }
 
     fun setError(message: String?) {
@@ -126,10 +146,9 @@ class JoinSessionViewModel(
         private val p2p: P2PSessionRepository,
         private val handshake: HandshakeManager,
         private val profileRepo: ProfileRepository,
-        private val mappingRepo: DeviceProfileMappingRepository,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            JoinSessionViewModel(p2p, handshake, profileRepo, mappingRepo) as T
+            JoinSessionViewModel(p2p, handshake, profileRepo) as T
     }
 }

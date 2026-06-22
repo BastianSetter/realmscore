@@ -487,6 +487,12 @@
     <string name="profile_merge_preview">%1$s (%2$d Spiele) + %3$s (%4$d Spiele) → %1$s (%5$d Spiele)</string>
     <string name="profile_merge_preview_note">Name und Farbe von „%1$s“ bleiben erhalten. „%2$s“ wird danach archiviert.</string>
     <string name="profile_merge_confirm">Zusammenführen</string>
+    <string name="profile_management_active_section">Aktive Profile</string>
+    <string name="profile_management_merged_section">Zusammengeführte Profile</string>
+    <string name="profile_merged_into">Verschmolzen in „%1$s“</string>
+    <string name="profile_merged_into_unknown">Verschmolzen (Ziel unbekannt)</string>
+    <string name="profile_action_unmerge">Zusammenführung aufheben</string>
+    <string name="profile_merge_pick_target">Wähle das Profil, in das „%1$s“ aufgehen soll:</string>
     <string name="profile_color_picker_title">Farbe wählen</string>
     <string name="profile_dialog_cancel">Abbrechen</string>
     <string name="action_close">Schließen</string>
@@ -529,6 +535,9 @@
     <string name="p2p_reconciliation_title">Spieler zuordnen</string>
     <string name="p2p_reconciliation_done">Fertig</string>
     <string name="p2p_joined_waiting">Beigetreten – warte auf den Host</string>
+    <string name="p2p_assign_local_profile">Zuweisen</string>
+    <string name="p2p_assign_pick_title">Welches lokale Profil ist „%1$s“?</string>
+    <string name="p2p_assign_no_candidates">Keine lokalen Profile zum Zuweisen vorhanden.</string>
     <string name="p2p_rejoin_session">Session erneut beitreten</string>
     <string name="p2p_rejoin_session_body">Verbindung zur letzten Session wiederherstellen – ohne erneuten QR-Scan.</string>
     <string name="p2p_join_other_session">Andere Session beitreten (QR scannen)</string>

@@ -487,6 +487,12 @@
     <string name="profile_merge_preview">%1$s (%2$d games) + %3$s (%4$d games) → %1$s (%5$d games)</string>
     <string name="profile_merge_preview_note">The name and color of “%1$s” are kept. “%2$s” will be archived afterwards.</string>
     <string name="profile_merge_confirm">Merge</string>
+    <string name="profile_management_active_section">Active profiles</string>
+    <string name="profile_management_merged_section">Merged profiles</string>
+    <string name="profile_merged_into">Merged into “%1$s”</string>
+    <string name="profile_merged_into_unknown">Merged (target unknown)</string>
+    <string name="profile_action_unmerge">Undo merge</string>
+    <string name="profile_merge_pick_target">Pick the profile that “%1$s” should merge into:</string>
     <string name="profile_color_picker_title">Choose color</string>
     <string name="profile_dialog_cancel">Cancel</string>
     <string name="action_close">Close</string>
@@ -529,6 +535,9 @@
     <string name="p2p_reconciliation_title">Assign players</string>
     <string name="p2p_reconciliation_done">Done</string>
     <string name="p2p_joined_waiting">Joined – waiting for the host</string>
+    <string name="p2p_assign_local_profile">Assign</string>
+    <string name="p2p_assign_pick_title">Which local profile is “%1$s”?</string>
+    <string name="p2p_assign_no_candidates">No local profiles available to assign.</string>
     <string name="p2p_rejoin_session">Rejoin session</string>
     <string name="p2p_rejoin_session_body">Reconnect to your last session — no QR re-scan needed.</string>
     <string name="p2p_join_other_session">Join a different session (scan QR)</string>

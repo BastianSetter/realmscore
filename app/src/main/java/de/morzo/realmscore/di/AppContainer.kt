@@ -16,7 +16,6 @@ import de.morzo.realmscore.data.p2p.HandshakeManager
 import de.morzo.realmscore.data.p2p.LastSessionStore
 import de.morzo.realmscore.data.p2p.SessionManager
 import de.morzo.realmscore.data.repository.BackupRepositoryImpl
-import de.morzo.realmscore.data.repository.DeviceProfileMappingRepositoryImpl
 import de.morzo.realmscore.data.repository.GameRepositoryImpl
 import de.morzo.realmscore.data.repository.HandCardRepositoryImpl
 import de.morzo.realmscore.data.repository.ProfileRepositoryImpl
@@ -26,7 +25,6 @@ import de.morzo.realmscore.data.repository.SettingsRepositoryImpl
 import de.morzo.realmscore.data.repository.StatsRepositoryImpl
 import de.morzo.realmscore.domain.p2p.P2PSessionRepository
 import de.morzo.realmscore.domain.repository.BackupRepository
-import de.morzo.realmscore.domain.repository.DeviceProfileMappingRepository
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
@@ -233,13 +231,6 @@ class AppContainer(private val applicationContext: Context) {
             backupRepository = backupRepository,
             mirrorSync = gameMirrorSync,
             lastSessionStore = lastSessionStore,
-        )
-    }
-
-    val deviceProfileMappingRepository: DeviceProfileMappingRepository by lazy {
-        DeviceProfileMappingRepositoryImpl(
-            dao = database.deviceProfileMappingDao(),
-            clock = clock,
         )
     }
 

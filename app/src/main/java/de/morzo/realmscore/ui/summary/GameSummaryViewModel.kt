@@ -72,7 +72,14 @@ class GameSummaryViewModel(
     init {
         viewModelScope.launch {
             val participants = gameRepo.getParticipants(gameId).sortedBy { it.seatOrder }
-            val players = participants.mapNotNull { profileRepo.getById(it.profileId) }
+            // Profil-Rework: gemergte Profile unter dem Namen/der Farbe ihres kanonischen Ziels zeigen.
+            // Die id bleibt das eigene Profil (Scores/Tabellen sind danach verschlüsselt) — nur die
+            // Anzeige folgt dem Merge-Zeiger.
+            val players = participants.mapNotNull { p ->
+                val own = profileRepo.getById(p.profileId) ?: return@mapNotNull null
+                val canonical = canonicalProfile(own)
+                own.copy(name = canonical.name, colorArgb = canonical.colorArgb)
+            }
 
             combine(
                 roundRepo.observeRoundsForGame(gameId),
@@ -140,6 +147,17 @@ class GameSummaryViewModel(
             if (hosting) p2p.announceNewGameSetup()
             onProceed(hosting)
         }
+    }
+
+    /** Folgt dem mergeTargetId-Zeiger bis zum Kettenende (für die Anzeige); zyklen-/tiefensicher. */
+    private suspend fun canonicalProfile(start: Profile): Profile {
+        var current = start
+        val seen = HashSet<String>()
+        var depth = 0
+        while (current.mergeTargetId != null && seen.add(current.id) && depth++ < 32) {
+            current = profileRepo.getById(current.mergeTargetId!!) ?: break
+        }
+        return current
     }
 
     private fun computeTotals(
