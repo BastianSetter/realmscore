@@ -78,6 +78,7 @@ fun JoinSessionScreen(
     val participants by vm.incomingParticipants.collectAsStateWithLifecycle()
     val localProfiles by vm.localProfiles.collectAsStateWithLifecycle()
     val assignments by vm.assignments.collectAsStateWithLifecycle()
+    val localOwnerId by vm.localOwnerId.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
     val rejoin by vm.rejoinInfo.collectAsStateWithLifecycle()
 
@@ -168,6 +169,7 @@ fun JoinSessionScreen(
                             participants = participants,
                             localProfiles = localProfiles,
                             assignments = assignments,
+                            ownerProfileId = localOwnerId,
                             error = error,
                             onAssign = { incoming, localId -> vm.assignMerge(incoming, localId) },
                             onDone = onDone,
@@ -275,6 +277,7 @@ private fun JoinedContent(
     participants: List<ParticipantInfo>,
     localProfiles: List<JoinSessionViewModel.LocalProfile>,
     assignments: Map<String, String>,
+    ownerProfileId: String?,
     error: String?,
     onAssign: (ParticipantInfo, String) -> Unit,
     onDone: () -> Unit,
@@ -302,21 +305,25 @@ private fun JoinedContent(
             // same device (the host's owner + any extra locals) share one originDeviceId.
             items(participants, key = { it.profileId }) { participant ->
                 // Once assigned, show "Zusammengeführt mit <Name>" instead of "Zuweisen"; the label
-                // stays tappable so the merge can be redirected to a different local profile.
+                // stays tappable so the merge can be redirected to a different local profile. The
+                // joiner's own owner seat can't be merged, so it shows no button at all.
                 val mergedWith = assignments[participant.profileId]
+                val isOwnSeat = participant.profileId == ownerProfileId
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(participant.name, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { assignFor = participant }) {
-                        Text(
-                            if (mergedWith != null) {
-                                stringResource(R.string.p2p_merged_with, mergedWith)
-                            } else {
-                                stringResource(R.string.p2p_assign_local_profile)
-                            },
-                        )
+                    if (!isOwnSeat) {
+                        TextButton(onClick = { assignFor = participant }) {
+                            Text(
+                                if (mergedWith != null) {
+                                    stringResource(R.string.p2p_merged_with, mergedWith)
+                                } else {
+                                    stringResource(R.string.p2p_assign_local_profile)
+                                },
+                            )
+                        }
                     }
                 }
             }

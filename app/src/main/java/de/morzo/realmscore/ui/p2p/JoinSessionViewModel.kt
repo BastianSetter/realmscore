@@ -72,6 +72,12 @@ class JoinSessionViewModel(
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    /** Id des lokalen Owner-Profils: das eigene Seat im Roster ist nicht zuweisbar (Button ausblenden). */
+    val localOwnerId: StateFlow<String?> =
+        profileRepo.observeAll()
+            .map { profiles -> profiles.firstOrNull { it.isLocalOwner }?.id }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
