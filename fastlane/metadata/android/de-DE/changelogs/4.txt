@@ -1,0 +1,7 @@
+Version 1.3.0
+- Kamera-Kartenscan: Karten per Foto erfassen (OCR)
+- Mehrgeräte-Erfassung: gemeinsam über Bluetooth erfassen (P2P)
+- Überarbeitete Spielerprofile mit geräteübergreifendem Zusammenführen
+- Stilles Wiederverbinden nach App-Beendigung oder Bluetooth-Abbruch
+- Verbesserter Spielende-Ablauf und Verlaufsverwaltung
+- Zahlreiche Korrekturen
