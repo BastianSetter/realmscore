@@ -5,8 +5,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.domain.model.CardDefinition
+import de.morzo.realmscore.domain.model.ClosedReason
 import de.morzo.realmscore.domain.model.Game
 import de.morzo.realmscore.domain.model.GameMode
+import de.morzo.realmscore.domain.p2p.P2PSessionRepository
+import de.morzo.realmscore.domain.p2p.model.SessionState
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
@@ -44,6 +47,8 @@ data class RoundSummaryUiState(
     val canStartNextRound: Boolean = false,
     val canEditRound: Boolean = false,
     val isLastRound: Boolean = false,
+    /** P2P (Stage B): a client only follows the host — it never advances or closes the game itself. */
+    val isP2pClient: Boolean = false,
 )
 
 class RoundSummaryViewModel(
@@ -54,6 +59,7 @@ class RoundSummaryViewModel(
     private val handCardRepo: HandCardRepository,
     private val cardLookup: CardLookup,
     private val engine: ScoringEngine,
+    private val p2p: P2PSessionRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RoundSummaryUiState())
@@ -67,26 +73,6 @@ class RoundSummaryViewModel(
                 ?: error("Game not found: ${round.gameId}")
             val participants = gameRepo.getParticipants(round.gameId)
                 .sortedBy { it.seatOrder }
-
-            val rawSummaries = participants.mapNotNull { participant ->
-                val profile = profileRepo.getById(participant.profileId) ?: return@mapNotNull null
-                val saved = handCardRepo.getHand(roundId, participant.profileId)
-                    ?: return@mapNotNull null
-                val breakdown = withContext(Dispatchers.Default) {
-                    rescore(saved.cards)
-                }
-                PlayerSummary(
-                    profileId = profile.id,
-                    name = profile.name,
-                    colorArgb = profile.colorArgb,
-                    totalScore = saved.totalScore,
-                    positiveContribution = breakdown.positive,
-                    negativeContribution = breakdown.negative,
-                    blankedCount = breakdown.blankedCount,
-                )
-            }.sortedByDescending { it.totalScore }
-
-            val winnerId = rawSummaries.firstOrNull()?.profileId
 
             roundRepo.markRoundCompleted(roundId)
 
@@ -102,34 +88,55 @@ class RoundSummaryViewModel(
                 }
             }
 
+            // Player scores + order are recomputed reactively from this game's results so a cross-device
+            // correction (§6 #4) refreshes the summary in place — the corrected HandCardUpdate updates
+            // the mirror's round_results, which re-emits here — without re-playing the reveal animation.
             launch {
                 combine(
                     roundRepo.observeRoundsForGame(game.id),
                     roundRepo.observeResultsForGame(game.id),
-                ) { rounds, results ->
-                    val maxRoundNumber = rounds.maxOfOrNull { it.roundNumber } ?: round.roundNumber
-                    val isLast = round.roundNumber >= maxRoundNumber
-                    val totalsByProfile: Map<String, Int> = participants
-                        .map { it.profileId }
-                        .associateWith { pid ->
-                            results.filter { it.profileId == pid }.sumOf { it.totalScore }
+                ) { rounds, results -> rounds to results }
+                    .collect { (rounds, results) ->
+                        val summaries = participants.mapNotNull { participant ->
+                            val profile = profileRepo.getById(participant.profileId)
+                                ?: return@mapNotNull null
+                            val saved = handCardRepo.getHand(roundId, participant.profileId)
+                                ?: return@mapNotNull null
+                            val breakdown = withContext(Dispatchers.Default) { rescore(saved.cards) }
+                            PlayerSummary(
+                                profileId = profile.id,
+                                name = profile.name,
+                                colorArgb = profile.colorArgb,
+                                totalScore = saved.totalScore,
+                                positiveContribution = breakdown.positive,
+                                negativeContribution = breakdown.negative,
+                                blankedCount = breakdown.blankedCount,
+                            )
+                        }.sortedByDescending { it.totalScore }
+
+                        val maxRoundNumber = rounds.maxOfOrNull { it.roundNumber } ?: round.roundNumber
+                        val isLast = round.roundNumber >= maxRoundNumber
+                        val totalsByProfile: Map<String, Int> = participants
+                            .map { it.profileId }
+                            .associateWith { pid ->
+                                results.filter { it.profileId == pid }.sumOf { it.totalScore }
+                            }
+                        val canNext = canStartNextRound(game, totalsByProfile, rounds.size)
+                        val isP2pClient = p2p.sessionState.value is SessionState.Connected
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                gameId = game.id,
+                                roundNumber = round.roundNumber,
+                                players = summaries,
+                                winnerId = summaries.firstOrNull()?.profileId,
+                                canStartNextRound = canNext && isLast,
+                                canEditRound = isLast,
+                                isLastRound = isLast,
+                                isP2pClient = isP2pClient,
+                            )
                         }
-                    val canNext = canStartNextRound(game, totalsByProfile, rounds.size)
-                    Triple(isLast, canNext, totalsByProfile.size)
-                }.collect { (isLast, canNext, _) ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            gameId = game.id,
-                            roundNumber = round.roundNumber,
-                            players = rawSummaries,
-                            winnerId = winnerId,
-                            canStartNextRound = canNext && isLast,
-                            canEditRound = isLast,
-                            isLastRound = isLast,
-                        )
                     }
-                }
             }
         }
     }
@@ -138,8 +145,34 @@ class RoundSummaryViewModel(
         viewModelScope.launch {
             val gameId = _uiState.value.gameId
             if (gameId.isEmpty()) return@launch
-            val round = roundRepo.startRound(gameId)
-            onStarted(round.id)
+            // Host of a live session: mint + distribute the round so every device follows (clients get
+            // the OpenRound signal). Otherwise (solo) just start the next round locally.
+            if (p2p.sessionState.value is SessionState.Hosting) {
+                p2p.startSharedSession(gameId)
+                    .onSuccess { roundId -> onStarted(roundId) }
+                    .onFailure { onStarted(roundRepo.startRound(gameId).id) }
+            } else {
+                onStarted(roundRepo.startRound(gameId).id)
+            }
+        }
+    }
+
+    /**
+     * Finish the game from the round summary (the "Spiel abschließen" button). Persists the game as
+     * closed *here* (previously this only happened on the second button in the game summary), then —
+     * while hosting a P2P session — distributes the close so every joined phone follows to the game-end
+     * screen now. [onCompleted] then navigates this device to the (already-closed) game summary.
+     */
+    fun completeGame(onCompleted: (gameId: String) -> Unit) {
+        viewModelScope.launch {
+            val gameId = _uiState.value.gameId
+            if (gameId.isEmpty()) return@launch
+            if (gameRepo.getById(gameId)?.closedAt == null) {
+                gameRepo.closeGame(gameId, ClosedReason.COMPLETED)
+            }
+            // Host → broadcast GameClosed so clients jump to the game-end screen; no-op when solo.
+            p2p.closeSharedGame(gameId)
+            onCompleted(gameId)
         }
     }
 
@@ -195,6 +228,7 @@ class RoundSummaryViewModel(
         private val handCardRepo: HandCardRepository,
         private val cardLookup: CardLookup,
         private val engine: ScoringEngine,
+        private val p2p: P2PSessionRepository,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -206,6 +240,7 @@ class RoundSummaryViewModel(
                 handCardRepo = handCardRepo,
                 cardLookup = cardLookup,
                 engine = engine,
+                p2p = p2p,
             ) as T
         }
     }

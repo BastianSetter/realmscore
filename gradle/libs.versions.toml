@@ -14,6 +14,11 @@ datastore = "1.1.7"
 coroutines = "1.10.2"
 serialization = "1.8.0"
 
+camerax = "1.4.1"
+tesseract4android = "4.8.0"
+mlkitText = "16.0.1"
+zxing = "3.5.3"
+
 coreSplashscreen = "1.0.1"
 
 junit = "4.13.2"
@@ -44,6 +49,14 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+tesseract4android = { group = "com.github.adaptech-cz.Tesseract4Android", name = "tesseract4android", version.ref = "tesseract4android" }
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitText" }
+# P2P handshake (Phase 28): QR generation + decoding. Pure-Java, Apache-2.0, F-Droid-safe.
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 

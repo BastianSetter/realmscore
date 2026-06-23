@@ -29,7 +29,7 @@ import de.morzo.realmscore.data.db.entity.SandboxFavoriteEntity
         DiscardCardEntity::class,
         SandboxFavoriteEntity::class,
     ],
-    version = 7,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

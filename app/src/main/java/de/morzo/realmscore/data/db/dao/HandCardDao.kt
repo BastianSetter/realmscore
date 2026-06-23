@@ -43,6 +43,18 @@ interface HandCardDao {
     @Query("SELECT * FROM hand_cards WHERE roundResultId IN (:resultIds)")
     suspend fun getForRoundResults(resultIds: List<String>): List<HandCardEntity>
 
+    /**
+     * Every persisted hand card of a round paired with its owning profile (Phase 28 Stage B). The
+     * round-capture screen excludes these across devices so a card already entered in another player's
+     * hand on another phone can't be picked again here.
+     */
+    @Query(
+        "SELECT rr.profileId AS profileId, hc.cardKey AS cardKey FROM hand_cards hc " +
+            "INNER JOIN round_results rr ON hc.roundResultId = rr.id " +
+            "WHERE rr.roundId = :roundId"
+    )
+    fun observeHandCardKeysByProfile(roundId: String): Flow<List<HandCardKeyByProfile>>
+
     @Query("DELETE FROM hand_cards")
     suspend fun deleteAll()
 }
@@ -50,4 +62,9 @@ interface HandCardDao {
 data class ProfileHandCount(
     val profileId: String,
     val handCardCount: Int,
+)
+
+data class HandCardKeyByProfile(
+    val profileId: String,
+    val cardKey: String,
 )

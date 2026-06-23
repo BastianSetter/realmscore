@@ -19,6 +19,8 @@ object WarlordRule : CardScoringRule {
                 descriptionArgs = listOf(sum.toString()),
                 pointsDelta = sum,
                 contributingCardKeys = armies.map { it.originalKey },
+                // Each army's line carries that army's own strength, not an even split of the sum.
+                contributorWeights = armies.map { it.effectiveStrength },
             )
         )
     }

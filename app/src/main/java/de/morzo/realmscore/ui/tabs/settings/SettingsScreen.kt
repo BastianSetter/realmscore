@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.net.Uri
+import de.morzo.realmscore.BuildConfig
 import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.model.AppLanguage
 import de.morzo.realmscore.domain.model.Profile
@@ -61,6 +62,7 @@ fun SettingsScreen(
     onChangeUsername: () -> Unit,
     onManageProfiles: () -> Unit,
     onAppReset: () -> Unit,
+    onOpenScanDebug: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -173,6 +175,13 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setPickerSearchEnabled,
             )
         }
+        item {
+            ToggleRow(
+                label = stringResource(R.string.settings_camera_scan_enabled),
+                checked = state.cameraScanEnabled,
+                onCheckedChange = viewModel::setCameraScanEnabled,
+            )
+        }
 
         item { SectionHeader(stringResource(R.string.settings_appearance)) }
         item {
@@ -208,6 +217,18 @@ fun SettingsScreen(
 
         item { SectionHeader(stringResource(R.string.settings_about)) }
         item { AboutSection() }
+
+        if (BuildConfig.DEBUG) {
+            item { SectionHeader("Debug") }
+            item {
+                OutlinedButton(
+                    onClick = onOpenScanDebug,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Scanner-Test")
+                }
+            }
+        }
     }
         SnackbarHost(
             hostState = snackbarHostState,

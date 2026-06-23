@@ -18,13 +18,19 @@ runs in the project root):
 
 ```powershell
 # Fast iteration — Kotlin-only compile (~1 min cold, seconds incremental)
-./gradlew.bat :app:compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 80
+./gradlew.bat :app:compileFdroidDebugKotlin --console=plain 2>&1 | Select-Object -Last 80
 ```
 
 ```powershell
 # Full debug APK — needed to actually validate end-to-end (~2 min)
-./gradlew.bat :app:assembleDebug --console=plain 2>&1 | Select-Object -Last 30
+./gradlew.bat :app:assembleFdroidDebug --console=plain 2>&1 | Select-Object -Last 30
 ```
+
+> **Flavors (Phase 26):** the app has two product flavors, `fdroid` (Tesseract OCR, FOSS) and `play`
+> (ML Kit OCR). There is **no plain `debug` variant anymore** — use the flavored task names
+> (`compileFdroidDebugKotlin` / `assembleFdroidDebug`, or the `Play` equivalents). `assembleDebug`
+> still works as an aggregate that builds *both* flavors. Pick the active variant in Android Studio's
+> **Build Variants** panel.
 
 > ⚠️ **Do NOT** use the old inline form `$env:JAVA_HOME="..."; & "C:\...\gradlew.bat" ...`. Claude
 > Code checks each `;`/`|` sub-command against the allowlist separately, and the auto-generated
@@ -35,8 +41,8 @@ runs in the project root):
 Notes:
 - `--console=plain` keeps output diff-friendly.
 - `2>&1 | Select-Object -Last N` keeps the tool output under the token cap. Bump N (60/80/200) if a stack trace gets cut off.
-- For a faster correctness check use `:app:compileDebugKotlin`. Use `:app:assembleDebug` when you need to confirm resources, KSP/Room, and packaging together.
-- F-Droid-Check (must return nothing): `gradlew.bat :app:dependencies` piped through `Select-String -Pattern "(gms|firebase|mlkit|google-services)"`.
+- For a faster correctness check use `:app:compileFdroidDebugKotlin`. Use `:app:assembleFdroidDebug` when you need to confirm resources, KSP/Room, and packaging together.
+- F-Droid-Check (must return nothing) — **target the fdroid config**, since the `play` flavor legitimately contains ML Kit: `./gradlew.bat :app:dependencies --configuration fdroidDebugRuntimeClasspath` piped through `Select-String -Pattern "(gms|firebase|mlkit|google-services)"`.
 
 ## Manual UI testing (Emulator)
 

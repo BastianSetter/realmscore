@@ -55,6 +55,11 @@
     <string name="history_player_filter_clear">Alle</string>
     <string name="history_player_filter_selected_mark">✓</string>
     <string name="history_avatar_overflow">+%1$d</string>
+    <string name="history_abandon">Spiel abbrechen</string>
+    <string name="history_abandon_confirm_title">Spiel abbrechen?</string>
+    <string name="history_abandon_confirm_message">Dieses laufende Spiel wird als abgebrochen markiert.</string>
+    <string name="history_abandon_confirm_action">Abbrechen</string>
+    <string name="history_abandon_dismiss">Zurück</string>
 
     <string name="date_today">heute</string>
     <string name="date_yesterday">gestern</string>
@@ -122,6 +127,7 @@
     <string name="game_summary_back_to_game">Zurück zum Spiel</string>
     <string name="game_summary_back_home">Zurück zum Hauptmenü</string>
     <string name="game_summary_show_stats">Statistiken ansehen</string>
+    <string name="game_summary_new_game">Neues Spiel starten</string>
 
     <string name="new_game_title">Neues Spiel</string>
     <string name="new_game_mode_section">Spielmodus</string>
@@ -206,6 +212,9 @@
     <string name="necromancer_suit_hint">Nur Armeen, Zauberer, Anführer oder Bestien</string>
     <string name="necromancer_clear">Auswahl entfernen</string>
     <string name="necromancer_breakdown_tag">Vom Totenbeschwörer geholt</string>
+    <!-- Optimiser gating when the Mittelfeld is not (yet) scanned (P2P §6 #5) -->
+    <string name="necromancer_optimal_needs_manual">Mittelfeld nicht gescannt. Bitte setze den Totenbeschwörer erst manuell.</string>
+    <string name="necromancer_optimal_skipped">Mittelfeld nicht gescannt. Totenbeschwörer wird nicht optimiert.</string>
 
     <!-- Phase 22: Sandbox-Favoriten + Multi-Hand-Vergleich -->
     <string name="sandbox_save_favorite">Als Favorit speichern</string>
@@ -390,6 +399,26 @@
     <string name="settings_discard_capture_enabled">Mittelfeld erfassen</string>
     <string name="settings_discard_capture_enabled_desc">Wenn aktiv, wird das Mittelfeld wie ein Spieler erfasst (Pflicht vor dem Reveal).</string>
     <string name="settings_picker_search_enabled">Textsuche im Picker</string>
+    <string name="settings_camera_scan_enabled">Karten per Kamera scannen</string>
+    <string name="settings_camera_scan_enabled_desc">Wenn aktiv, öffnet sich bei leerer Hand die Kamera statt der manuellen Kartenauswahl. Erkannte Karten lassen sich danach korrigieren.</string>
+
+    <!-- Phase 26: Kamera-Scan -->
+    <string name="camera_scan_title">Karten scannen</string>
+    <string name="camera_scan_capture">Foto aufnehmen</string>
+    <string name="camera_scan_manual">Manuell eingeben</string>
+    <string name="camera_scan_flash">Blitz</string>
+    <string name="camera_scan_recognizing">Karten werden erkannt …</string>
+    <string name="camera_scan_hint">Lege die Karten nebeneinander ins Bild und tippe auf Auslösen.</string>
+    <string name="camera_scan_hint_fan_single">Lege die Karten überlappend als Fächer (oben→unten) in den Rahmen – jede rote Titelleiste sichtbar – und tippe auf Auslösen.</string>
+    <string name="camera_scan_hint_fan_double">Lege die Karten als zwei nebeneinanderliegende Fächer (je oben→unten) in die Rahmen – jede rote Titelleiste sichtbar – und tippe auf Auslösen.</string>
+    <string name="camera_scan_low_light">Zu dunkel – mehr Licht oder Blitz aktivieren.</string>
+    <string name="camera_scan_permission_rationale">Für das Scannen wird Zugriff auf die Kamera benötigt. Ohne Kamera kannst du die Karten manuell eingeben.</string>
+    <string name="camera_scan_permission_open_settings">Kamera-Berechtigung erteilen</string>
+    <string name="camera_scan_failed">Keine Karten erkannt – bitte erneut versuchen oder manuell eingeben.</string>
+    <string name="camera_scan_retry">Erneut scannen</string>
+    <string name="scan_skipped_conflicts">%1$d Karte(n) bereits vergeben – übersprungen</string>
+    <string name="capture_duplicate_warning">Doppelt vergeben: %1$s. Bitte korrigieren, bevor du aufdeckst.</string>
+    <string name="reveal_blocked_duplicates">Doppelte Karten – bitte zuerst korrigieren</string>
 
     <!-- Sprachwahl (Phase 19) -->
     <string name="settings_language">Sprache</string>
@@ -461,6 +490,12 @@
     <string name="profile_merge_preview">%1$s (%2$d Spiele) + %3$s (%4$d Spiele) → %1$s (%5$d Spiele)</string>
     <string name="profile_merge_preview_note">Name und Farbe von „%1$s“ bleiben erhalten. „%2$s“ wird danach archiviert.</string>
     <string name="profile_merge_confirm">Zusammenführen</string>
+    <string name="profile_management_active_section">Aktive Profile</string>
+    <string name="profile_management_merged_section">Zusammengeführte Profile</string>
+    <string name="profile_merged_into">Verschmolzen in „%1$s“</string>
+    <string name="profile_merged_into_unknown">Verschmolzen (Ziel unbekannt)</string>
+    <string name="profile_action_unmerge">Zusammenführung aufheben</string>
+    <string name="profile_merge_pick_target">Wähle das Profil, in das „%1$s“ aufgehen soll:</string>
     <string name="profile_color_picker_title">Farbe wählen</string>
     <string name="profile_dialog_cancel">Abbrechen</string>
     <string name="action_close">Schließen</string>
@@ -482,4 +517,55 @@
     <string name="state_empty_default_title">Noch nichts hier</string>
     <string name="state_error_default_title">Etwas ist schiefgelaufen</string>
     <string name="state_retry">Erneut versuchen</string>
+
+    <!-- P2P sync (Phase 28) -->
+    <string name="p2p_open_for_joins">Für Beitritt öffnen</string>
+    <string name="p2p_join_session">Session beitreten</string>
+    <string name="p2p_device_joined">Gerät von %1$s verbunden (%2$d/%3$d)</string>
+    <string name="p2p_device_joined_short">Gerät von %1$s verbunden</string>
+    <string name="p2p_connected_count">Verbundene Geräte: %1$d/%2$d</string>
+    <string name="p2p_locked_by">Wird bearbeitet von %1$s</string>
+    <string name="p2p_force_unlock">Entsperren</string>
+    <string name="p2p_take_over">Übernehmen</string>
+    <string name="p2p_waiting_title">Warte auf fehlende Erfassungen</string>
+    <string name="p2p_waiting_progress">%1$d von %2$d erfasst</string>
+    <string name="p2p_unit_open">Offen</string>
+    <string name="p2p_correct_hand">Korrigieren</string>
+    <string name="p2p_correct_hint">Zum Korrigieren tippen</string>
+    <string name="p2p_correct_done_title">Bereits erfasst</string>
+    <string name="round_capture_edit_title">Runde bearbeiten</string>
+    <string name="round_capture_edit_done">Fertig</string>
+    <string name="p2p_reconciliation_title">Spieler zuordnen</string>
+    <string name="p2p_reconciliation_done">Fertig</string>
+    <string name="p2p_joined_waiting">Beigetreten – warte auf den Host</string>
+    <string name="p2p_assign_local_profile">Zuweisen</string>
+    <string name="p2p_assign_pick_title">Welches lokale Profil ist „%1$s“?</string>
+    <string name="p2p_assign_no_candidates">Keine lokalen Profile zum Zuweisen vorhanden.</string>
+    <string name="p2p_merged_with">Zusammengeführt mit %1$s</string>
+    <string name="p2p_assign_owner_error">Das eigene Profil kann keinem anderen zugewiesen werden.</string>
+    <string name="p2p_assign_failed">Zuweisen fehlgeschlagen. Bitte erneut versuchen.</string>
+    <string name="p2p_rejoin_session">Session erneut beitreten</string>
+    <string name="p2p_rejoin_session_body">Verbindung zur letzten Session wiederherstellen – ohne erneuten QR-Scan.</string>
+    <string name="p2p_join_other_session">Andere Session beitreten (QR scannen)</string>
+    <string name="p2p_show_qr">Session-QR anzeigen</string>
+    <string name="p2p_show_qr_body">Zeige den QR-Code erneut, damit ein Gerät erneut beitreten kann.</string>
+    <string name="p2p_new_game_wait_title">Nächstes Spiel wird vorbereitet</string>
+    <string name="p2p_new_game_wait_message">Der Host stellt das nächste Spiel zusammen. Sobald es startet, geht es hier automatisch weiter.</string>
+    <string name="p2p_map_local_profile">Lokales Profil zuordnen</string>
+    <string name="p2p_sync_complete">Spieldaten synchronisiert</string>
+    <string name="p2p_bluetooth_off_title">Bluetooth nicht aktiv</string>
+    <string name="p2p_bluetooth_off_body">Bitte aktiviere Bluetooth in den Einstellungen, um der Session beizutreten.</string>
+    <string name="p2p_bluetooth_settings">Bluetooth-Einstellungen öffnen</string>
+    <string name="p2p_bluetooth_unsupported">Dieses Gerät unterstützt kein Bluetooth.</string>
+    <string name="p2p_bluetooth_permission">Bitte erteile die Bluetooth-Berechtigung, um fortzufahren.</string>
+    <string name="p2p_scan_qr">QR-Code scannen</string>
+    <string name="p2p_session_code_label">Session-Code</string>
+    <string name="p2p_ready_title">Spiel bereit</string>
+    <string name="p2p_ready_body">Spiele alleine weiter oder öffne das Spiel, damit andere Geräte beitreten können.</string>
+    <string name="p2p_continue_to_game">Weiter zum Spiel</string>
+    <string name="p2p_connecting">Verbinde …</string>
+    <string name="p2p_enter_code_instead">Stattdessen Code eingeben</string>
+    <string name="p2p_camera_rationale">Kamerazugriff wird benötigt, um den QR-Code zu scannen.</string>
+    <string name="p2p_discoverable_denied">Sichtbarkeit abgelehnt. Ohne sie können andere Geräte dieses Gerät nicht finden.</string>
+    <string name="home_join_session_body">Tritt einer Session am selben Tisch bei und erfasst gemeinsam.</string>
 </resources>

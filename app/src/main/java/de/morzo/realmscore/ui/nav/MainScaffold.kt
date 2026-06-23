@@ -16,6 +16,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,12 +34,15 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import de.morzo.realmscore.R
 import de.morzo.realmscore.di.AppContainer
+import de.morzo.realmscore.domain.p2p.model.NavSignal
 import de.morzo.realmscore.domain.stats.random.StatDestination
 import de.morzo.realmscore.ui.game.GameInProgressScreen
 import de.morzo.realmscore.ui.game.RoundCaptureScreen
 import de.morzo.realmscore.ui.game.RoundEntryScreen
 import de.morzo.realmscore.ui.handentry.PlayerHandEntryScreen
 import de.morzo.realmscore.ui.newgame.NewGameScreen
+import de.morzo.realmscore.ui.p2p.JoinSessionScreen
+import de.morzo.realmscore.ui.p2p.NewGameWaitScreen
 import de.morzo.realmscore.ui.reveal.RevealScreen
 import de.morzo.realmscore.ui.reveal.RoundSummaryScreen
 import de.morzo.realmscore.ui.sandbox.SandboxLaunchData
@@ -52,6 +56,7 @@ import de.morzo.realmscore.ui.tabs.home.HomeScreen
 import de.morzo.realmscore.ui.tabs.home.HomeViewModel
 import de.morzo.realmscore.ui.tabs.settings.ProfileManagementScreen
 import de.morzo.realmscore.ui.tabs.settings.ProfileManagementViewModel
+import de.morzo.realmscore.ui.scan.ScanDebugScreen
 import de.morzo.realmscore.ui.tabs.settings.SettingsScreen
 import de.morzo.realmscore.ui.tabs.settings.SettingsViewModel
 import de.morzo.realmscore.ui.tabs.settings.UsernameChangeScreen
@@ -107,7 +112,29 @@ fun MainScaffold(container: AppContainer) {
         gameRepo = container.gameRepository,
         roundRepo = container.roundRepository,
         pickRandomStatUseCase = container.pickRandomStatUseCase,
+        p2pSessionRepo = container.p2pSessionRepository,
     )
+
+    // P2P (Phase 28, Stage B): one place follows the host through the shared game flow. The host
+    // navigates itself directly (new-game / next-round callbacks); these signals drive the clients into
+    // each round, and everyone (host included) into the reveal once the host has computed it.
+    LaunchedEffect(Unit) {
+        container.p2pSessionRepository.navSignals.collect { signal ->
+            when (signal) {
+                is NavSignal.OpenRound ->
+                    tabNavController.navigateAcross(Routes.roundCaptureRoute(signal.roundId))
+                is NavSignal.OpenReveal ->
+                    tabNavController.navigate(Routes.revealRoute(signal.roundId)) {
+                        popUpTo(Routes.ROUND_CAPTURE) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                is NavSignal.OpenGameSummary ->
+                    tabNavController.navigateAcross(Routes.gameSummaryRoute(signal.gameId))
+                is NavSignal.OpenNewGameWait ->
+                    tabNavController.navigateAcross(Routes.NEW_GAME_WAIT)
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = { AppBottomNavigation(tabNavController) },
@@ -131,7 +158,7 @@ fun MainScaffold(container: AppContainer) {
                     val vm: HomeViewModel = viewModel(factory = homeViewModel())
                     HomeScreen(
                         viewModel = vm,
-                        onNewGame = { tabNavController.navigateAcross(Routes.NEW_GAME) },
+                        onNewGame = { tabNavController.navigateAcross(Routes.newGameRoute()) },
                         onOpenGame = { gameId ->
                             tabNavController.navigateAcross(Routes.gameRoute(gameId))
                         },
@@ -142,6 +169,7 @@ fun MainScaffold(container: AppContainer) {
                             tabNavController.navigateAcross(Routes.sandboxFavoritesRoute())
                         },
                         onOpenSettings = { tabNavController.navigate(Routes.TAB_SETTINGS) },
+                        onJoinSession = { tabNavController.navigate(Routes.JOIN_SESSION) },
                         onOpenStat = { destination ->
                             when (destination) {
                                 is StatDestination.Player ->
@@ -177,6 +205,9 @@ fun MainScaffold(container: AppContainer) {
                         },
                         onManageProfiles = {
                             tabNavController.navigate(Routes.PROFILE_MANAGEMENT)
+                        },
+                        onOpenScanDebug = {
+                            tabNavController.navigate(Routes.SCAN_DEBUG)
                         },
                         // Reset wiped the owner profile and all settings. Relaunch the Activity with a
                         // cleared task so a fresh MainActivity starts with no saved nav back stack: the
@@ -217,6 +248,28 @@ fun MainScaffold(container: AppContainer) {
                         onBack = { tabNavController.popBackStack() },
                     )
                 }
+                composable(Routes.SCAN_DEBUG) {
+                    ScanDebugScreen(
+                        scanner = container.cardScanner,
+                        onBack = { tabNavController.popBackStack() },
+                    )
+                }
+                composable(Routes.JOIN_SESSION) {
+                    JoinSessionScreen(
+                        container = container,
+                        onDone = { tabNavController.popBackStack() },
+                        onBack = { tabNavController.popBackStack() },
+                    )
+                }
+                composable(Routes.NEW_GAME_WAIT) {
+                    // P2P client: the host is preparing the next game. The central OpenRound observer
+                    // will pull us into capture once it starts; this is just the in-between waiting view.
+                    NewGameWaitScreen(
+                        onLeave = {
+                            tabNavController.navigateAcross(Routes.SECTION_START, restore = true)
+                        },
+                    )
+                }
             }
 
             // ----- GAME section: hub + full game flow -----
@@ -225,17 +278,43 @@ fun MainScaffold(container: AppContainer) {
                     val vm: HomeViewModel = viewModel(factory = homeViewModel())
                     GameHubScreen(
                         viewModel = vm,
-                        onNewGame = { tabNavController.navigate(Routes.NEW_GAME) },
+                        onNewGame = { tabNavController.navigate(Routes.newGameRoute()) },
                         onOpenGame = { gameId ->
                             tabNavController.navigate(Routes.gameRoute(gameId))
                         },
                     )
                 }
-                composable(Routes.NEW_GAME) {
+                composable(
+                    route = Routes.NEW_GAME,
+                    arguments = listOf(
+                        navArgument(Routes.ARG_SEED_GAME_ID) {
+                            type = NavType.StringType
+                            defaultValue = ""
+                        },
+                        navArgument(Routes.ARG_CONTINUE_SESSION) {
+                            type = NavType.BoolType
+                            defaultValue = false
+                        },
+                    ),
+                ) { entry ->
+                    val seedGameId = entry.arguments?.getString(Routes.ARG_SEED_GAME_ID).orEmpty()
+                    val continueSession =
+                        entry.arguments?.getBoolean(Routes.ARG_CONTINUE_SESSION) ?: false
                     NewGameScreen(
                         container = container,
+                        seedGameId = seedGameId,
+                        continueSession = continueSession,
+                        // P2P "open for joins" now lives inside NewGameScreen (Phase 28), so on start
+                        // we go straight into the game; any open session keeps running.
                         onGameStarted = { gameId ->
                             tabNavController.navigate(Routes.gameRoute(gameId)) {
+                                popUpTo(Routes.NEW_GAME) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        },
+                        // Hosting a P2P session: go straight into the shared round capture (Stage B).
+                        onSharedRoundStarted = { roundId ->
+                            tabNavController.navigate(Routes.roundCaptureRoute(roundId)) {
                                 popUpTo(Routes.NEW_GAME) { inclusive = true }
                                 launchSingleTop = true
                             }
@@ -289,6 +368,13 @@ fun MainScaffold(container: AppContainer) {
                         roundId = roundId,
                         onAllPlayersCaptured = {
                             tabNavController.navigate(Routes.revealRoute(roundId)) {
+                                popUpTo(Routes.ROUND_CAPTURE) { inclusive = true }
+                            }
+                        },
+                        onDoneEditing = {
+                            // Correcting an already-revealed round (§6 #4): return to the (reactive)
+                            // round summary, which re-reads the corrected scores from the mirror.
+                            tabNavController.navigate(Routes.roundSummaryRoute(roundId)) {
                                 popUpTo(Routes.ROUND_CAPTURE) { inclusive = true }
                             }
                         },
@@ -377,6 +463,16 @@ fun MainScaffold(container: AppContainer) {
                             // so a later "Spiel" tap opens the hub, not this closed game's summary.
                             tabNavController.navigateAcross(Routes.SECTION_START, restore = true)
                             tabNavController.clearBackStack(Routes.SECTION_GAME)
+                        },
+                        onNewGame = { continueSession ->
+                            // Start the next game seeded with this game's players + settings (and, when
+                            // hosting, bring the joined phones along — see prepareNewGame).
+                            tabNavController.navigate(
+                                Routes.newGameRoute(seedGameId = gameId, continueSession = continueSession),
+                            ) {
+                                popUpTo(Routes.GAME_SUMMARY) { inclusive = true }
+                                launchSingleTop = true
+                            }
                         },
                         onShowStats = {
                             tabNavController.navigateAcross(Routes.SECTION_STATS, restore = true)

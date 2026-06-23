@@ -104,4 +104,9 @@ class HandCardRepositoryImpl(
     ): Flow<Set<String>> =
         handCardDao.observeCardKeysForRoundExcluding(roundId, excludeProfileId)
             .map { it.toSet() }
+
+    override fun observeHandCardKeysByProfile(roundId: String): Flow<Map<String, Set<String>>> =
+        handCardDao.observeHandCardKeysByProfile(roundId).map { rows ->
+            rows.groupBy({ it.profileId }, { it.cardKey }).mapValues { it.value.toSet() }
+        }
 }

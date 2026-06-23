@@ -243,7 +243,21 @@ fun HandRingView(
                     // showing their own total score.
                     val dimmed = selectedIdx != null && idx != selectedIdx
                     val centerValue = if (selectedIdx == idx) {
-                        card.baseStrength.toString()
+                        // Detail mode: show the card's base strength, plus any bonus/malus it inflicts
+                        // on ITSELF (effects with no other contributing card — e.g. Elven Archers +5,
+                        // Dragon −40). Folded into the centre value so self-effects are visible even
+                        // though they draw no connection line. Omitted when zero to avoid clutter.
+                        val selfBonus = res?.effects
+                            ?.filter {
+                                it.contributingCardKeys.isEmpty() &&
+                                    it.descriptionKey != "effect_base_strength"
+                            }
+                            ?.sumOf { it.pointsDelta } ?: 0
+                        if (selfBonus != 0) {
+                            "${card.baseStrength}${formatDelta(selfBonus)}"
+                        } else {
+                            card.baseStrength.toString()
+                        }
                     } else {
                         formatDelta(contributed)
                     }
@@ -492,6 +506,49 @@ private fun DrawScope.drawConnection(
         brush = brush,
         style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
     )
+
+    // Direction marker: a small arrowhead at the curve's midpoint pointing source → target, so the
+    // line's orientation is readable on its own (the light→dark gradient already encodes it, but the
+    // arrow makes it explicit). Drawn once the reveal animation has passed the midpoint.
+    if (progress > 0.5f) {
+        val u = 0.5f
+        val mid = start * (0.25f) + control * (2f * (1f - u) * u) + end * (0.25f)
+        // Tangent of a quadratic at t=0.5 simplifies to (end - start).
+        val dir = normalize(end - start)
+        if (dir != Offset.Zero) {
+            drawArrowhead(
+                tip = mid,
+                direction = dir,
+                color = darkColor,
+                size = (strokeWidth + 6.dp.toPx()).coerceAtMost(16.dp.toPx()),
+            )
+        }
+    }
+}
+
+/**
+ * Draws a small filled triangular arrowhead centred at [tip], pointing along the unit vector
+ * [direction]. [size] is the arrow's length along its axis; the base spans ~0.85·[size].
+ */
+private fun DrawScope.drawArrowhead(
+    tip: Offset,
+    direction: Offset,
+    color: Color,
+    size: Float,
+) {
+    val half = size / 2f
+    val perp = Offset(-direction.y, direction.x)
+    val front = tip + direction * half
+    val backCenter = tip - direction * half
+    val left = backCenter + perp * (half * 0.85f)
+    val right = backCenter - perp * (half * 0.85f)
+    val path = Path().apply {
+        moveTo(front.x, front.y)
+        lineTo(left.x, left.y)
+        lineTo(right.x, right.y)
+        close()
+    }
+    drawPath(path = path, color = color)
 }
 
 /**

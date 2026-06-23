@@ -10,6 +10,7 @@ import de.morzo.realmscore.domain.model.HandCard
 import de.morzo.realmscore.domain.model.Profile
 import de.morzo.realmscore.domain.model.Round
 import de.morzo.realmscore.domain.model.RoundResult
+import de.morzo.realmscore.domain.profile.MergeResolver
 import de.morzo.realmscore.domain.repository.StatsRepository
 import de.morzo.realmscore.domain.scoring.ScoringEngine
 import de.morzo.realmscore.domain.scoring.ScoringInput
@@ -72,20 +73,34 @@ class StatsRepositoryImpl(
         val games = gameDao.getClosedGames().map { it.toDomain() }
         val gameIds = games.map { it.id }
 
+        // --- Phase 3 (Profil-Rework): Merge-/Archiv-Auflösung einmal hier ---
+        // Gemergte Profile zählen unter ihrem kanonischen Ziel; archivierte Lineages zählen nirgends.
+        // Nach dieser Substitution arbeitet StatsCalculator unverändert auf kanonischen Ids.
+        val allProfiles = profileDao.getAll().map { it.toDomain() }
+        val profileById = allProfiles.associateBy { it.id }
+        fun canonical(id: String): String? = MergeResolver.resolveCanonical(
+            id = id,
+            mergeTargetOf = { profileById[it]?.mergeTargetId },
+            isArchived = { profileById[it]?.isArchived == true },
+            isKnown = { profileById.containsKey(it) },
+        )
+        // Kanonische Endknoten: nicht archiviert, nicht gemergt (inkl. Owner).
+        val canonicalProfilesById = allProfiles
+            .filter { !it.isArchived && it.mergeTargetId == null }
+            .associateBy { it.id }
+
         val participantsRaw = if (gameIds.isEmpty()) emptyList()
         else gameDao.getParticipantsForGames(gameIds)
-
-        val profilesById = mutableMapOf<String, Profile>()
-        for (id in participantsRaw.map { it.profileId }.toSet()) {
-            profileDao.getById(id)?.toDomain()?.let { profilesById[id] = it }
-        }
 
         val participantsByGame = participantsRaw
             .groupBy { it.gameId }
             .mapValues { (_, list) ->
                 list.sortedBy { it.seatOrder }
-                    .mapNotNull { profilesById[it.profileId] }
+                    .mapNotNull { canonical(it.profileId) }
+                    .distinct()
+                    .mapNotNull { canonicalProfilesById[it] }
             }
+        val profilesById: Map<String, Profile> = canonicalProfilesById
 
         val rounds = if (gameIds.isEmpty()) emptyList()
         else roundDao.getCompletedRoundsForGames(gameIds).map { it.toDomain() }
@@ -94,11 +109,18 @@ class StatsRepositoryImpl(
             .mapValues { (_, list) -> list.sortedBy { it.roundNumber } }
 
         val roundIds = rounds.map { it.id }
+        // Results auf kanonische Ids umschreiben; Results archivierter Lineages fallen ganz raus.
         val results: List<RoundResult> = if (roundIds.isEmpty()) emptyList()
         else roundResultDao.getResultsForRounds(roundIds).map { it.toDomain() }
+            .mapNotNull { r ->
+                val c = canonical(r.profileId) ?: return@mapNotNull null
+                if (c == r.profileId) r else r.copy(profileId = c)
+            }
         val resultsByRoundId: Map<String, List<RoundResult>> = results.groupBy { it.roundId }
         val resultsByRoundResultId: Map<String, RoundResult> = results.associateBy { it.id }
 
+        // Nur Handkarten überlebender (nicht-archivierter) Results — archivierte zählen auch in
+        // Karten-Statistiken nicht mit.
         val resultIds = results.map { it.id }
         val handCards: List<HandCard> = if (resultIds.isEmpty()) emptyList()
         else handCardDao.getForRoundResults(resultIds).map { it.toDomain() }

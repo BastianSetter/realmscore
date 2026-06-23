@@ -36,11 +36,25 @@ Home ──"Neues Spiel"──▶ NewGameScreen ──▶ GameInProgressScreen (
                                           ├─ onNextRound ──▶ nächste RoundCapture
                                           ├─ onEditRound ──▶ RoundCapture (gleiche Runde, letzte Runde korrigierbar)
                                           ├─ onShowRevealAgain ──▶ Reveal
-                                          └─ onCompleteGame ──▶ GameSummaryScreen (game/{gameId}/summary)
+                                          └─ "Spiel abschließen" (vm.completeGame: schließt das Spiel JETZT
+                                             + p2p.closeSharedGame) ──▶ GameSummaryScreen (game/{gameId}/summary, bereits geschlossen)
                                                                   ├─ onShowStats ──▶ Stats-Tab
-                                                                  ├─ onBackToGame ──▶ GameInProgress
-                                                                  └─ onCloseGameDone ──▶ Home
+                                                                  ├─ Host/Solo: "Neues Spiel starten" (onNewGame, seedGameId+continueSession) ──▶ NewGame (vorbefüllt)
+                                                                  └─ Alle Geräte: "Zurück zum Hauptmenü" (vm.leaveToMenu → p2p.close() + onCloseGameDone) ──▶ Home (frischer Zustand, keine Verbindung)
 ```
+
+> **Game-End-Flow (geändert):** Das Spiel wird schon mit dem **ersten** Button ("Spiel abschließen" in
+> RoundSummary) als geschlossen gespeichert; im P2P holt `closeSharedGame` die beigetretenen Telefone
+> jetzt schon auf den Game-End-Screen. Der zweite Button ist "Neues Spiel starten" (Host/Solo, mit
+> vorbefüllten Spielern + Einstellungen via `Routes.newGameRoute(seedGameId, continueSession)`); auf
+> dem Host bringt er die anderen Telefone mit (`SyncMessage.NewGameSetup` → `NavSignal.OpenNewGameWait`
+> → `NewGameWaitScreen`, dann zieht das übliche `OpenRound` alle in die Erfassung). **Jedes Gerät**
+> (Host, Joined-Phone, Solo) hat zusätzlich "Zurück zum Hauptmenü" (`vm.leaveToMenu`): das reißt eine
+> laufende P2P-Session ab (`p2p.close()` → alle Sockets zu, `SessionState.Idle`) und navigiert via
+> `onCloseGameDone` nach Home + leert den Game-Back-Stack — der Nutzer landet in einem frischen,
+> verbindungsfreien Zustand. Auf dem Host steht der Button als sekundäre `OutlinedButton` unter "Neues
+> Spiel starten", auf dem Joined-Phone ist er die einzige Aktion. Der frühere zweistufige
+> Schließen-Flow / "Zurück zum Spiel" entfällt im Abschluss-Pfad.
 
 **RoundCaptureScreen** (`ui/game/RoundCaptureScreen.kt`, VM `RoundCaptureViewModel`) ist der aktuelle
 zweistufige Erfassungs-Flow (KartenPick-Stage ↔ Spieler-Stage, spec 25.5). Die Hand-Erfassung pro

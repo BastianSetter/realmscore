@@ -45,6 +45,7 @@ data class SettingsUiState(
     val defaultRoundCount: Int = SettingsRepository.DEFAULT_ROUND_COUNT,
     val discardCaptureEnabled: Boolean = false,
     val pickerSearchEnabled: Boolean = true,
+    val cameraScanEnabled: Boolean = false,
     val dataInfo: DataInfo = DataInfo(),
 )
 
@@ -88,13 +89,20 @@ class SettingsViewModel(
         DataInfo(open, closed, rounds, profiles)
     }
 
+    // The two capture flags ride together so the outer combine stays within the typed 5-arg overload.
+    private val captureFlagsFlow = combine(
+        settings.pickerSearchEnabled,
+        settings.cameraScanEnabled,
+    ) { pickerSearch, cameraScan -> pickerSearch to cameraScan }
+
     val uiState: StateFlow<SettingsUiState> = combine(
         profileRepo.observeLocalOwner(),
         preferencesFlow,
         dataInfoFlow,
         settings.appLanguage,
-        settings.pickerSearchEnabled,
-    ) { owner, prefs, dataInfo, language, pickerSearch ->
+        captureFlagsFlow,
+    ) { owner, prefs, dataInfo, language, captureFlags ->
+        val (pickerSearch, cameraScan) = captureFlags
         SettingsUiState(
             ownerProfile = owner,
             appLanguage = language,
@@ -104,6 +112,7 @@ class SettingsViewModel(
             defaultRoundCount = prefs.defaultRoundCount,
             discardCaptureEnabled = prefs.discardCaptureEnabled,
             pickerSearchEnabled = pickerSearch,
+            cameraScanEnabled = cameraScan,
             dataInfo = dataInfo,
         )
     }.stateIn(
@@ -138,6 +147,10 @@ class SettingsViewModel(
 
     fun setPickerSearchEnabled(value: Boolean) {
         viewModelScope.launch { settings.setPickerSearchEnabled(value) }
+    }
+
+    fun setCameraScanEnabled(value: Boolean) {
+        viewModelScope.launch { settings.setCameraScanEnabled(value) }
     }
 
     /**

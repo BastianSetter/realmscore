@@ -32,7 +32,9 @@ import de.morzo.realmscore.domain.model.displayName
 import de.morzo.realmscore.domain.scoring.JokerAssignment
 import de.morzo.realmscore.domain.scoring.ResolvedCard
 import de.morzo.realmscore.domain.scoring.joker.JokerResolver
+import de.morzo.realmscore.ui.components.suitLabelRes
 import de.morzo.realmscore.ui.util.currentLocale
+import de.morzo.realmscore.ui.util.sortedByLocalizedLabel
 import java.util.Locale
 
 private val BOOK_OF_CHANGES_SUITS = Suit.entries.filter { it != Suit.WILD }
@@ -95,6 +97,10 @@ fun JokerSection(
     // In narrow columns (multi-hand compare) each joker row stacks its pieces vertically instead of
     // on one line, which would otherwise wrap into an unreadable mess (spec 25.6).
     compact: Boolean = false,
+    // Whether this round's Mittelfeld has been captured. When false the Necromancer pull can't be
+    // optimised (the candidate pool is unknown), so the optimiser is gated on a manual pick. Defaults
+    // true so the sandbox / multi-hand tools — which have no Mittelfeld — keep optimising normally.
+    mittelfeldScanned: Boolean = true,
 ) {
     if (jokers.isEmpty() && necromancer == null) return
 
@@ -142,17 +148,41 @@ fun JokerSection(
                 row()
             }
             if (onOptimal != null) {
-                Button(
-                    onClick = onOptimal,
-                    enabled = !optimalRunning,
+                // Necromancer + un-scanned Mittelfeld: the pull can't be optimised (the candidate
+                // pool is unknown), so gate the optimiser on a manual pick. Before a pick it is
+                // disabled with a "set it manually" hint; once picked it runs but leaves the pull
+                // untouched (the hint then explains why the pull stays as chosen). P2P §6 #5.
+                val necromancerNeedsManual =
+                    necromancer != null && !mittelfeldScanned && necromancer.pickedCard == null
+                val necromancerHint: String? = when {
+                    necromancer == null || mittelfeldScanned -> null
+                    necromancer.pickedCard == null ->
+                        stringResource(R.string.necromancer_optimal_needs_manual)
+                    else -> stringResource(R.string.necromancer_optimal_skipped)
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (optimalRunning) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
+                    Button(
+                        onClick = onOptimal,
+                        enabled = !optimalRunning && !necromancerNeedsManual,
+                    ) {
+                        if (optimalRunning) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Text(stringResource(R.string.player_hand_optimal))
+                        }
+                    }
+                    if (necromancerHint != null) {
+                        Text(
+                            text = necromancerHint,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    } else {
-                        Text(stringResource(R.string.player_hand_optimal))
                     }
                 }
             }
@@ -212,11 +242,14 @@ private fun JokerRow(
         ?: stringResource(R.string.sandbox_joker_unset)
 
     val isBook = joker.jokerType == JokerType.BOOK_OF_CHANGES
+    // Default target colour = first suit in the localized order, so it matches the dropdown's
+    // alphabetical ordering for the current language.
+    val defaultBookSuit = BOOK_OF_CHANGES_SUITS.sortedByLocalizedLabel().first()
     val onTargetSelected: (TargetOption?) -> Unit = { option ->
         if (option == null) {
             onChange(null)
         } else {
-            val newSuit = if (isBook) assignment?.targetSuit ?: BOOK_OF_CHANGES_SUITS.first() else null
+            val newSuit = if (isBook) assignment?.targetSuit ?: defaultBookSuit else null
             onChange(JokerAssignment(joker.key, option.key, newSuit))
         }
     }
@@ -233,7 +266,7 @@ private fun JokerRow(
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 SuitPicker(
-                    current = assignment.targetSuit ?: BOOK_OF_CHANGES_SUITS.first(),
+                    current = assignment.targetSuit ?: defaultBookSuit,
                     onSelected = { suit ->
                         onChange(JokerAssignment(joker.key, assignment.targetCardKey, suit))
                     },
@@ -256,7 +289,7 @@ private fun JokerRow(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     SuitPicker(
-                        current = assignment.targetSuit ?: BOOK_OF_CHANGES_SUITS.first(),
+                        current = assignment.targetSuit ?: defaultBookSuit,
                         onSelected = { suit ->
                             onChange(JokerAssignment(joker.key, assignment.targetCardKey, suit))
                         },
@@ -352,12 +385,14 @@ private fun SuitPicker(
     var expanded by remember { mutableStateOf(false) }
     AssistChip(
         onClick = { expanded = true },
-        label = { Text(current.name) },
+        label = { Text(stringResource(suitLabelRes(current))) },
     )
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        BOOK_OF_CHANGES_SUITS.forEach { suit ->
+        // Display order follows the in-app language; the BOOK_OF_CHANGES_SUITS default
+        // (used elsewhere for the initial target) stays on the fixed enum order.
+        BOOK_OF_CHANGES_SUITS.sortedByLocalizedLabel().forEach { suit ->
             DropdownMenuItem(
-                text = { Text(suit.name) },
+                text = { Text(stringResource(suitLabelRes(suit))) },
                 onClick = { onSelected(suit); expanded = false },
             )
         }

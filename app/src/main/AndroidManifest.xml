@@ -1,6 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Phase 26: camera card scan (optional feature, falls back to manual entry).
+         Also reused by Phase 28 for scanning the P2P handshake QR code. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
+    <!-- Phase 28 P2P sync: Bluetooth Classic RFCOMM, connected directly by MAC (no discovery),
+         so NO ACCESS_FINE_LOCATION is required.
+         NOTE: the legacy BLUETOOTH / BLUETOOTH_ADMIN permissions are intentionally declared with NO
+         maxSdkVersion cap. On stock Android 12+ they're superseded by BLUETOOTH_CONNECT, but MIUI's
+         RFCOMM stack still enforces the legacy BLUETOOTH permission on API 31 → socket.connect() throws
+         SecurityException ("lacks permission android.permission.BLUETOOTH") without it. They're normal
+         (install-time, auto-granted) permissions and NOT location-related, so this stays F-Droid-clean. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <!-- API 31+: runtime permission, requested before connecting. neverForLocation asserts we do
+         not derive physical location from Bluetooth (we never scan/discover). -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_CONNECT"
+        android:usesPermissionFlags="neverForLocation" />
+    <!-- API 31+: needed so the host can make itself discoverable (ACTION_REQUEST_DISCOVERABLE) for the
+         CompanionDeviceManager picker. Does NOT imply location. On API ≤30 BLUETOOTH_ADMIN covers it. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <!-- Required to call CompanionDeviceManager.associate() (Phase 28 join flow). -->
+    <uses-feature
+        android:name="android.software.companion_device_setup"
+        android:required="false" />
+
     <application
         android:name=".FantasyRealmsApp"
         android:allowBackup="true"

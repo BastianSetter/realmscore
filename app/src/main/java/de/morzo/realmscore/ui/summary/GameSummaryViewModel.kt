@@ -7,6 +7,8 @@ import de.morzo.realmscore.domain.model.ClosedReason
 import de.morzo.realmscore.domain.model.Profile
 import de.morzo.realmscore.domain.model.Round
 import de.morzo.realmscore.domain.model.RoundResult
+import de.morzo.realmscore.domain.p2p.P2PSessionRepository
+import de.morzo.realmscore.domain.p2p.model.SessionState
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.RoundRepository
@@ -50,6 +52,10 @@ data class GameSummaryUiState(
     val totalsByProfile: Map<String, Int> = emptyMap(),
     val players: List<Profile> = emptyList(),
     val gameStats: GameStats? = null,
+    /** True on the P2P host: "Neues Spiel starten" should bring the joined phones along. */
+    val isP2pHost: Boolean = false,
+    /** True on a joined phone: it can't start the next game, so it keeps "Zur Startseite". */
+    val isP2pClient: Boolean = false,
 )
 
 class GameSummaryViewModel(
@@ -57,6 +63,7 @@ class GameSummaryViewModel(
     private val gameRepo: GameRepository,
     private val roundRepo: RoundRepository,
     private val profileRepo: ProfileRepository,
+    private val p2p: P2PSessionRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameSummaryUiState())
@@ -65,7 +72,14 @@ class GameSummaryViewModel(
     init {
         viewModelScope.launch {
             val participants = gameRepo.getParticipants(gameId).sortedBy { it.seatOrder }
-            val players = participants.mapNotNull { profileRepo.getById(it.profileId) }
+            // Profil-Rework: gemergte Profile unter dem Namen/der Farbe ihres kanonischen Ziels zeigen.
+            // Die id bleibt das eigene Profil (Scores/Tabellen sind danach verschlüsselt) — nur die
+            // Anzeige folgt dem Merge-Zeiger.
+            val players = participants.mapNotNull { p ->
+                val own = profileRepo.getById(p.profileId) ?: return@mapNotNull null
+                val canonical = canonicalProfile(own)
+                own.copy(name = canonical.name, colorArgb = canonical.colorArgb)
+            }
 
             combine(
                 roundRepo.observeRoundsForGame(gameId),
@@ -89,6 +103,8 @@ class GameSummaryViewModel(
                         totalsByProfile = totals,
                         players = players,
                         gameStats = stats,
+                        isP2pHost = p2p.sessionState.value is SessionState.Hosting,
+                        isP2pClient = p2p.sessionState.value is SessionState.Connected,
                     )
                 }
             }
@@ -101,9 +117,47 @@ class GameSummaryViewModel(
             if (current?.closedAt == null) {
                 gameRepo.closeGame(gameId, ClosedReason.COMPLETED)
             }
+            // P2P (Stage B): distribute the finished game to all joined devices (no-op when solo). The
+            // game row is already closed, so its export carries closedAt to every client.
+            p2p.closeSharedGame(gameId)
             _uiState.update { it.copy(isClosed = true) }
             onClosed()
         }
+    }
+
+    /**
+     * "Zurück zum Hauptmenü" from the game-end screen: drop any live P2P session (close all sockets →
+     * [SessionState.Idle]) so the user returns to a cold-start state — no open connections. The game is
+     * already closed here, so the joined phones' rejoin info was cleared by GameClosed; on a solo game
+     * this is a harmless no-op. [onLeft] then handles the navigation (home + clear the Game back stack).
+     */
+    fun leaveToMenu(onLeft: () -> Unit) {
+        p2p.close()
+        onLeft()
+    }
+
+    /**
+     * "Neues Spiel starten" from the game-end screen. On the P2P host, first tell the joined phones the
+     * next game is being set up (they show a waiting screen) and proceed with [continueSession] = true so
+     * the new-game screen keeps the live session and brings them along. Solo just opens a fresh setup.
+     */
+    fun prepareNewGame(onProceed: (continueSession: Boolean) -> Unit) {
+        viewModelScope.launch {
+            val hosting = p2p.sessionState.value is SessionState.Hosting
+            if (hosting) p2p.announceNewGameSetup()
+            onProceed(hosting)
+        }
+    }
+
+    /** Folgt dem mergeTargetId-Zeiger bis zum Kettenende (für die Anzeige); zyklen-/tiefensicher. */
+    private suspend fun canonicalProfile(start: Profile): Profile {
+        var current = start
+        val seen = HashSet<String>()
+        var depth = 0
+        while (current.mergeTargetId != null && seen.add(current.id) && depth++ < 32) {
+            current = profileRepo.getById(current.mergeTargetId!!) ?: break
+        }
+        return current
     }
 
     private fun computeTotals(
@@ -199,6 +253,7 @@ class GameSummaryViewModel(
         private val gameRepo: GameRepository,
         private val roundRepo: RoundRepository,
         private val profileRepo: ProfileRepository,
+        private val p2p: P2PSessionRepository,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -207,6 +262,7 @@ class GameSummaryViewModel(
                 gameRepo = gameRepo,
                 roundRepo = roundRepo,
                 profileRepo = profileRepo,
+                p2p = p2p,
             ) as T
         }
     }

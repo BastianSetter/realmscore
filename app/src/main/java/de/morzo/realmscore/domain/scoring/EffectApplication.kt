@@ -27,4 +27,12 @@ data class EffectApplication(
      * influence lines; does not affect scoring. `sourceCardKey` stays the *owner* of the effect.
      */
     val contributingCardKeys: List<String> = emptyList(),
+    /**
+     * Optional per-contributor point weights, parallel to [contributingCardKeys]. When set (and the
+     * sizes match), the ring visualization draws each contributor's edge with its own weight instead
+     * of splitting [pointsDelta] evenly across contributors — e.g. the Warlord, whose bonus is the
+     * sum of the armies' strengths, so each army's line should carry that army's own strength. Has
+     * no effect on scoring or the textual breakdown (which still shows the [pointsDelta] total).
+     */
+    val contributorWeights: List<Int>? = null,
 )

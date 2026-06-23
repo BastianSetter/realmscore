@@ -32,6 +32,13 @@ interface SettingsRepository {
     val pickerSearchEnabled: Flow<Boolean>
     suspend fun setPickerSearchEnabled(value: Boolean)
 
+    /**
+     * When true, an empty hand opens the camera card scan (Phase 26) instead of the manual KartenPick;
+     * the user can still drop to manual entry. Default off.
+     */
+    val cameraScanEnabled: Flow<Boolean>
+    suspend fun setCameraScanEnabled(value: Boolean)
+
     suspend fun clearAll()
 
     companion object {

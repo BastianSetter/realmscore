@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
  * than this (a backup from a newer app version), but accepts equal or lower versions so old backups
  * stay importable after an app update.
  */
-const val CURRENT_BACKUP_SCHEMA_VERSION = 1
+const val CURRENT_BACKUP_SCHEMA_VERSION = 2
 
 /**
  * Versioned, self-contained snapshot of all app data (Phase 23). The DTOs intentionally carry
@@ -37,6 +37,11 @@ data class BackupProfile(
     val createdAt: Long,
     val updatedAt: Long,
     val originDeviceId: String,
+    // Profil-Rework (Backup-Schema 2): explizite Identität + non-destruktiver Merge-Zeiger reisen mit.
+    // Defaults halten ältere Schema-1-Backups deserialisierbar.
+    val deviceId: String = "",
+    val profileId: String = "",
+    val mergeTargetId: String? = null,
 )
 
 @Serializable
@@ -110,6 +115,16 @@ data class BackupHandCard(
 )
 
 /**
+ * Self-contained snapshot of a *single* game plus the [BackupProfile]s its participants reference
+ * (Phase 28, Stage B). Mirrors the payload of [de.morzo.realmscore.domain.p2p.model.SyncMessage.FullGameState]
+ * so the live P2P distribution and the JSON backup share one export/merge path.
+ */
+data class GameSnapshot(
+    val game: BackupGame,
+    val profiles: List<BackupProfile>,
+)
+
+/**
  * Outcome of an import. The conflict strategy is merge-by-UUID at *round* granularity (Phase 24 M2):
  * profiles and games merge by id, but a game that already exists can still receive *new rounds* from
  * the backup. Hence a game is either freshly created or updated-with-new-rounds, and rounds are
@@ -128,6 +143,11 @@ data class ImportResult(
     val roundsSkipped: Int,
     /** Rounds skipped defensively because a referenced profile was absent (malformed backup). */
     val roundsSkippedMissingProfile: Int = 0,
+    /**
+     * Existing rounds whose subtree was overwritten by a newer copy (LWW on `updatedAt`). Only the
+     * Stage-B [BackupRepository.mergeGame] path produces these; the skip-if-exists backup import never does.
+     */
+    val roundsUpdated: Int = 0,
 )
 
 /** The backup was written by a newer app version than this one understands. */

@@ -44,7 +44,10 @@ private enum class CaptureStage { CardPick, PlayerStage }
  *    resolution ([JokerSection]) with the Optimizer, and the "done" submit button. Correcting a card
  *    here reopens the familiar full-screen [CardPicker].
  *
- * The Mittelfeld (discard) entry has no joker stage, so it stays in KartenPick and submits there.
+ * The Mittelfeld (discard) entry runs through both stages too (Phase 26), so its 10/12 cards can be
+ * verified on the readable flat layout — but its player stage never renders the [JokerSection]
+ * (irrelevant for the discard). It advances on slot count just like a hand and submits in the player
+ * stage.
  *
  * State is passed in via [state] and mutations via the callbacks; the content holds only transient
  * stage/picker UI state. [autoOpenKey] (pass the current profileId) resets that transient state when
@@ -55,7 +58,7 @@ private enum class CaptureStage { CardPick, PlayerStage }
 fun PlayerHandCaptureContent(
     state: PlayerHandEntryUiState,
     allCards: List<CardDefinition>,
-    necromancerCandidates: (Set<String>) -> List<CardDefinition>,
+    necromancerCandidates: () -> List<CardDefinition>,
     onSetCardInSlot: (Int, CardDefinition) -> Unit,
     onClearSlot: (Int) -> Unit,
     onSetJokerAssignment: (String, JokerAssignment?) -> Unit,
@@ -68,9 +71,9 @@ fun PlayerHandCaptureContent(
     autoOpenKey: Any? = Unit,
     searchEnabled: Boolean = true,
 ) {
-    // Discard entries never resolve jokers, so they live in CardPick only; a player hand starts in
-    // the player stage when it is already complete (e.g. re-entered to correct), else in CardPick.
-    val initialStage = if (!state.isDiscard && state.cardsCount >= state.requiredSlotCount) {
+    // Every entry (hands and the Mittelfeld) starts in the player stage when it is already complete
+    // (e.g. re-entered to correct, or just filled by a scan), else in CardPick.
+    val initialStage = if (state.cardsCount >= state.requiredSlotCount) {
         CaptureStage.PlayerStage
     } else {
         CaptureStage.CardPick
@@ -81,12 +84,10 @@ fun PlayerHandCaptureContent(
     var editSlot by remember(autoOpenKey) { mutableStateOf<Int?>(null) }
     var necromancerPickerOpen by rememberSaveable(autoOpenKey) { mutableStateOf(false) }
 
-    // Auto-advance to the player stage as soon as a non-discard hand is complete.
-    LaunchedEffect(autoOpenKey, state.cardsCount, state.isDiscard) {
-        if (!state.isDiscard &&
-            state.cardsCount >= state.requiredSlotCount &&
-            stage == CaptureStage.CardPick
-        ) {
+    // Auto-advance to the player stage as soon as the entry is complete (hands and the Mittelfeld
+    // alike, on their respective slot counts — 7, or 10/12 for the discard).
+    LaunchedEffect(autoOpenKey, state.cardsCount) {
+        if (state.cardsCount >= state.requiredSlotCount && stage == CaptureStage.CardPick) {
             stage = CaptureStage.PlayerStage
         }
     }
@@ -147,7 +148,10 @@ fun PlayerHandCaptureContent(
     }
 
     if (necromancerPickerOpen) {
-        val candidates = remember(placedKeys) { necromancerCandidates(placedKeys) }
+        // Candidates exclude every card in any hand (the ViewModel handles that). A scanned Mittelfeld
+        // IS the candidate pool (the discard filter), so it must not be excluded; an un-scanned one
+        // must not leak into the pull at all (§6 #5). Recompute on each open / own-hand change.
+        val candidates = remember(placedKeys) { necromancerCandidates() }
         CardPicker(
             allCards = candidates,
             onCardChosen = { card ->
@@ -210,16 +214,6 @@ private fun CardPickStage(
                 .fillMaxWidth()
                 .weight(1f),
         )
-        // The Mittelfeld has no player stage, so its submit lives here once all cards are scanned.
-        if (state.isDiscard) {
-            Spacer(Modifier.height(12.dp))
-            SubmitButton(
-                label = submitLabel,
-                enabled = state.canSubmit,
-                saving = state.isSaving,
-                onClick = onSubmit,
-            )
-        }
     }
 }
 
@@ -250,8 +244,9 @@ private fun PlayerStageContent(
 
         // The Necromancer, substitution jokers and the Island / Fountain choices share one section +
         // the "Optimal" button (Phase 23, spec 25.4): all are JokerType targets, brute-forced alike
-        // by the solver. The Necromancer leads the section as the first card to resolve.
-        if (state.jokerCardsInHand.isNotEmpty() || state.necromancerInHand) {
+        // by the solver. The Necromancer leads the section as the first card to resolve. The
+        // Mittelfeld never resolves jokers (Phase 26), so its player stage shows the flat hand only.
+        if (!state.isDiscard && (state.jokerCardsInHand.isNotEmpty() || state.necromancerInHand)) {
             Spacer(Modifier.height(24.dp))
             JokerSection(
                 jokers = state.jokerCardsInHand,
@@ -261,6 +256,7 @@ private fun PlayerStageContent(
                 onAssignmentChange = onSetJokerAssignment,
                 onOptimal = onApplyOptimal,
                 optimalRunning = state.isOptimalRunning,
+                mittelfeldScanned = state.mittelfeldScanned,
                 necromancer = if (state.necromancerInHand) {
                     NecromancerRowData(
                         card = allCards.first { it.key == "necromancer" },

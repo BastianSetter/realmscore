@@ -66,15 +66,22 @@ import kotlinx.coroutines.launch
 fun NewGameScreen(
     container: AppContainer,
     onGameStarted: (gameId: String) -> Unit,
+    onSharedRoundStarted: (roundId: String) -> Unit,
     onBack: () -> Unit,
+    seedGameId: String = "",
+    continueSession: Boolean = false,
 ) {
     val vm: NewGameViewModel = viewModel(
         factory = NewGameViewModel.Factory(
             profileRepo = container.profileRepository,
             gameRepo = container.gameRepository,
+            p2p = container.p2pSessionRepository,
+            seedGameId = seedGameId,
+            continueSession = continueSession,
         ),
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val sessionState by vm.sessionState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -126,9 +133,21 @@ fun NewGameScreen(
             )
 
             Spacer(Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+
+            // Phase 28: open this in-progress roster for P2P joins. Players added below sync live.
+            de.morzo.realmscore.ui.p2p.HostJoinSection(
+                container = container,
+                sessionState = sessionState,
+                bluetoothStatusProvider = vm::bluetoothStatus,
+                onOpenForJoins = vm::openForJoins,
+            )
+
+            Spacer(Modifier.height(24.dp))
 
             Button(
-                onClick = { vm.startGame(onGameStarted) },
+                onClick = { vm.startGame(onGameStarted, onSharedRoundStarted) },
                 enabled = state.canStart,
                 modifier = Modifier.fillMaxWidth(),
             ) {

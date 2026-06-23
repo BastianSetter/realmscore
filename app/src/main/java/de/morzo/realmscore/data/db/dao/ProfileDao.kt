@@ -26,12 +26,10 @@ interface ProfileDao {
         "SELECT * FROM profile " +
             "WHERE name LIKE :prefix || '%' COLLATE NOCASE " +
             "AND isArchived = 0 " +
+            "AND mergeTargetId IS NULL " +
             "ORDER BY name COLLATE NOCASE"
     )
     suspend fun searchByNamePrefix(prefix: String): List<ProfileEntity>
-
-    @Query("SELECT COUNT(*) FROM profile WHERE name = :name COLLATE NOCASE")
-    suspend fun countByName(name: String): Int
 
     /**
      * Active (non-archived) profiles whose name starts with [prefix] (empty prefix = all active).
@@ -40,6 +38,7 @@ interface ProfileDao {
     @Query(
         "SELECT * FROM profile " +
             "WHERE isArchived = 0 " +
+            "AND mergeTargetId IS NULL " +
             "AND name LIKE :prefix || '%' COLLATE NOCASE"
     )
     suspend fun getActiveByPrefix(prefix: String): List<ProfileEntity>
@@ -83,10 +82,15 @@ interface ProfileDao {
 
     // --- Phase 17: Profilverwaltung ---
 
-    @Query("SELECT * FROM profile WHERE isArchived = 0 ORDER BY isLocalOwner DESC, name COLLATE NOCASE")
+    // Profil-Rework: vier disjunkte Buckets. Aktiv = nicht archiviert, nicht gemergt, nicht Owner.
+    @Query(
+        "SELECT * FROM profile " +
+            "WHERE isArchived = 0 AND mergeTargetId IS NULL AND isLocalOwner = 0 " +
+            "ORDER BY name COLLATE NOCASE"
+    )
     fun observeActive(): Flow<List<ProfileEntity>>
 
-    @Query("SELECT * FROM profile WHERE isArchived = 1 ORDER BY name COLLATE NOCASE")
+    @Query("SELECT * FROM profile WHERE isArchived = 1 AND mergeTargetId IS NULL ORDER BY name COLLATE NOCASE")
     fun observeArchived(): Flow<List<ProfileEntity>>
 
     @Query("UPDATE profile SET colorArgb = :color, updatedAt = :ts WHERE id = :id")
@@ -104,29 +108,21 @@ interface ProfileDao {
     @Query("SELECT COUNT(*) FROM game_participants WHERE profileId = :profileId")
     suspend fun countGamesForProfile(profileId: String): Int
 
-    @Query(
-        "SELECT COUNT(DISTINCT gameId) FROM game_participants " +
-            "WHERE profileId IN (:keepId, :discardId)"
-    )
-    suspend fun countCombinedGames(keepId: String, discardId: String): Int
-
-    /**
-     * Entfernt die Teilnehmer-Zeilen des zu verwerfenden Profils für Spiele, in denen
-     * das Behalten-Profil bereits Teilnehmer ist. Verhindert eine Primary-Key-Kollision
-     * auf (gameId, profileId) beim anschließenden Umschreiben.
-     */
-    @Query(
-        "DELETE FROM game_participants WHERE profileId = :discardId AND gameId IN (" +
-            "SELECT gameId FROM game_participants WHERE profileId = :keepId)"
-    )
-    suspend fun deleteConflictingParticipants(keepId: String, discardId: String)
-
-    @Query("UPDATE game_participants SET profileId = :keepId WHERE profileId = :discardId")
-    suspend fun reassignParticipants(keepId: String, discardId: String)
-
-    @Query("UPDATE round_results SET profileId = :keepId WHERE profileId = :discardId")
-    suspend fun reassignRoundResults(keepId: String, discardId: String)
-
     @Query("DELETE FROM profile")
     suspend fun deleteAll()
+
+    // --- Phase 2 (Profil-Rework): non-destruktiver Zeiger-Merge ---
+
+    @Query("UPDATE profile SET mergeTargetId = :target, updatedAt = :ts WHERE id = :id")
+    suspend fun setMergeTarget(id: String, target: String, ts: Long)
+
+    @Query("UPDATE profile SET mergeTargetId = NULL, updatedAt = :ts WHERE id = :id")
+    suspend fun clearMergeTarget(id: String, ts: Long)
+
+    /** Zieht vorhandene Zeiger aufs neue Kettenende nach (verhindert Merge-Ketten). */
+    @Query("UPDATE profile SET mergeTargetId = :newTarget, updatedAt = :ts WHERE mergeTargetId = :oldId")
+    suspend fun repointPointers(oldId: String, newTarget: String, ts: Long)
+
+    @Query("SELECT * FROM profile WHERE mergeTargetId IS NOT NULL ORDER BY name COLLATE NOCASE")
+    fun observeMerged(): Flow<List<ProfileEntity>>
 }

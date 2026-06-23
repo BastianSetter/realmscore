@@ -4,8 +4,17 @@ import android.content.Context
 import androidx.room.Room
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.data.datastore.DeviceUuidProvider
+import de.morzo.realmscore.data.ocr.CardScanner
+import de.morzo.realmscore.data.ocr.ScannerFactory
 import de.morzo.realmscore.data.db.AppDatabase
 import de.morzo.realmscore.data.db.migration.MIGRATION_6_7
+import de.morzo.realmscore.data.db.migration.MIGRATION_7_8
+import de.morzo.realmscore.data.p2p.BluetoothRfcommManager
+import de.morzo.realmscore.data.p2p.CompanionDeviceHelper
+import de.morzo.realmscore.data.p2p.GameMirrorSync
+import de.morzo.realmscore.data.p2p.HandshakeManager
+import de.morzo.realmscore.data.p2p.LastSessionStore
+import de.morzo.realmscore.data.p2p.SessionManager
 import de.morzo.realmscore.data.repository.BackupRepositoryImpl
 import de.morzo.realmscore.data.repository.GameRepositoryImpl
 import de.morzo.realmscore.data.repository.HandCardRepositoryImpl
@@ -14,6 +23,7 @@ import de.morzo.realmscore.data.repository.RoundRepositoryImpl
 import de.morzo.realmscore.data.repository.SandboxFavoriteRepositoryImpl
 import de.morzo.realmscore.data.repository.SettingsRepositoryImpl
 import de.morzo.realmscore.data.repository.StatsRepositoryImpl
+import de.morzo.realmscore.domain.p2p.P2PSessionRepository
 import de.morzo.realmscore.domain.repository.BackupRepository
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
@@ -57,7 +67,7 @@ class AppContainer(private val applicationContext: Context) {
             // at minimum gate it behind a debug check. Decision deferred: documenting only for now.
             // Real migrations registered here take precedence over the destructive fallback for the
             // version steps they cover (spec 25.6: 6 → 7 adds the favorite `name` column).
-            .addMigrations(MIGRATION_6_7)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -69,6 +79,10 @@ class AppContainer(private val applicationContext: Context) {
     val clock: Clock by lazy { SystemClock() }
 
     val cardLookup: CardLookup by lazy { CardLookup(applicationContext) }
+
+    // Phase 26 camera scan: the OCR engine is flavour-specific (Tesseract for fdroid, ML Kit for
+    // play), built by the active flavour's ScannerFactory and warmed up at app start.
+    val cardScanner: CardScanner by lazy { ScannerFactory.create(applicationContext, cardLookup) }
 
     val profileRepository: ProfileRepository by lazy {
         ProfileRepositoryImpl(
@@ -181,6 +195,42 @@ class AppContainer(private val applicationContext: Context) {
             db = database,
             deviceUuidProvider = deviceUuidProvider,
             clock = clock,
+        )
+    }
+
+    // Phase 28 P2P sync. Bluetooth RFCOMM transport + QR/code handshake + CompanionDeviceManager
+    // association (no ACCESS_FINE_LOCATION). SessionManager is the high-level P2PSessionRepository.
+    val bluetoothRfcommManager: BluetoothRfcommManager by lazy {
+        BluetoothRfcommManager(applicationContext)
+    }
+
+    val handshakeManager: HandshakeManager by lazy { HandshakeManager() }
+
+    val companionDeviceHelper: CompanionDeviceHelper by lazy {
+        CompanionDeviceHelper(applicationContext)
+    }
+
+    val gameMirrorSync: GameMirrorSync by lazy {
+        GameMirrorSync(
+            backupRepository = backupRepository,
+            handCardRepo = handCardRepository,
+            roundRepo = roundRepository,
+            cardLookup = cardLookup,
+            engine = scoringEngine,
+        )
+    }
+
+    val lastSessionStore: LastSessionStore by lazy { LastSessionStore(applicationContext) }
+
+    val p2pSessionRepository: P2PSessionRepository by lazy {
+        SessionManager(
+            bluetooth = bluetoothRfcommManager,
+            handshake = handshakeManager,
+            deviceUuidProvider = deviceUuidProvider,
+            roundRepo = roundRepository,
+            backupRepository = backupRepository,
+            mirrorSync = gameMirrorSync,
+            lastSessionStore = lastSessionStore,
         )
     }
 

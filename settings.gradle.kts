@@ -16,6 +16,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Tesseract4Android (Phase 26 OCR) is published via JitPack, not Maven Central.
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

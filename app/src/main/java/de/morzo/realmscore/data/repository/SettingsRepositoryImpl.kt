@@ -85,6 +85,13 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
         dataStore.edit { prefs -> prefs[KEY_PICKER_SEARCH_ENABLED] = value }
     }
 
+    override val cameraScanEnabled: Flow<Boolean> =
+        dataStore.data.map { prefs -> prefs[KEY_CAMERA_SCAN_ENABLED] ?: false }
+
+    override suspend fun setCameraScanEnabled(value: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_CAMERA_SCAN_ENABLED] = value }
+    }
+
     override suspend fun clearAll() {
         dataStore.edit { it.clear() }
     }
@@ -98,5 +105,6 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
         private val KEY_DEFAULT_ROUND_COUNT = intPreferencesKey("default_round_count")
         private val KEY_DISCARD_CAPTURE_ENABLED = booleanPreferencesKey("discard_capture_enabled")
         private val KEY_PICKER_SEARCH_ENABLED = booleanPreferencesKey("picker_search_enabled")
+        private val KEY_CAMERA_SCAN_ENABLED = booleanPreferencesKey("camera_scan_enabled")
     }
 }

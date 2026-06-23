@@ -23,8 +23,19 @@ interface ProfileRepository {
         ownerId: String,
     ): List<Profile>
 
-    suspend fun existsByName(name: String): Boolean
     suspend fun createProfile(name: String): Profile
+
+    /**
+     * Phase 4 (Profil-Rework): stellt sicher, dass ein per P2P empfangenes **fremdes** Profil mit
+     * seiner globalen Identität ([id] = "$deviceId:$profileId") lokal existiert. Legt es bei Bedarf
+     * unverändert an (kein Remap auf ein lokales Profil mehr). Gibt das vorhandene/erzeugte zurück.
+     */
+    suspend fun ensureRemoteProfile(
+        id: String,
+        name: String,
+        colorArgb: Int,
+        originDeviceId: String,
+    ): Profile
     suspend fun getById(id: String): Profile?
     fun observeAll(): Flow<List<Profile>>
 
@@ -32,10 +43,17 @@ interface ProfileRepository {
     fun observeActiveProfiles(): Flow<List<Profile>>
     fun observeArchivedProfiles(): Flow<List<Profile>>
     suspend fun countGamesForProfile(id: String): Int
-    suspend fun countCombinedGames(keepId: String, discardId: String): Int
     suspend fun updateName(id: String, newName: String)
     suspend fun updateColor(id: String, colorArgb: Int)
     suspend fun archiveProfile(id: String)
     suspend fun unarchiveProfile(id: String)
-    suspend fun mergeProfiles(keepId: String, discardId: String)
+
+    // --- Phase 2 (Profil-Rework): non-destruktiver Zeiger-Merge ---
+    fun observeMergedProfiles(): Flow<List<Profile>>
+
+    /** Verschmilzt [id] non-destruktiv in [targetId] (Kettenende, ohne Ketten/Zyklen). */
+    suspend fun setMergeTarget(id: String, targetId: String)
+
+    /** Hebt einen Merge wieder auf (Unmerge). */
+    suspend fun clearMergeTarget(id: String)
 }

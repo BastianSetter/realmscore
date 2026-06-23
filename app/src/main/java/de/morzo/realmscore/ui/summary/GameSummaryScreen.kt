@@ -55,6 +55,7 @@ fun GameSummaryScreen(
     container: AppContainer,
     gameId: String,
     onCloseGameDone: () -> Unit,
+    onNewGame: (continueSession: Boolean) -> Unit,
     onShowStats: () -> Unit,
     onBackToGame: () -> Unit,
     onMoveToSandbox: (gameId: String, roundId: String, profileId: String) -> Unit,
@@ -66,6 +67,7 @@ fun GameSummaryScreen(
             gameRepo = container.gameRepository,
             roundRepo = container.roundRepository,
             profileRepo = container.profileRepository,
+            p2p = container.p2pSessionRepository,
         ),
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -128,11 +130,34 @@ fun GameSummaryScreen(
                     Text(stringResource(R.string.game_summary_show_stats))
                 }
                 Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = onCloseGameDone,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.game_summary_back_home))
+                // The game is already closed here (closing now happens on the round-summary "Spiel
+                // abschließen"). The host/solo primary action starts the next game with the same
+                // players + settings (and, when hosting, brings the joined phones along). A joined
+                // phone can't start the next game, so "Zurück zum Hauptmenü" is its only action — the
+                // host pulls it into the next game via the central OpenRound signal regardless.
+                // Either way, leaving to the menu tears down the P2P session (leaveToMenu) so the user
+                // returns to a fresh, connection-free state.
+                if (!state.isP2pClient) {
+                    Button(
+                        onClick = { vm.prepareNewGame(onNewGame) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.game_summary_new_game))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { vm.leaveToMenu(onCloseGameDone) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.game_summary_back_home))
+                    }
+                } else {
+                    Button(
+                        onClick = { vm.leaveToMenu(onCloseGameDone) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.game_summary_back_home))
+                    }
                 }
             } else {
                 Button(

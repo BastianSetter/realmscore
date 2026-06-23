@@ -1,0 +1,7 @@
+Version 1.3.0
+- Camera card scan: capture cards by photo (OCR)
+- Multi-device capture: capture together over Bluetooth (P2P)
+- Reworked player profiles with cross-device merging
+- Silent reconnect after app kill or Bluetooth drop
+- Improved game-end flow and history management
+- Various fixes

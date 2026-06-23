@@ -34,6 +34,8 @@ object FountainOfLifeRule : CardScoringRule {
                 nameCardKey = source.effectiveCardKey,
                 descriptionArgs = listOf(source.effectiveStrength.toString()),
                 pointsDelta = source.effectiveStrength,
+                // Draw an influence line from the copied card into the Fountain (ring viz).
+                contributingCardKeys = listOf(source.originalKey),
             )
         )
     }

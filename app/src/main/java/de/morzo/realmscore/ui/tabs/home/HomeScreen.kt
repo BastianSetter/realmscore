@@ -26,6 +26,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -36,6 +39,7 @@ import de.morzo.realmscore.R
 import de.morzo.realmscore.domain.stats.random.RandomStatResult
 import de.morzo.realmscore.domain.stats.random.StatDestination
 import de.morzo.realmscore.domain.stats.random.StatVisualization
+import de.morzo.realmscore.ui.p2p.HostQrDialog
 
 @Composable
 fun HomeScreen(
@@ -45,12 +49,23 @@ fun HomeScreen(
     onOpenSandbox: () -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenSettings: () -> Unit,
+    onJoinSession: () -> Unit,
     onOpenStat: (StatDestination?) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showHostQr by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.onResume()
+    }
+
+    val hostQr = state.p2pCard as? P2pCardState.ShowQr
+    if (showHostQr && hostQr != null) {
+        HostQrDialog(
+            payload = hostQr.payload,
+            sessionCode = hostQr.sessionCode,
+            onDismiss = { showHostQr = false },
+        )
     }
 
     LazyColumn(
@@ -84,6 +99,37 @@ fun HomeScreen(
                 onNewGame = onNewGame,
                 onOpenGame = onOpenGame,
             )
+        }
+        item {
+            val card = state.p2pCard
+            val titleRes = when (card) {
+                is P2pCardState.ShowQr -> R.string.p2p_show_qr
+                P2pCardState.Rejoin -> R.string.p2p_rejoin_session
+                P2pCardState.Join -> R.string.p2p_join_session
+            }
+            val bodyRes = when (card) {
+                is P2pCardState.ShowQr -> R.string.p2p_show_qr_body
+                P2pCardState.Rejoin -> R.string.p2p_rejoin_session_body
+                P2pCardState.Join -> R.string.home_join_session_body
+            }
+            Card(
+                onClick = {
+                    if (card is P2pCardState.ShowQr) showHostQr = true else onJoinSession()
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(titleRes),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(bodyRes),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
         }
         item {
             Card(
