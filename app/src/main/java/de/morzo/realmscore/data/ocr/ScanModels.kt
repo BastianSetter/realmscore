@@ -21,10 +21,15 @@ data class ScanRegion(
     val ocrText: String,
     val confidence: Int,
     val candidates: List<CandidateScore>,
+    /**
+     * The score a candidate must reach to count as [bestCard]. Defaults to the OCR floor
+     * [MIN_MATCH_SCORE]; the Phase-29 template path passes its own (higher) `MIN_TEMPLATE_SCORE`.
+     */
+    val minScore: Float = MIN_MATCH_SCORE,
 ) {
     val topScore: Float get() = candidates.firstOrNull()?.score ?: 0f
     val bestCard: CardDefinition?
-        get() = candidates.firstOrNull()?.takeIf { it.score >= MIN_MATCH_SCORE }?.card
+        get() = candidates.firstOrNull()?.takeIf { it.score >= minScore }?.card
 }
 
 /**
@@ -46,6 +51,8 @@ data class ScanReport(
     val regions: List<ScanRegion>,
     /** Ordered intermediate images of the pipeline (debug screen only; empty in the production path). */
     val stages: List<ScanStage> = emptyList(),
+    /** Total match/OCR time in ms (Phase 29 template path reports it; 0 when not measured). */
+    val durationMs: Long = 0,
 )
 
 /**

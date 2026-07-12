@@ -398,6 +398,8 @@
     <string name="settings_picker_search_enabled">Show search in picker</string>
     <string name="settings_camera_scan_enabled">Scan cards with camera</string>
     <string name="settings_camera_scan_enabled_desc">When enabled, an empty hand opens the camera instead of the manual card picker. Recognised cards can be corrected afterwards.</string>
+    <string name="settings_bitmap_matching_enabled">Bitmap matching (experimental)</string>
+    <string name="settings_bitmap_matching_enabled_desc">Matches card banners directly against stored templates instead of text recognition. Requires templates to be created once.</string>
 
     <!-- Phase 26: camera scan -->
     <string name="camera_scan_title">Scan cards</string>

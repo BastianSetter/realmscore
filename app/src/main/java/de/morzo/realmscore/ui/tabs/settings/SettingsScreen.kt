@@ -182,6 +182,16 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setCameraScanEnabled,
             )
         }
+        // Phase 29: only meaningful with the camera scan on, so hide it otherwise.
+        if (state.cameraScanEnabled) {
+            item {
+                ToggleRow(
+                    label = stringResource(R.string.settings_bitmap_matching_enabled),
+                    checked = state.bitmapMatchingEnabled,
+                    onCheckedChange = viewModel::setBitmapMatchingEnabled,
+                )
+            }
+        }
 
         item { SectionHeader(stringResource(R.string.settings_appearance)) }
         item {

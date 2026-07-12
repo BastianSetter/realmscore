@@ -39,6 +39,13 @@ interface SettingsRepository {
     val cameraScanEnabled: Flow<Boolean>
     suspend fun setCameraScanEnabled(value: Boolean)
 
+    /**
+     * When true, the camera scan matches banners against stored bitmap templates (Phase 29) instead
+     * of OCR. Experimental; only meaningful while [cameraScanEnabled] is on. Default off.
+     */
+    val bitmapMatchingEnabled: Flow<Boolean>
+    suspend fun setBitmapMatchingEnabled(value: Boolean)
+
     suspend fun clearAll()
 
     companion object {

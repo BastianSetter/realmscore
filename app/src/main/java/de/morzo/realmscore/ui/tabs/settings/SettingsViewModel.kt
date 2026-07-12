@@ -46,6 +46,7 @@ data class SettingsUiState(
     val discardCaptureEnabled: Boolean = false,
     val pickerSearchEnabled: Boolean = true,
     val cameraScanEnabled: Boolean = false,
+    val bitmapMatchingEnabled: Boolean = false,
     val dataInfo: DataInfo = DataInfo(),
 )
 
@@ -89,11 +90,12 @@ class SettingsViewModel(
         DataInfo(open, closed, rounds, profiles)
     }
 
-    // The two capture flags ride together so the outer combine stays within the typed 5-arg overload.
+    // The capture flags ride together so the outer combine stays within the typed 5-arg overload.
     private val captureFlagsFlow = combine(
         settings.pickerSearchEnabled,
         settings.cameraScanEnabled,
-    ) { pickerSearch, cameraScan -> pickerSearch to cameraScan }
+        settings.bitmapMatchingEnabled,
+    ) { pickerSearch, cameraScan, bitmapMatching -> CaptureFlags(pickerSearch, cameraScan, bitmapMatching) }
 
     val uiState: StateFlow<SettingsUiState> = combine(
         profileRepo.observeLocalOwner(),
@@ -102,7 +104,6 @@ class SettingsViewModel(
         settings.appLanguage,
         captureFlagsFlow,
     ) { owner, prefs, dataInfo, language, captureFlags ->
-        val (pickerSearch, cameraScan) = captureFlags
         SettingsUiState(
             ownerProfile = owner,
             appLanguage = language,
@@ -111,8 +112,9 @@ class SettingsViewModel(
             defaultPointLimit = prefs.defaultPointLimit,
             defaultRoundCount = prefs.defaultRoundCount,
             discardCaptureEnabled = prefs.discardCaptureEnabled,
-            pickerSearchEnabled = pickerSearch,
-            cameraScanEnabled = cameraScan,
+            pickerSearchEnabled = captureFlags.pickerSearch,
+            cameraScanEnabled = captureFlags.cameraScan,
+            bitmapMatchingEnabled = captureFlags.bitmapMatching,
             dataInfo = dataInfo,
         )
     }.stateIn(
@@ -151,6 +153,10 @@ class SettingsViewModel(
 
     fun setCameraScanEnabled(value: Boolean) {
         viewModelScope.launch { settings.setCameraScanEnabled(value) }
+    }
+
+    fun setBitmapMatchingEnabled(value: Boolean) {
+        viewModelScope.launch { settings.setBitmapMatchingEnabled(value) }
     }
 
     /**
@@ -224,6 +230,12 @@ class SettingsViewModel(
             onDone()
         }
     }
+
+    private data class CaptureFlags(
+        val pickerSearch: Boolean,
+        val cameraScan: Boolean,
+        val bitmapMatching: Boolean,
+    )
 
     private data class PrefsSnapshot(
         val themeMode: ThemeMode,

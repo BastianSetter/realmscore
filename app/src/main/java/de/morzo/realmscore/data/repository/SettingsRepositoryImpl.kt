@@ -92,6 +92,13 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
         dataStore.edit { prefs -> prefs[KEY_CAMERA_SCAN_ENABLED] = value }
     }
 
+    override val bitmapMatchingEnabled: Flow<Boolean> =
+        dataStore.data.map { prefs -> prefs[KEY_BITMAP_MATCHING_ENABLED] ?: false }
+
+    override suspend fun setBitmapMatchingEnabled(value: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_BITMAP_MATCHING_ENABLED] = value }
+    }
+
     override suspend fun clearAll() {
         dataStore.edit { it.clear() }
     }
@@ -106,5 +113,6 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
         private val KEY_DISCARD_CAPTURE_ENABLED = booleanPreferencesKey("discard_capture_enabled")
         private val KEY_PICKER_SEARCH_ENABLED = booleanPreferencesKey("picker_search_enabled")
         private val KEY_CAMERA_SCAN_ENABLED = booleanPreferencesKey("camera_scan_enabled")
+        private val KEY_BITMAP_MATCHING_ENABLED = booleanPreferencesKey("bitmap_matching_enabled")
     }
 }

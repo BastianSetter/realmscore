@@ -1,5 +1,6 @@
 package de.morzo.realmscore.ui.scan
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
@@ -19,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,15 +29,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -44,27 +52,42 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import de.morzo.realmscore.data.cards.CardLookup
+import de.morzo.realmscore.data.ocr.BannerNormalizer
+import de.morzo.realmscore.data.ocr.BannerTemplateStore
 import de.morzo.realmscore.data.ocr.CardScanner
 import de.morzo.realmscore.data.ocr.ScanImageOps
 import de.morzo.realmscore.data.ocr.ScanRegion
 import de.morzo.realmscore.data.ocr.ScanStage
+import de.morzo.realmscore.data.ocr.TemplateCardScanner
+import de.morzo.realmscore.domain.model.CardDefinition
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.runtime.LaunchedEffect
 import kotlin.math.roundToInt
 
 /**
- * Developer tool (debug builds only) to inspect the camera-scan pipeline (Phase 26): pick a photo,
- * run the detailed recognizer, and see how many card rectangles were found, the exact crop fed to
- * OCR, the raw OCR text + confidence, and the top fuzzy-match candidates with scores. This is the
- * surface for tuning detection/crop/binarization against real photos.
+ * Developer tool (debug builds only) to inspect the camera-scan pipeline (Phase 26 + 29): pick a
+ * photo and run the detailed recognizer via either OCR or the bitmap-template path (A/B toggle on the
+ * same photo). Shows every intermediate stage, the crop, the top fuzzy/NCC candidates with scores,
+ * and — for the bitmap path — the template inventory, per-region "save as template", and export.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScanDebugScreen(
-    scanner: CardScanner,
+    ocrScanner: CardScanner,
+    templateScanner: TemplateCardScanner,
+    templateStore: BannerTemplateStore,
+    cardLookup: CardLookup,
     onBack: () -> Unit,
 ) {
-    val vm: ScanDebugViewModel = viewModel(factory = ScanDebugViewModel.Factory(scanner))
+    val vm: ScanDebugViewModel = viewModel(
+        factory = ScanDebugViewModel.Factory(ocrScanner, templateScanner, templateStore, cardLookup),
+    )
     val state by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val snackbarHost = remember { SnackbarHostState() }
+
+    // OCR knobs.
     val brightFraction = remember { mutableFloatStateOf(ScanImageOps.whiteTextBrightFraction) }
     val padTop = remember { mutableFloatStateOf(ScanImageOps.titlePadTopFraction) }
     val padBottom = remember { mutableFloatStateOf(ScanImageOps.titlePadBottomFraction) }
@@ -72,8 +95,37 @@ fun ScanDebugScreen(
     val redBorder = remember { mutableFloatStateOf(ScanImageOps.titleBorderRed) }
     val whiteMin = remember { mutableFloatStateOf(ScanImageOps.titleBorderWhite) }
     val whiteMax = remember { mutableFloatStateOf(ScanImageOps.titleTextWhite) }
-    // How many cards the picked photo holds — drives the fan layout (≤7 = one stack, 10/12 = two stacks).
+    // Bitmap (Phase 29) knobs.
+    val probeX1 = remember { mutableFloatStateOf(BannerNormalizer.PROBE_X1) }
+    val probeX2 = remember { mutableFloatStateOf(BannerNormalizer.PROBE_X2) }
+    val descend = remember { mutableFloatStateOf(BannerNormalizer.DESCEND) }
+    val factorA = remember { mutableFloatStateOf(BannerNormalizer.BOX_FACTOR_A) }
+    val factorB = remember { mutableFloatStateOf(BannerNormalizer.BOX_FACTOR_B) }
+    val redRatioTop = remember { mutableFloatStateOf(BannerNormalizer.redMinRatioTop) }
+    val redRatioRight = remember { mutableFloatStateOf(BannerNormalizer.redMinRatioRight) }
+    val goldRed = remember { mutableFloatStateOf(BannerNormalizer.goldMinRed.toFloat()) }
+    val goldBlueGreen = remember { mutableFloatStateOf(BannerNormalizer.goldMaxBlueGreenRatio) }
+    val minTemplateScore = remember { mutableFloatStateOf(BannerNormalizer.MIN_TEMPLATE_SCORE) }
+
     val maxCards = remember { mutableIntStateOf(FAN_HAND_CARDS) }
+    var saveTarget by remember { mutableStateOf<ScanRegion?>(null) }
+
+    // Share-sheet / snackbar side effects.
+    LaunchedEffect(Unit) {
+        vm.events.collectLatest { event ->
+            when (event) {
+                is ScanDebugEvent.Message -> snackbarHost.showSnackbar(event.text)
+                is ScanDebugEvent.ShareZip -> {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/zip"
+                        putExtra(Intent.EXTRA_STREAM, event.uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Vorlagen exportieren"))
+                }
+            }
+        }
+    }
 
     fun loadBitmap(uri: Uri): Bitmap? = runCatching {
         val source = ImageDecoder.createSource(context.contentResolver, uri)
@@ -116,6 +168,7 @@ fun ScanDebugScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHost) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -125,14 +178,44 @@ fun ScanDebugScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(vertical = 16.dp),
         ) {
+            // A/B: OCR vs. bitmap template matching on the same photo.
             item {
-                Text(
-                    "Fächer-Diagnose (Tesseract): Karten als Stapel, jede mit weißer Oberkante + rotem " +
-                        "Titelband. 7 = ein Stapel; 10/12 (Mittelfeld) = zwei Stapel nebeneinander.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text("Pfad (A/B)", style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = state.mode == ScanMode.OCR,
+                        onClick = { vm.setMode(ScanMode.OCR) },
+                        label = { Text("OCR") },
+                    )
+                    FilterChip(
+                        selected = state.mode == ScanMode.BITMAP,
+                        onClick = { vm.setMode(ScanMode.BITMAP) },
+                        label = { Text("Bitmap") },
+                    )
+                }
             }
+
+            if (state.mode == ScanMode.BITMAP) {
+                item {
+                    Text(
+                        "Vorlagen: ${state.inventory.available}/${state.inventory.total}",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    OutlinedButton(onClick = { vm.exportTemplates(context) }) {
+                        Text("Alle exportieren (ZIP)")
+                    }
+                    if (state.inventory.missing.isNotEmpty()) {
+                        Text(
+                            "Fehlt (${state.inventory.missing.size}): " +
+                                state.inventory.missing.take(12).joinToString { it.nameDe } +
+                                if (state.inventory.missing.size > 12) " …" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
             item {
                 Text(
                     "Kartenzahl (Layout): ${maxCards.intValue} " +
@@ -154,118 +237,13 @@ fun ScanDebugScreen(
                     }
                 }
             }
-            item {
-                Text(
-                    "Rot-Gate Rand (Bannerrand): ${"%.2f".format(redBorder.floatValue)} " +
-                        "(Rand-Zeile: Rot-Anteil > x)",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Slider(
-                    value = redBorder.floatValue,
-                    onValueChange = {
-                        redBorder.floatValue = it
-                        ScanImageOps.titleBorderRed = it
-                    },
-                    onValueChangeFinished = { vm.reanalyze() },
-                    valueRange = 0.30f..0.95f,
-                )
+
+            if (state.mode == ScanMode.BITMAP) {
+                bitmapSliders(probeX1, probeX2, descend, factorA, factorB, redRatioTop, redRatioRight, goldRed, goldBlueGreen, minTemplateScore, vm)
+            } else {
+                ocrSliders(redBorder, whiteMin, whiteMax, brightFraction, padTop, padBottom, sideRed, vm)
             }
-            item {
-                Text(
-                    "Weiß-Min Rand: ${"%.2f".format(whiteMin.floatValue)} " +
-                        "(Rand-Zeile: Weiß-Anteil < x)",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Slider(
-                    value = whiteMin.floatValue,
-                    onValueChange = {
-                        whiteMin.floatValue = it
-                        ScanImageOps.titleBorderWhite = it
-                    },
-                    onValueChangeFinished = { vm.reanalyze() },
-                    valueRange = 0.0f..0.20f,
-                )
-            }
-            item {
-                Text(
-                    "Weiß-Max Text: ${"%.2f".format(whiteMax.floatValue)} " +
-                        "(Text-Zeile: Weiß-Anteil > x)",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Slider(
-                    value = whiteMax.floatValue,
-                    onValueChange = {
-                        whiteMax.floatValue = it
-                        ScanImageOps.titleTextWhite = it
-                    },
-                    onValueChangeFinished = { vm.reanalyze() },
-                    valueRange = 0.02f..0.40f,
-                )
-            }
-            item {
-                Text(
-                    "Weiß-Helligkeit: ${"%.2f".format(brightFraction.floatValue)} " +
-                        "(höher = dünner, niedriger = fetter)",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Slider(
-                    value = brightFraction.floatValue,
-                    onValueChange = {
-                        brightFraction.floatValue = it
-                        ScanImageOps.whiteTextBrightFraction = it
-                    },
-                    onValueChangeFinished = { vm.reanalyze() },
-                    valueRange = 0.30f..0.90f,
-                )
-            }
-            item {
-                Text(
-                    "Rand oben: ${"%.2f".format(padTop.floatValue)} " +
-                        "(Anteil der Titelhöhe · negativ = abschneiden)",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Slider(
-                    value = padTop.floatValue,
-                    onValueChange = {
-                        padTop.floatValue = it
-                        ScanImageOps.titlePadTopFraction = it
-                    },
-                    onValueChangeFinished = { vm.reanalyze() },
-                    valueRange = -0.5f..1.5f,
-                )
-            }
-            item {
-                Text(
-                    "Rand unten: ${"%.2f".format(padBottom.floatValue)} " +
-                        "(Anteil der Titelhöhe · negativ = abschneiden)",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Slider(
-                    value = padBottom.floatValue,
-                    onValueChange = {
-                        padBottom.floatValue = it
-                        ScanImageOps.titlePadBottomFraction = it
-                    },
-                    onValueChangeFinished = { vm.reanalyze() },
-                    valueRange = -0.5f..1.5f,
-                )
-            }
-            item {
-                Text(
-                    "Seiten-Cut (Rot > x): ${"%.2f".format(sideRed.floatValue)} " +
-                        "(links/rechts auf volle Rot-Spalte beschneiden)",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Slider(
-                    value = sideRed.floatValue,
-                    onValueChange = {
-                        sideRed.floatValue = it
-                        ScanImageOps.titleSideRed = it
-                    },
-                    onValueChangeFinished = { vm.reanalyze() },
-                    valueRange = 0.50f..1.0f,
-                )
-            }
+
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
@@ -310,10 +288,15 @@ fun ScanDebugScreen(
 
             state.report?.let { report ->
                 item {
-                    Text(
-                        "Modus: ${report.mode}",
-                        style = MaterialTheme.typography.titleSmall,
-                    )
+                    Text("Modus: ${report.mode}", style = MaterialTheme.typography.titleSmall)
+                    if (report.durationMs > 0) {
+                        Text(
+                            "Matching-Dauer: ${report.durationMs} ms" +
+                                if (report.regionCount > 0) " (~${report.durationMs / report.regionCount} ms/Banner)" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 if (report.stages.isNotEmpty()) {
                     item {
@@ -327,10 +310,27 @@ fun ScanDebugScreen(
                     Text("Ergebnis", style = MaterialTheme.typography.titleSmall)
                 }
                 itemsIndexed(report.regions) { index, region ->
-                    RegionCard(index = index, region = region)
+                    RegionCard(
+                        index = index,
+                        region = region,
+                        canSaveTemplate = state.mode == ScanMode.BITMAP && region.band == "Bitmap",
+                        onSaveTemplate = { saveTarget = region },
+                    )
                 }
             }
         }
+    }
+
+    saveTarget?.let { region ->
+        SaveTemplateDialog(
+            defaultQuery = region.candidates.firstOrNull()?.card?.nameDe.orEmpty(),
+            search = vm::searchCards,
+            onPick = { card ->
+                vm.saveTemplate(card.key, region.crop)
+                saveTarget = null
+            },
+            onDismiss = { saveTarget = null },
+        )
     }
 }
 
@@ -340,6 +340,130 @@ private const val FAN_HAND_CARDS = 7
 /** Selectable card counts: 7 = a hand (one stack), 10/12 = the Mittelfeld (two side-by-side stacks). */
 private val FAN_CARD_CHOICES = listOf(7, 10, 12)
 
+/** Phase-29 tuning sliders (probe lines, safe gap, gold thresholds, match floor). */
+private fun androidx.compose.foundation.lazy.LazyListScope.bitmapSliders(
+    probeX1: androidx.compose.runtime.MutableFloatState,
+    probeX2: androidx.compose.runtime.MutableFloatState,
+    descend: androidx.compose.runtime.MutableFloatState,
+    factorA: androidx.compose.runtime.MutableFloatState,
+    factorB: androidx.compose.runtime.MutableFloatState,
+    redRatioTop: androidx.compose.runtime.MutableFloatState,
+    redRatioRight: androidx.compose.runtime.MutableFloatState,
+    goldRed: androidx.compose.runtime.MutableFloatState,
+    goldBlueGreen: androidx.compose.runtime.MutableFloatState,
+    minTemplateScore: androidx.compose.runtime.MutableFloatState,
+    vm: ScanDebugViewModel,
+) {
+    item {
+        SliderRow("Probelinie 1 (%)", probeX1.floatValue, 0.20f..0.70f, { probeX1.floatValue = it; BannerNormalizer.PROBE_X1 = it }, vm)
+    }
+    item {
+        SliderRow("Probelinie 2 (%)", probeX2.floatValue, 0.55f..0.95f, { probeX2.floatValue = it; BannerNormalizer.PROBE_X2 = it }, vm)
+    }
+    item {
+        SliderRow("Scan-Abstieg (·Blobhöhe)", descend.floatValue, 0.0f..0.30f, { descend.floatValue = it; BannerNormalizer.DESCEND = it }, vm)
+    }
+    item {
+        SliderRow("Box unten factorA (·Breite)", factorA.floatValue, 0.10f..1.50f, { factorA.floatValue = it; BannerNormalizer.BOX_FACTOR_A = it }, vm)
+    }
+    item {
+        SliderRow("Box links factorB (·Breite)", factorB.floatValue, 0.0f..1.0f, { factorB.floatValue = it; BannerNormalizer.BOX_FACTOR_B = it }, vm)
+    }
+    item {
+        SliderRow("Rot-Gate oben 2r/(g+b) ≥", redRatioTop.floatValue, 1.0f..6.0f, { redRatioTop.floatValue = it; BannerNormalizer.redMinRatioTop = it }, vm)
+    }
+    item {
+        SliderRow("Rot-Gate rechts 2r/(g+b) ≥", redRatioRight.floatValue, 1.0f..6.0f, { redRatioRight.floatValue = it; BannerNormalizer.redMinRatioRight = it }, vm)
+    }
+    item {
+        SliderRow("Gold Min-Rot", goldRed.floatValue, 60f..220f, { goldRed.floatValue = it; BannerNormalizer.goldMinRed = it.toInt() }, vm, "%.0f")
+    }
+    item {
+        SliderRow("Gold Blau/Grün ≤ (b/g)", goldBlueGreen.floatValue, 0.10f..1.0f, { goldBlueGreen.floatValue = it; BannerNormalizer.goldMaxBlueGreenRatio = it }, vm)
+    }
+    item {
+        SliderRow("Match-Schwelle (NCC)", minTemplateScore.floatValue, 0.20f..0.90f, { minTemplateScore.floatValue = it; BannerNormalizer.MIN_TEMPLATE_SCORE = it }, vm)
+    }
+}
+
+/** Existing OCR tuning sliders (Phase 26), unchanged behaviour. */
+private fun androidx.compose.foundation.lazy.LazyListScope.ocrSliders(
+    redBorder: androidx.compose.runtime.MutableFloatState,
+    whiteMin: androidx.compose.runtime.MutableFloatState,
+    whiteMax: androidx.compose.runtime.MutableFloatState,
+    brightFraction: androidx.compose.runtime.MutableFloatState,
+    padTop: androidx.compose.runtime.MutableFloatState,
+    padBottom: androidx.compose.runtime.MutableFloatState,
+    sideRed: androidx.compose.runtime.MutableFloatState,
+    vm: ScanDebugViewModel,
+) {
+    item { SliderRow("Rot-Gate Rand", redBorder.floatValue, 0.30f..0.95f, { redBorder.floatValue = it; ScanImageOps.titleBorderRed = it }, vm) }
+    item { SliderRow("Weiß-Min Rand", whiteMin.floatValue, 0.0f..0.20f, { whiteMin.floatValue = it; ScanImageOps.titleBorderWhite = it }, vm) }
+    item { SliderRow("Weiß-Max Text", whiteMax.floatValue, 0.02f..0.40f, { whiteMax.floatValue = it; ScanImageOps.titleTextWhite = it }, vm) }
+    item { SliderRow("Weiß-Helligkeit", brightFraction.floatValue, 0.30f..0.90f, { brightFraction.floatValue = it; ScanImageOps.whiteTextBrightFraction = it }, vm) }
+    item { SliderRow("Rand oben", padTop.floatValue, -0.5f..1.5f, { padTop.floatValue = it; ScanImageOps.titlePadTopFraction = it }, vm) }
+    item { SliderRow("Rand unten", padBottom.floatValue, -0.5f..1.5f, { padBottom.floatValue = it; ScanImageOps.titlePadBottomFraction = it }, vm) }
+    item { SliderRow("Seiten-Cut (Rot > x)", sideRed.floatValue, 0.50f..1.0f, { sideRed.floatValue = it; ScanImageOps.titleSideRed = it }, vm) }
+}
+
+@Composable
+private fun SliderRow(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    onChange: (Float) -> Unit,
+    vm: ScanDebugViewModel,
+    format: String = "%.2f",
+) {
+    Column {
+        Text("$label: ${format.format(value)}", style = MaterialTheme.typography.labelLarge)
+        Slider(
+            value = value,
+            onValueChange = onChange,
+            onValueChangeFinished = { vm.reanalyze() },
+            valueRange = range,
+        )
+    }
+}
+
+@Composable
+private fun SaveTemplateDialog(
+    defaultQuery: String,
+    search: (String) -> List<CardDefinition>,
+    onPick: (CardDefinition) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var query by remember { mutableStateOf(defaultQuery) }
+    val results = remember(query) { search(query).take(30) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        title = { Text("Als Vorlage speichern") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Karte suchen") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Column(
+                    modifier = Modifier.heightIn(max = 260.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    results.forEach { card ->
+                        TextButton(
+                            onClick = { onPick(card) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(card.nameDe, modifier = Modifier.fillMaxWidth()) }
+                    }
+                }
+            }
+        },
+    )
+}
+
 @Composable
 private fun StageCard(index: Int, stage: ScanStage) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -347,10 +471,7 @@ private fun StageCard(index: Int, stage: ScanStage) {
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(
-                "${index + 1}. ${stage.label}",
-                style = MaterialTheme.typography.labelLarge,
-            )
+            Text("${index + 1}. ${stage.label}", style = MaterialTheme.typography.labelLarge)
             Image(
                 bitmap = stage.image.asImageBitmap(),
                 contentDescription = null,
@@ -372,7 +493,12 @@ private fun StageCard(index: Int, stage: ScanStage) {
 }
 
 @Composable
-private fun RegionCard(index: Int, region: ScanRegion) {
+private fun RegionCard(
+    index: Int,
+    region: ScanRegion,
+    canSaveTemplate: Boolean,
+    onSaveTemplate: () -> Unit,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -382,7 +508,6 @@ private fun RegionCard(index: Int, region: ScanRegion) {
                 "Region ${index + 1} · Band: ${region.band} · Konfidenz: ${region.confidence}",
                 style = MaterialTheme.typography.labelLarge,
             )
-            // The exact (binarized) crop handed to Tesseract.
             Image(
                 bitmap = region.crop.asImageBitmap(),
                 contentDescription = null,
@@ -392,7 +517,9 @@ private fun RegionCard(index: Int, region: ScanRegion) {
                     .background(Color.White),
                 contentScale = ContentScale.Fit,
             )
-            Text("OCR: \"${region.ocrText}\"", style = MaterialTheme.typography.bodyMedium)
+            if (region.ocrText.isNotEmpty()) {
+                Text("OCR: \"${region.ocrText}\"", style = MaterialTheme.typography.bodyMedium)
+            }
             if (region.candidates.isEmpty()) {
                 Text(
                     "Keine Übereinstimmung",
@@ -409,6 +536,9 @@ private fun RegionCard(index: Int, region: ScanRegion) {
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            if (canSaveTemplate) {
+                OutlinedButton(onClick = onSaveTemplate) { Text("Als Vorlage speichern") }
             }
         }
     }

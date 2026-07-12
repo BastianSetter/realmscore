@@ -2,4 +2,6 @@
 <paths>
     <!-- Exported backup JSON lives in cacheDir/backups and is shared via FileProvider (Phase 23). -->
     <cache-path name="backups" path="backups/" />
+    <!-- Exported scan-template ZIP lives in cacheDir/template_exports (Phase 29). -->
+    <cache-path name="template_exports" path="template_exports/" />
 </paths>

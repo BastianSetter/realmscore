@@ -4,8 +4,12 @@ import android.content.Context
 import androidx.room.Room
 import de.morzo.realmscore.data.cards.CardLookup
 import de.morzo.realmscore.data.datastore.DeviceUuidProvider
+import de.morzo.realmscore.data.ocr.BannerTemplateStore
 import de.morzo.realmscore.data.ocr.CardScanner
+import de.morzo.realmscore.data.ocr.DelegatingCardScanner
 import de.morzo.realmscore.data.ocr.ScannerFactory
+import de.morzo.realmscore.data.ocr.TemplateCardScanner
+import kotlinx.coroutines.flow.first
 import de.morzo.realmscore.data.db.AppDatabase
 import de.morzo.realmscore.data.db.migration.MIGRATION_6_7
 import de.morzo.realmscore.data.db.migration.MIGRATION_7_8
@@ -82,7 +86,24 @@ class AppContainer(private val applicationContext: Context) {
 
     // Phase 26 camera scan: the OCR engine is flavour-specific (Tesseract for fdroid, ML Kit for
     // play), built by the active flavour's ScannerFactory and warmed up at app start.
-    val cardScanner: CardScanner by lazy { ScannerFactory.create(applicationContext, cardLookup) }
+    val ocrCardScanner: CardScanner by lazy { ScannerFactory.create(applicationContext, cardLookup) }
+
+    // Phase 29 bitmap matching: flavour-independent template store + NCC scanner.
+    val bannerTemplateStore: BannerTemplateStore by lazy { BannerTemplateStore(applicationContext) }
+
+    val templateCardScanner: TemplateCardScanner by lazy {
+        TemplateCardScanner(bannerTemplateStore, cardLookup)
+    }
+
+    // The single switch point: reads settingsRepository.bitmapMatchingEnabled per scan and routes to
+    // the template scanner (on) or the flavour OCR scanner (off, the default).
+    val cardScanner: CardScanner by lazy {
+        DelegatingCardScanner(
+            ocr = ocrCardScanner,
+            template = templateCardScanner,
+            bitmapMatchingEnabled = { settingsRepository.bitmapMatchingEnabled.first() },
+        )
+    }
 
     val profileRepository: ProfileRepository by lazy {
         ProfileRepositoryImpl(

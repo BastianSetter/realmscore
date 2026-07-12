@@ -401,6 +401,8 @@
     <string name="settings_picker_search_enabled">Textsuche im Picker</string>
     <string name="settings_camera_scan_enabled">Karten per Kamera scannen</string>
     <string name="settings_camera_scan_enabled_desc">Wenn aktiv, öffnet sich bei leerer Hand die Kamera statt der manuellen Kartenauswahl. Erkannte Karten lassen sich danach korrigieren.</string>
+    <string name="settings_bitmap_matching_enabled">Bitmap-Erkennung (experimentell)</string>
+    <string name="settings_bitmap_matching_enabled_desc">Vergleicht die Kartenbanner direkt mit gespeicherten Vorlagen statt Texterkennung. Benötigt einmalig erzeugte Vorlagen.</string>
 
     <!-- Phase 26: Kamera-Scan -->
     <string name="camera_scan_title">Karten scannen</string>

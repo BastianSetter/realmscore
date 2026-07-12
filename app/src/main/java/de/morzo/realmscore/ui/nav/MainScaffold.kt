@@ -250,7 +250,10 @@ fun MainScaffold(container: AppContainer) {
                 }
                 composable(Routes.SCAN_DEBUG) {
                     ScanDebugScreen(
-                        scanner = container.cardScanner,
+                        ocrScanner = container.ocrCardScanner,
+                        templateScanner = container.templateCardScanner,
+                        templateStore = container.bannerTemplateStore,
+                        cardLookup = container.cardLookup,
                         onBack = { tabNavController.popBackStack() },
                     )
                 }
