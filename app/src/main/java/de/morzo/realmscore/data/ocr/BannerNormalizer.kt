@@ -79,11 +79,14 @@ class BannerNormalizer {
             null, null, step, 0.0, -1, -1, -1, stages.toList(),
         )
 
-        // Step 0 — raw crop: grow left past the (non-red) number bubble + a small margin all round.
+        // Step 0 — raw crop: grow left past the (non-red) number bubble + a small margin. The **top**
+        // margin is kept separately tiny so red *above* the banner isn't pulled into the crop and then
+        // mistaken for the top edge by the probe lines.
         val margin = (blobH * RAW_MARGIN).toInt()
+        val topMargin = (blobH * RAW_MARGIN_TOP).toInt()
         val rawRect = Rect(
             (blob.left - (blobH * BUBBLE_PAD).toInt()).coerceAtLeast(0),
-            (blob.top - margin).coerceAtLeast(0),
+            (blob.top - topMargin).coerceAtLeast(0),
             (blob.right + margin).coerceAtMost(source.width),
             (blob.bottom + margin).coerceAtMost(source.height),
         )
@@ -150,19 +153,20 @@ class BannerNormalizer {
         if (gold < 0) return BannerNormalization(null, null, "Gold-Ring", angle, -1, -1, up, stages.toList())
 
         // Step 4 — `red`: ribbon right end. Scan the same bubble row (red strip, above the letters)
-        // rightward from probe line 2 until the red ends.
-        val ax2 = (leveled.width * PROBE_X2).toInt().coerceIn(0, leveled.width - 1)
+        // rightward until the red ends. The start sits far right (its own knob, decoupled from the
+        // rotation probe) so mid-ribbon glare gaps can't stop the scan short of the true end.
+        val rStart = (leveled.width * RIGHT_SCAN_START).toInt().coerceIn(0, leveled.width - 1)
         val red = BannerGeometry.rightRedEnd(
-            pixels, leveled.width, leveled.height, seedRow, ax2, RIGHT_GAP_PX, redMinRatioRight,
+            pixels, leveled.width, leveled.height, seedRow, rStart, RIGHT_GAP_PX, redMinRatioRight,
         )
         if (trace) {
             stages += Stage(
-                "4 · Bandende rechts (Bubble-Zeile)", rightScanOverlay(leveled, pixels, seedRow, ax2, red),
-                "gescannte Zeile bei y=$seedRow, von x=$ax2 nach rechts · unten die Pixelzeile vergrößert · " +
+                "4 · Bandende rechts (Bubble-Zeile)", rightScanOverlay(leveled, pixels, seedRow, rStart, red),
+                "gescannte Zeile bei y=$seedRow, von x=$rStart nach rechts · unten die Pixelzeile vergrößert · " +
                     if (red >= 0) "rot = gefundenes red=$red" else "kein Rot gefunden",
             )
             stages += Stage(
-                "4 · Rot-Gate rechts (Zeile)", redRowPlot(pixels, leveled.width, seedRow, ax2, red, redMinRatioRight),
+                "4 · Rot-Gate rechts (Zeile)", redRowPlot(pixels, leveled.width, seedRow, rStart, red, redMinRatioRight),
                 RED_RIGHT_PLOT_NOTE,
             )
         }
@@ -435,13 +439,18 @@ class BannerNormalizer {
         const val RIGHT_GAP_PX = 3          // px; non-red gap tolerated by the right ribbon-end scan (speckle only)
         const val ROTATE_EPS = 0.5          // deg; below this, skip de-rotation
         const val MAX_ROTATE = 25.0         // deg; rotation cap
-        const val RAW_MARGIN = 0.15f        // raw-crop margin as a fraction of blob height
 
         // --- Tunable knobs (Scanner-Test sliders). ---
+        /** Raw-crop margin (right + bottom), fraction of blob height. */
+        var RAW_MARGIN = 0.08f
+        /** Raw-crop **top** margin, fraction of blob height — kept small so stray red above the banner isn't caught as the top edge. */
+        var RAW_MARGIN_TOP = 0.04f
         /** Left probe line, fraction of raw-crop width (right of the bubble). */
         var PROBE_X1 = 0.45f
-        /** Right probe line, fraction of raw-crop width — also the start of the right ribbon-end scan. */
+        /** Right probe line, fraction of raw-crop width (top-edge / rotation measurement). */
         var PROBE_X2 = 0.70f
+        /** Start of the right ribbon-end scan, fraction of raw-crop width — far right so mid-ribbon glare gaps are skipped. */
+        var RIGHT_SCAN_START = 0.85f
         /** Left grow of the raw crop, in blob heights (past the non-red number bubble). */
         var BUBBLE_PAD = 1.3f
         /** Gold-search / right-scan line: how far below the top edge to scan, in blob heights (red strip above the letters). */

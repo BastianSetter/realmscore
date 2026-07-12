@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -96,8 +98,14 @@ fun ScanDebugScreen(
     val whiteMin = remember { mutableFloatStateOf(ScanImageOps.titleBorderWhite) }
     val whiteMax = remember { mutableFloatStateOf(ScanImageOps.titleTextWhite) }
     // Bitmap (Phase 29) knobs.
+    val redGreenFactor = remember { mutableFloatStateOf(ScanImageOps.redMinGreenFactor) }
+    val redBlueFactor = remember { mutableFloatStateOf(ScanImageOps.redMinBlueFactor) }
+    val redMaxBlue = remember { mutableFloatStateOf(ScanImageOps.redMaxBlueFactor) }
+    val rawMargin = remember { mutableFloatStateOf(BannerNormalizer.RAW_MARGIN) }
+    val rawMarginTop = remember { mutableFloatStateOf(BannerNormalizer.RAW_MARGIN_TOP) }
     val probeX1 = remember { mutableFloatStateOf(BannerNormalizer.PROBE_X1) }
     val probeX2 = remember { mutableFloatStateOf(BannerNormalizer.PROBE_X2) }
+    val rightScanStart = remember { mutableFloatStateOf(BannerNormalizer.RIGHT_SCAN_START) }
     val descend = remember { mutableFloatStateOf(BannerNormalizer.DESCEND) }
     val factorA = remember { mutableFloatStateOf(BannerNormalizer.BOX_FACTOR_A) }
     val factorB = remember { mutableFloatStateOf(BannerNormalizer.BOX_FACTOR_B) }
@@ -108,7 +116,13 @@ fun ScanDebugScreen(
     val minTemplateScore = remember { mutableFloatStateOf(BannerNormalizer.MIN_TEMPLATE_SCORE) }
 
     val maxCards = remember { mutableIntStateOf(FAN_HAND_CARDS) }
-    var saveTarget by remember { mutableStateOf<ScanRegion?>(null) }
+    // Card assigned to each region (by region index) before a single batch save. Which region's
+    // picker dialog is currently open (region index), if any.
+    val assignments = remember { mutableStateMapOf<Int, CardDefinition>() }
+    var pickTarget by remember { mutableStateOf<Int?>(null) }
+
+    // A fresh analysis (new photo or re-run) invalidates the old region indices → drop assignments.
+    LaunchedEffect(state.report) { assignments.clear() }
 
     // Share-sheet / snackbar side effects.
     LaunchedEffect(Unit) {
@@ -239,7 +253,7 @@ fun ScanDebugScreen(
             }
 
             if (state.mode == ScanMode.BITMAP) {
-                bitmapSliders(probeX1, probeX2, descend, factorA, factorB, redRatioTop, redRatioRight, goldRed, goldBlueGreen, minTemplateScore, vm)
+                bitmapSliders(redGreenFactor, redBlueFactor, redMaxBlue, rawMargin, rawMarginTop, probeX1, probeX2, rightScanStart, descend, factorA, factorB, redRatioTop, redRatioRight, goldRed, goldBlueGreen, minTemplateScore, vm)
             } else {
                 ocrSliders(redBorder, whiteMin, whiteMax, brightFraction, padTop, padBottom, sideRed, vm)
             }
@@ -313,24 +327,46 @@ fun ScanDebugScreen(
                     RegionCard(
                         index = index,
                         region = region,
-                        canSaveTemplate = state.mode == ScanMode.BITMAP && region.band == "Bitmap",
-                        onSaveTemplate = { saveTarget = region },
+                        canAssign = state.mode == ScanMode.BITMAP && region.band == "Bitmap",
+                        assignedName = assignments[index]?.nameDe,
+                        onAssign = { pickTarget = index },
                     )
+                }
+                if (state.mode == ScanMode.BITMAP && report.regions.any { it.band == "Bitmap" }) {
+                    item {
+                        Button(
+                            onClick = {
+                                val entries = assignments.mapNotNull { (idx, card) ->
+                                    report.regions.getOrNull(idx)?.takeIf { it.band == "Bitmap" }?.let { card.key to it.crop }
+                                }
+                                vm.saveTemplates(entries)
+                                assignments.clear()
+                            },
+                            enabled = assignments.isNotEmpty(),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("${assignments.size} Vorlage(n) speichern") }
+                    }
                 }
             }
         }
     }
 
-    saveTarget?.let { region ->
-        SaveTemplateDialog(
-            defaultQuery = region.candidates.firstOrNull()?.card?.nameDe.orEmpty(),
-            search = vm::searchCards,
-            onPick = { card ->
-                vm.saveTemplate(card.key, region.crop)
-                saveTarget = null
-            },
-            onDismiss = { saveTarget = null },
-        )
+    pickTarget?.let { index ->
+        val region = state.report?.regions?.getOrNull(index)
+        if (region == null) {
+            pickTarget = null
+        } else {
+            SaveTemplateDialog(
+                defaultQuery = assignments[index]?.nameDe
+                    ?: region.candidates.firstOrNull()?.card?.nameDe.orEmpty(),
+                search = vm::searchCards,
+                onPick = { card ->
+                    assignments[index] = card
+                    pickTarget = null
+                },
+                onDismiss = { pickTarget = null },
+            )
+        }
     }
 }
 
@@ -342,8 +378,14 @@ private val FAN_CARD_CHOICES = listOf(7, 10, 12)
 
 /** Phase-29 tuning sliders (probe lines, safe gap, gold thresholds, match floor). */
 private fun androidx.compose.foundation.lazy.LazyListScope.bitmapSliders(
+    redGreenFactor: androidx.compose.runtime.MutableFloatState,
+    redBlueFactor: androidx.compose.runtime.MutableFloatState,
+    redMaxBlue: androidx.compose.runtime.MutableFloatState,
+    rawMargin: androidx.compose.runtime.MutableFloatState,
+    rawMarginTop: androidx.compose.runtime.MutableFloatState,
     probeX1: androidx.compose.runtime.MutableFloatState,
     probeX2: androidx.compose.runtime.MutableFloatState,
+    rightScanStart: androidx.compose.runtime.MutableFloatState,
     descend: androidx.compose.runtime.MutableFloatState,
     factorA: androidx.compose.runtime.MutableFloatState,
     factorB: androidx.compose.runtime.MutableFloatState,
@@ -355,10 +397,28 @@ private fun androidx.compose.foundation.lazy.LazyListScope.bitmapSliders(
     vm: ScanDebugViewModel,
 ) {
     item {
+        SliderRow("Blob-Rot r ≥ ·g (Rot>Grün)", redGreenFactor.floatValue, 1.0f..1.6f, { redGreenFactor.floatValue = it; ScanImageOps.redMinGreenFactor = it }, vm)
+    }
+    item {
+        SliderRow("Blob-Rot b ≥ ·g (kein Holz)", redBlueFactor.floatValue, 0.5f..1.1f, { redBlueFactor.floatValue = it; ScanImageOps.redMinBlueFactor = it }, vm)
+    }
+    item {
+        SliderRow("Blob-Rot b ≤ ·r (kein Blau)", redMaxBlue.floatValue, 0.6f..1.0f, { redMaxBlue.floatValue = it; ScanImageOps.redMaxBlueFactor = it }, vm)
+    }
+    item {
+        SliderRow("Roh-Rand (·Blobhöhe)", rawMargin.floatValue, 0.0f..0.30f, { rawMargin.floatValue = it; BannerNormalizer.RAW_MARGIN = it }, vm)
+    }
+    item {
+        SliderRow("Roh-Rand oben (·Blobhöhe)", rawMarginTop.floatValue, 0.0f..0.20f, { rawMarginTop.floatValue = it; BannerNormalizer.RAW_MARGIN_TOP = it }, vm)
+    }
+    item {
         SliderRow("Probelinie 1 (%)", probeX1.floatValue, 0.20f..0.70f, { probeX1.floatValue = it; BannerNormalizer.PROBE_X1 = it }, vm)
     }
     item {
         SliderRow("Probelinie 2 (%)", probeX2.floatValue, 0.55f..0.95f, { probeX2.floatValue = it; BannerNormalizer.PROBE_X2 = it }, vm)
+    }
+    item {
+        SliderRow("Bandende-Suche Start (%)", rightScanStart.floatValue, 0.55f..0.98f, { rightScanStart.floatValue = it; BannerNormalizer.RIGHT_SCAN_START = it }, vm)
     }
     item {
         SliderRow("Scan-Abstieg (·Blobhöhe)", descend.floatValue, 0.0f..0.30f, { descend.floatValue = it; BannerNormalizer.DESCEND = it }, vm)
@@ -439,7 +499,7 @@ private fun SaveTemplateDialog(
         onDismissRequest = onDismiss,
         confirmButton = {},
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
-        title = { Text("Als Vorlage speichern") },
+        title = { Text("Karte zuordnen") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -496,8 +556,9 @@ private fun StageCard(index: Int, stage: ScanStage) {
 private fun RegionCard(
     index: Int,
     region: ScanRegion,
-    canSaveTemplate: Boolean,
-    onSaveTemplate: () -> Unit,
+    canAssign: Boolean,
+    assignedName: String?,
+    onAssign: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -537,8 +598,23 @@ private fun RegionCard(
                     )
                 }
             }
-            if (canSaveTemplate) {
-                OutlinedButton(onClick = onSaveTemplate) { Text("Als Vorlage speichern") }
+            if (canAssign) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Zuordnung: ${assignedName ?: "—"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (assignedName != null) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedButton(onClick = onAssign) {
+                        Text(if (assignedName == null) "Karte wählen" else "Ändern")
+                    }
+                }
             }
         }
     }

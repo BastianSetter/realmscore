@@ -104,16 +104,21 @@ class ScanDebugViewModel(
         last?.let { analyze(it.first, it.second, maxCards) }
     }
 
-    /** Save one region's Standardbox as the filesDir template for [cardKey], then re-match. */
-    fun saveTemplate(cardKey: String, box: Bitmap) {
+    /**
+     * Batch-save several regions' Standardboxes as filesDir templates in one go. Reloads the scanner
+     * and refreshes the inventory **once** at the end and deliberately does **not** re-analyze the
+     * current photo — cutting the template set is faster when each save doesn't trigger a full re-scan;
+     * the user just moves on to the next photo.
+     */
+    fun saveTemplates(entries: List<Pair<String, Bitmap>>) {
+        if (entries.isEmpty()) return
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                templateStore.save(cardKey, box)
+                entries.forEach { (cardKey, box) -> templateStore.save(cardKey, box) }
                 templateScanner.reload()
             }
             refreshInventory()
-            eventChannel.send(ScanDebugEvent.Message("Vorlage gespeichert: $cardKey"))
-            reanalyze()
+            eventChannel.send(ScanDebugEvent.Message("${entries.size} Vorlage(n) gespeichert"))
         }
     }
 

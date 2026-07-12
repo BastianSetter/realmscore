@@ -34,6 +34,16 @@ object ScanImageOps {
     /** A *side-trim* column counts as solid ribbon above this red fraction — sets the left/right cut. */
     var titleSideRed = 0.60f
 
+    // --- Blob-red gate ([isSaturatedRed]) — the whole-photo red-banner detector. Blue-aware so that
+    //     glossy card **sleeves** (which add a near-white veil that lifts green+blue and desaturates the
+    //     red) are still caught, while the warm wooden table (blue ≪ green) is rejected. ---
+    /** Red must dominate green by at least this factor (`r ≥ · g`) — rejects white/cream (r ≈ g). */
+    var redMinGreenFactor = 1.15f
+    /** Blue must not fall far below green (`b ≥ · g`) — rejects the warm/orange table (blue-deficient). */
+    var redMinBlueFactor = 0.90f
+    /** Blue must stay below red (`b ≤ · r`) — rejects blue/purple card art and sky. */
+    var redMaxBlueFactor = 0.85f
+
     fun rotate(src: Bitmap, degrees: Int): Bitmap {
         val normalized = ((degrees % 360) + 360) % 360
         if (normalized == 0) return src
@@ -302,18 +312,20 @@ object ScanImageOps {
     fun minChannel(p: Int): Int = minOf(Color.red(p), Color.green(p), Color.blue(p))
 
     /**
-     * Saturated red of the title banner, judged **proportionally** so it is brightness-independent:
-     * dark / shadowed / tilted banners still count (the difference scales with the red level), while
-     * the less-saturated brown of a wooden table does not. Used for the whole-photo blob detection in
-     * the Tesseract flavour. (The ML Kit flavour uses [redFraction]'s simpler test, applied only to
-     * text-line boxes that are already on a card.)
+     * Saturated red of the title banner, judged **proportionally** (brightness-independent) and
+     * **blue-aware**: red must dominate green ([redMinGreenFactor]) and blue must sit between green and
+     * red ([redMinBlueFactor]≤ b/g and b/r ≤[redMaxBlueFactor]). The banner red is faintly magenta
+     * (blue ≈ green), so the blue floor rejects the warm/orange wooden table (blue ≪ green) while the
+     * blue cap rejects blue/purple art — and, crucially, the *floor* rather than a low-blue *cap* lets
+     * glossy **sleeved** banners through, whose veiling glare lifts green **and** blue together. Used
+     * for the whole-photo blob detection (both flavours' [RedBannerDetector]).
      */
     fun isSaturatedRed(p: Int): Boolean {
         val r = Color.red(p)
         val g = Color.green(p)
         val b = Color.blue(p)
         if (r < 60) return false
-        return (r - g) >= 0.4f * r && (r - b) >= 0.3f * r
+        return r >= redMinGreenFactor * g && b >= redMinBlueFactor * g && b <= redMaxBlueFactor * r
     }
 
     /** Fraction of [box] in [bitmap] that is banner-red — used to tell a white-on-red *title* line from
