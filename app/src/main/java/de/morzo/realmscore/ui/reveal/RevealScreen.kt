@@ -60,6 +60,7 @@ fun RevealScreen(
             handCardRepo = container.handCardRepository,
             cardLookup = container.cardLookup,
             engine = container.scoringEngine,
+            handScoring = container.handScoringService,
         ),
     )
     val state by vm.uiState.collectAsStateWithLifecycle()

@@ -34,9 +34,10 @@ fun PlayerHandEntryScreen(
     val vm: PlayerHandEntryViewModel = viewModel(
         factory = PlayerHandEntryViewModel.Factory(
             cardLookup = container.cardLookup,
+            cursedItemLookup = container.cursedItemLookup,
             handCardRepo = container.handCardRepository,
             profileRepo = container.profileRepository,
-            engine = container.scoringEngine,
+            handScoring = container.handScoringService,
             optimalSolver = container.optimalSolver,
             roundId = roundId,
             profileId = profileId,
@@ -83,6 +84,7 @@ fun PlayerHandEntryScreen(
                 // own placed cards from the eligible pool.
                 container.cardLookup.getNecromancerCandidates(
                     handKeys = state.filledCards.map { it.key }.toSet(),
+                    necromancerKey = state.necromancerCard?.key ?: "necromancer",
                 )
             },
             onSetCardInSlot = vm::setCardInSlot,
@@ -91,6 +93,7 @@ fun PlayerHandEntryScreen(
             onApplyOptimal = vm::applyOptimal,
             onSetNecromancerPick = vm::setNecromancerPick,
             onClearNecromancerPick = vm::clearNecromancerPick,
+            onToggleCursedItem = vm::toggleCursedItem,
             onSubmit = { vm.submit(onSubmitDone) },
             submitLabel = stringResource(R.string.player_hand_submit),
         )

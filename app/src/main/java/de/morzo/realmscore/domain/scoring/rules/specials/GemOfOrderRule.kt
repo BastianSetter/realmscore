@@ -14,7 +14,8 @@ import de.morzo.realmscore.domain.scoring.ScoringContext
  *   +150 for 7
  *
  * Counts the longest run of distinct consecutive base strengths among all non-blanked cards
- * (Gem itself is included). Base strength of jokers is 0 unless substituted in.
+ * (Gem itself is included). Base strength of jokers is 0 unless substituted in. A run of 8 (possible
+ * with the expansion's bigger hands) gives no extra bonus beyond 7 (expansion FAQ).
  */
 object GemOfOrderRule : CardScoringRule {
 
@@ -32,7 +33,7 @@ object GemOfOrderRule : CardScoringRule {
             .filter { it > 0 } // unsubstituted jokers have 0; ignore them
             .distinct()
             .sorted()
-        val longestRun = longestConsecutiveRun(strengths)
+        val longestRun = longestConsecutiveRun(strengths).coerceAtMost(7)
         val bonus = tiers[longestRun] ?: return emptyList()
         return listOf(
             EffectApplication(

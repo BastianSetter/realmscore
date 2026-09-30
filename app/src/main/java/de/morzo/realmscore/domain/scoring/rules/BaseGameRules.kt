@@ -35,7 +35,7 @@ import de.morzo.realmscore.domain.scoring.rules.specials.UnicornRule
 import de.morzo.realmscore.domain.scoring.rules.specials.WarlordRule
 import de.morzo.realmscore.domain.scoring.rules.specials.WarshipCancelRule
 import de.morzo.realmscore.domain.scoring.rules.specials.WildfireRule
-import de.morzo.realmscore.domain.scoring.rules.specials.WorldTreeRule
+import de.morzo.realmscore.domain.scoring.rules.specials.WorldTreeBonusRule
 
 /**
  * Single source of truth: 53 card keys → CardScoringRule.
@@ -44,9 +44,9 @@ import de.morzo.realmscore.domain.scoring.rules.specials.WorldTreeRule
  */
 object BaseGameRules {
 
-    fun build(): CardRuleRegistry = CardRuleRegistry(map())
+    fun build(): CardRuleRegistry = CardRuleRegistry(map() + ExpansionRules.map())
 
-    private fun map(): Map<String, CardScoringRule> = mapOf(
+    fun map(): Map<String, CardScoringRule> = mapOf(
         // ───────────── ARMY ─────────────
         "rangers" to CompositeRule(
             PerOtherCountRule(
@@ -81,7 +81,7 @@ object BaseGameRules {
 
         // ───────────── ARTEFACT ─────────────
         "protection_rune" to RuneOfProtectionRule,
-        "world_tree" to WorldTreeRule,
+        "world_tree" to WorldTreeBonusRule(50),
         // book_of_changes — joker; handled by JokerResolver, no own rule
         "shield_of_keth" to ShieldOfKethRule,
         "gem_of_order" to GemOfOrderRule,
@@ -109,7 +109,7 @@ object BaseGameRules {
         "candle" to ConditionalFlatRule(
             condition = And(
                 Contains(ByKey("book_of_changes")),
-                Contains(ByKey("bell_tower")),
+                Contains(ByKey("bell_tower", "expansion_bell_tower")),
                 Contains(BySuit(Suit.WIZARD)),
             ),
             amount = 100,
@@ -249,7 +249,7 @@ object BaseGameRules {
                 Contains(ByKey("rainstorm")),
                 Or(
                     Contains(ByKey("blizzard")),
-                    Contains(ByKey("great_flood")),
+                    Contains(ByKey("great_flood", "expansion_great_flood")),
                 ),
             ),
             amount = 40,

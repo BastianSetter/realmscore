@@ -74,7 +74,8 @@ fun RoundCaptureScreen(
             gameRepo = container.gameRepository,
             roundRepo = container.roundRepository,
             settingsRepo = container.settingsRepository,
-            engine = container.scoringEngine,
+            handScoring = container.handScoringService,
+            cursedItemLookup = container.cursedItemLookup,
             optimalSolver = container.optimalSolver,
             p2p = container.p2pSessionRepository,
             deviceUuidProvider = container.deviceUuidProvider,
@@ -212,6 +213,7 @@ fun RoundCaptureScreen(
                 onApplyOptimal = vm::applyOptimal,
                 onSetNecromancerPick = vm::setNecromancerPick,
                 onClearNecromancerPick = vm::clearNecromancerPick,
+                onToggleCursedItem = vm::toggleCursedItem,
                 onSubmit = { vm.submitCurrentAndAdvance(onAllPlayersCaptured) },
                 submitLabel = if (state.current.isDiscard) {
                     stringResource(R.string.discard_capture_submit)

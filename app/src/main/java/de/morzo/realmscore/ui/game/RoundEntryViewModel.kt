@@ -3,6 +3,7 @@ package de.morzo.realmscore.ui.game
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import de.morzo.realmscore.domain.game.HandRules
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
@@ -12,8 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-private const val HAND_CARDS_PER_PLAYER = 7
 
 enum class PlayerEntryStatus { NOT_STARTED, COMPLETED }
 
@@ -50,6 +49,8 @@ class RoundEntryViewModel(
                 ?: error("Round not found: $roundId")
             val participants = gameRepo.getParticipants(round.gameId)
                 .sortedBy { it.seatOrder }
+            // Phase 30: games with the expansion's new suits play 8-card hands.
+            val handCards = HandRules.minHand(gameRepo.getById(round.gameId)?.newSuitsEnabled ?: false)
             val basePlayers = participants.mapNotNull { participant ->
                 profileRepo.getById(participant.profileId)?.let { profile ->
                     PlayerEntryRow(
@@ -72,7 +73,7 @@ class RoundEntryViewModel(
                 _uiState.update { state ->
                     val updated = state.players.map { row ->
                         val cnt = counts[row.profileId] ?: 0
-                        val status = if (cnt >= HAND_CARDS_PER_PLAYER) {
+                        val status = if (cnt >= handCards) {
                             PlayerEntryStatus.COMPLETED
                         } else {
                             PlayerEntryStatus.NOT_STARTED

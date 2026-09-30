@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.morzo.realmscore.R
 import de.morzo.realmscore.data.cards.CardLookup
+import de.morzo.realmscore.domain.scoring.joker.JokerTargets
 import de.morzo.realmscore.di.AppContainer
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.scoring.CardScoreResult
@@ -253,15 +254,15 @@ private fun SandboxHandColumn(
             onOptimal = vm::applyOptimal,
             optimalRunning = state.optimalRunning,
             compact = true,
-            necromancer = if (state.necromancerInHand) {
+            necromancer = state.necromancerCard?.let { necromancer ->
                 NecromancerRowData(
-                    card = vm.allCards.first { it.key == "necromancer" },
-                    pickedCard = state.jokerAssignments["necromancer"]?.targetCardKey
-                        ?.let { key -> vm.allCards.firstOrNull { it.key == key } },
+                    card = necromancer,
+                    pickedCard = state.jokerAssignments[necromancer.key]?.targetCardKey
+                        ?.let(cardLookup),
                     onPick = { necromancerPickerOpen = true },
                     onClear = vm::clearNecromancerPick,
                 )
-            } else null,
+            },
         )
     }
 
@@ -289,8 +290,9 @@ private fun SandboxHandColumn(
 
     if (necromancerPickerOpen) {
         // Discard pile is never scanned in the compare view, so offer the full eligible set.
-        val candidates = remember(placedKeys) {
-            vm.allCards.filter { it.suit in CardLookup.NECROMANCER_SUITS && it.key !in placedKeys }
+        val candidates = remember(placedKeys, state.newSuits) {
+            val suits = JokerTargets.necromancerSuits(state.necromancerCard?.key ?: "necromancer")
+            vm.allCards.filter { it.suit in suits && it.key !in placedKeys }
         }
         CardPicker(
             allCards = candidates,

@@ -18,6 +18,13 @@ interface RoundResultDao {
     @Query("UPDATE round_results SET totalScore = :score, updatedAt = :ts WHERE id = :id")
     suspend fun updateScore(id: String, score: Int, ts: Long)
 
+    /** Phase 30: score plus the round's cursed items (points already folded into [score]). */
+    @Query(
+        "UPDATE round_results SET totalScore = :score, cursedPoints = :cursedPoints, " +
+            "cursedItemKeys = :cursedItemKeys, updatedAt = :ts WHERE id = :id"
+    )
+    suspend fun updateScoreAndCursed(id: String, score: Int, cursedPoints: Int, cursedItemKeys: String, ts: Long)
+
     @Query("SELECT * FROM round_results WHERE roundId = :roundId")
     fun observeResultsForRound(roundId: String): Flow<List<RoundResultEntity>>
 

@@ -32,6 +32,8 @@ class HandCardRepositoryImpl(
         profileId: String,
         cards: List<HandCardEntry>,
         totalScore: Int,
+        cursedItemKeys: List<String>,
+        cursedPoints: Int,
     ) {
         val now = clock.nowEpochMillis()
         val deviceId = deviceUuidProvider.get()
@@ -42,7 +44,13 @@ class HandCardRepositoryImpl(
 
             val existing = roundResultDao.getForRoundAndProfile(roundId, profileId)
             val roundResultId = if (existing != null) {
-                roundResultDao.updateScore(existing.id, totalScore, now)
+                roundResultDao.updateScoreAndCursed(
+                    existing.id,
+                    totalScore,
+                    cursedPoints,
+                    RoundResultEntity.encodeCursedItemKeys(cursedItemKeys),
+                    now,
+                )
                 handCardDao.deleteAllForRoundResult(existing.id)
                 existing.id
             } else {
@@ -56,6 +64,8 @@ class HandCardRepositoryImpl(
                         createdAt = now,
                         updatedAt = now,
                         originDeviceId = deviceId,
+                        cursedPoints = cursedPoints,
+                        cursedItemKeys = RoundResultEntity.encodeCursedItemKeys(cursedItemKeys),
                     )
                 )
                 newId
@@ -90,7 +100,12 @@ class HandCardRepositoryImpl(
                 jokerTargetSuit = e.jokerTargetSuit,
             )
         }
-        return SavedHand(cards = cards, totalScore = result.totalScore)
+        return SavedHand(
+            cards = cards,
+            totalScore = result.totalScore,
+            cursedItemKeys = RoundResultEntity.decodeCursedItemKeys(result.cursedItemKeys),
+            cursedPoints = result.cursedPoints,
+        )
     }
 
     override fun observeHandCardCountByProfile(roundId: String): Flow<Map<String, Int>> =

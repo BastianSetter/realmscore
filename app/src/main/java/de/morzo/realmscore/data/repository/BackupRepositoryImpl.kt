@@ -345,7 +345,13 @@ class BackupRepositoryImpl(
                     changed = true
                 }
                 result.updatedAt > existingResult.updatedAt -> {
-                    db.roundResultDao().updateScore(existingResult.id, result.totalScore, result.updatedAt)
+                    db.roundResultDao().updateScoreAndCursed(
+                        existingResult.id,
+                        result.totalScore,
+                        result.cursedPoints,
+                        RoundResultEntity.encodeCursedItemKeys(result.cursedItemKeys),
+                        result.updatedAt,
+                    )
                     db.handCardDao().deleteAllForRoundResult(existingResult.id)
                     if (result.handCards.isNotEmpty()) {
                         db.handCardDao().insertAll(result.handCards.map { it.toEntity(existingResult.id) })
@@ -394,6 +400,8 @@ private fun GameEntity.toBackup(
         BackupParticipant(it.profileId, it.seatOrder, it.lastScanOrder)
     },
     rounds = rounds,
+    cursedItemsEnabled = cursedItemsEnabled,
+    newSuitsEnabled = newSuitsEnabled,
 )
 
 private fun RoundEntity.toBackup(
@@ -418,6 +426,8 @@ private fun RoundResultEntity.toBackup(handCards: List<HandCardEntity>) = Backup
     id = id,
     profileId = profileId,
     totalScore = totalScore,
+    cursedPoints = cursedPoints,
+    cursedItemKeys = RoundResultEntity.decodeCursedItemKeys(cursedItemKeys),
     createdAt = createdAt,
     updatedAt = updatedAt,
     originDeviceId = originDeviceId,
@@ -464,6 +474,8 @@ private fun BackupGame.toEntity() = GameEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
     originDeviceId = originDeviceId,
+    cursedItemsEnabled = cursedItemsEnabled,
+    newSuitsEnabled = newSuitsEnabled,
 )
 
 private fun BackupParticipant.toEntity(gameId: String) = GameParticipantEntity(
@@ -503,6 +515,8 @@ private fun BackupResult.toEntity(roundId: String) = RoundResultEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
     originDeviceId = originDeviceId,
+    cursedPoints = cursedPoints,
+    cursedItemKeys = RoundResultEntity.encodeCursedItemKeys(cursedItemKeys),
 )
 
 private fun BackupHandCard.toEntity(roundResultId: String) = HandCardEntity(

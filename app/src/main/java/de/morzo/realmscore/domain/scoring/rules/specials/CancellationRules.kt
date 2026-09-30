@@ -50,13 +50,11 @@ object WarshipCancelRule : CardScoringRule {
 
 /** Insel: cancels one Flood OR Flame penalty chosen by the player (the Island's joker target). */
 object IslandCancelRule : CardScoringRule {
-    const val ISLAND_KEY = "island"
-
     override fun cancellations(self: ResolvedCard, ctx: ScoringContext) =
         listOf(
             PenaltyCancellation.CancelOneOf(
                 sourceKey = self.originalKey,
-                targetCardKey = ctx.jokerAssignments[ISLAND_KEY]?.targetCardKey,
+                targetCardKey = ctx.jokerAssignments[self.originalKey]?.targetCardKey,
             )
         )
 }

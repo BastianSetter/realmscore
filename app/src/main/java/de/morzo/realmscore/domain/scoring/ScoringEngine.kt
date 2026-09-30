@@ -1,10 +1,18 @@
 package de.morzo.realmscore.domain.scoring
 
 import de.morzo.realmscore.domain.model.CardDefinition
+import de.morzo.realmscore.domain.model.JokerType
+import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.domain.scoring.blanking.BlankingResolver
 import de.morzo.realmscore.domain.scoring.joker.JokerResolver
+import de.morzo.realmscore.domain.scoring.joker.JokerTargets
 import de.morzo.realmscore.domain.scoring.penalty.PenaltyContext
 import de.morzo.realmscore.domain.scoring.rules.CardRuleRegistry
+import de.morzo.realmscore.domain.scoring.rules.specials.ANGEL_KEY
+import de.morzo.realmscore.domain.scoring.rules.specials.DEMON_KEY
+import de.morzo.realmscore.domain.scoring.rules.specials.DemonRule
+import de.morzo.realmscore.domain.scoring.rules.specials.EXPANSION_NECROMANCER_KEY
+import de.morzo.realmscore.domain.scoring.rules.specials.LICH_KEY
 
 /**
  * Pure-Kotlin scoring pipeline. No Android imports.
@@ -17,6 +25,9 @@ import de.morzo.realmscore.domain.scoring.rules.CardRuleRegistry
  *     per-suit bonuses, can be blanked, can blank).
  *  2) Collect penalty cancellations from all rules (full pre-blanking hand). Clearing is
  *     permanent, so this is the final PenaltyContext — a blanked canceller still cleared.
+ *  2b) Phase 30: the Dämon blanks every non-Outsider card that is alone in its suit — before any
+ *     other blanking (unless its penalty is cleared). Cards that cannot be blanked (Engel + its
+ *     target, Undead with Lich / expansion Necromancer) are exempt here and in step 3.
  *  3) Blanking fixpoint (incl. self-blanks); a card whose penalty is cleared blanks nothing,
  *     and blanked sources lose their remaining effects
  *  4) Bonuses for non-blanked cards (bonusEnabled gate)
@@ -42,6 +53,7 @@ class ScoringEngine(
             cardLookup = cardLookup,
             jokerAssignments = input.jokerAssignments,
             penaltyContext = null,
+            playerCount = input.playerCount,
         )
 
         // 2) Cancellations sammeln (alle Karten, vor Blanking)
@@ -57,8 +69,10 @@ class ScoringEngine(
         // including blanking; Mirage/Shapeshifter inherit nothing of either kind). The resolver
         // also consumes the cancellations: a card whose penalty is fully cancelled (e.g. Herr
         // der Bestien → Basilisk, Gebirge → Große Flut) blanks nothing.
+        val protectedFor = { active: List<ResolvedCard> -> protectedKeys(active, resolved, input) }
+        val earlyBlanked = demonBlanks(resolved, PenaltyContext(rawCancellations), protectedFor(resolved))
         val blanker = BlankingResolver { key -> registry.get(key) }
-        val blankingOutcome = blanker.resolve(workingCtx, rawCancellations)
+        val blankingOutcome = blanker.resolve(workingCtx, rawCancellations, earlyBlanked, protectedFor)
         val blankedKeys = blankingOutcome.blanked
 
         // 4) PenaltyContext: clearing is permanent.
@@ -75,8 +89,8 @@ class ScoringEngine(
 
         // The Necromancer's pulled card is the only resolved card whose originalKey is not a hand
         // card; flag it for the breakdown UI. Guard against a stale pick when no Necromancer is held.
-        val necromancerPickKey = input.jokerAssignments[NECROMANCER_KEY]?.targetCardKey
-            ?.takeIf { input.hand.any { c -> c.key == NECROMANCER_KEY } }
+        val necromancerPickKey = JokerTargets.firstOfType(input.hand, JokerType.NECROMANCER)
+            ?.let { input.jokerAssignments[it.key]?.targetCardKey }
 
         // 5)+6) Boni & Strafen je Karte
         val perCard = resolved.map { card ->
@@ -142,7 +156,50 @@ class ScoringEngine(
         )
     }
 
-    private companion object {
-        const val NECROMANCER_KEY = "necromancer"
+    /**
+     * Dämon (step 2b): the cards each un-cleared Dämon blanks before all other blanking, mapped to
+     * the Dämon(s) responsible. Protected cards are exempt.
+     */
+    private fun demonBlanks(
+        resolved: List<ResolvedCard>,
+        penaltyContext: PenaltyContext,
+        protectedSet: Set<String>,
+    ): Map<String, List<String>> {
+        val result = LinkedHashMap<String, MutableList<String>>()
+        for (demon in resolved) {
+            if (demon.effectiveCardKey != DEMON_KEY || !demon.penaltyEnabled) continue
+            if (penaltyContext.isFullyCancelled(demon)) continue
+            for (key in DemonRule.earlyBlanked(demon, resolved)) {
+                if (key in protectedSet) continue
+                result.getOrPut(key) { mutableListOf() } += demon.originalKey
+            }
+        }
+        return result
+    }
+
+    /**
+     * Cards that can not be blanked, derived from the currently [active] (non-blanked) hand:
+     *  - an Engel (with its bonus active) and the card chosen as its target,
+     *  - every Undead while a Lich or an expansion Necromancer is active.
+     */
+    private fun protectedKeys(
+        active: List<ResolvedCard>,
+        resolved: List<ResolvedCard>,
+        input: ScoringInput,
+    ): Set<String> {
+        val result = mutableSetOf<String>()
+        for (card in active) {
+            if (card.effectiveCardKey == ANGEL_KEY && card.bonusEnabled) {
+                result += card.originalKey
+                input.jokerAssignments[card.originalKey]?.targetCardKey?.let { result += it }
+            }
+        }
+        val undeadProtected = active.any {
+            it.bonusEnabled && (it.effectiveCardKey == LICH_KEY || it.effectiveCardKey == EXPANSION_NECROMANCER_KEY)
+        }
+        if (undeadProtected) {
+            resolved.filter { it.effectiveSuit == Suit.UNDEAD }.forEach { result += it.originalKey }
+        }
+        return result
     }
 }

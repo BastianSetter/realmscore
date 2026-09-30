@@ -1,5 +1,7 @@
 package de.morzo.realmscore.ui.reveal
 
+import de.morzo.realmscore.data.repository.HandScoringService
+import de.morzo.realmscore.data.repository.RoundScoringContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -60,6 +62,7 @@ class RoundSummaryViewModel(
     private val cardLookup: CardLookup,
     private val engine: ScoringEngine,
     private val p2p: P2PSessionRepository,
+    private val handScoring: HandScoringService,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RoundSummaryUiState())
@@ -97,12 +100,15 @@ class RoundSummaryViewModel(
                     roundRepo.observeResultsForGame(game.id),
                 ) { rounds, results -> rounds to results }
                     .collect { (rounds, results) ->
+                        val scoringContext = handScoring.context(roundId)
                         val summaries = participants.mapNotNull { participant ->
                             val profile = profileRepo.getById(participant.profileId)
                                 ?: return@mapNotNull null
                             val saved = handCardRepo.getHand(roundId, participant.profileId)
                                 ?: return@mapNotNull null
-                            val breakdown = withContext(Dispatchers.Default) { rescore(saved.cards) }
+                            val breakdown = withContext(Dispatchers.Default) {
+                                rescore(saved.cards, scoringContext, saved.cursedPoints)
+                            }
                             PlayerSummary(
                                 profileId = profile.id,
                                 name = profile.name,
@@ -180,22 +186,17 @@ class RoundSummaryViewModel(
 
     private fun rescore(
         cards: List<de.morzo.realmscore.domain.repository.HandCardEntry>,
+        context: RoundScoringContext,
+        cursedPoints: Int,
     ): Breakdown {
-        val hand = cards.mapNotNull { cardLookup.getByKey(it.cardKey) }
-        if (hand.size != cards.size) return Breakdown(0, 0, 0)
-        // Single reconstruction path: every target (jokers, Island, Fountain, Necromancer pull) →
-        // jokerAssignments, matching how the hand was scored at capture time.
-        val choices = cards.toScoringChoices()
-        val result = engine.score(
-            ScoringInput(
-                hand = hand,
-                jokerAssignments = choices.jokerAssignments,
-            )
-        )
+        // Single canonical input (targets, Mittelfeld, player count), matching how the hand was
+        // scored at capture time. The cursed items (Phase 30) count toward the plus/minus split.
+        val input = handScoring.input(cards, context) ?: return Breakdown(0, 0, 0)
+        val result = engine.score(input)
         val positive = result.perCard.filter { !it.isBlanked && it.contributedScore > 0 }
-            .sumOf { it.contributedScore }
+            .sumOf { it.contributedScore } + cursedPoints.coerceAtLeast(0)
         val negative = -result.perCard.filter { !it.isBlanked && it.contributedScore < 0 }
-            .sumOf { it.contributedScore }
+            .sumOf { it.contributedScore } - cursedPoints.coerceAtMost(0)
         return Breakdown(
             positive = positive,
             negative = negative,
@@ -229,6 +230,7 @@ class RoundSummaryViewModel(
         private val cardLookup: CardLookup,
         private val engine: ScoringEngine,
         private val p2p: P2PSessionRepository,
+        private val handScoring: HandScoringService,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -241,6 +243,7 @@ class RoundSummaryViewModel(
                 cardLookup = cardLookup,
                 engine = engine,
                 p2p = p2p,
+                handScoring = handScoring,
             ) as T
         }
     }

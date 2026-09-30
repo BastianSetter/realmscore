@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import de.morzo.realmscore.data.cards.CardLookup
+import de.morzo.realmscore.domain.game.HandRules
+import de.morzo.realmscore.domain.model.JokerType
+import de.morzo.realmscore.domain.scoring.joker.JokerTargets
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.domain.model.FavoriteCard
@@ -30,9 +33,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-const val SANDBOX_SLOT_COUNT = 7
+/** Base-game sandbox hand size; with the expansion's new suits see [HandRules.slotCount]. */
+const val SANDBOX_SLOT_COUNT = HandRules.BASE_HAND
 
-private const val NECROMANCER_KEY = "necromancer"
+/** Default player count of a fresh sandbox (only the Dschinn reads it). */
+private const val SANDBOX_DEFAULT_PLAYERS = 4
 
 sealed class CardSlot {
     data object Empty : CardSlot()
@@ -72,15 +77,23 @@ data class SandboxUiState(
     val favoriteId: String? = null,
     val favoriteNumber: Int? = null,
     val handName: String? = null,
+    /** Phase 30: sandbox plays with the expansion's new suits (own switch, independent of Settings). */
+    val newSuits: Boolean = false,
+    /** Phase 30: player count assumed for the Dschinn (+10 per opponent). */
+    val playerCount: Int = SANDBOX_DEFAULT_PLAYERS,
 ) {
     val score: Int get() = scoringResult?.totalScore ?: 0
 
     val filledCards: List<CardDefinition>
         get() = slots.mapNotNull { (it as? CardSlot.Filled)?.card }
 
-    /** A favorite may only be saved from a full, 7-card hand (Phase 22). */
+    /** A favorite may only be saved from a full hand (Phase 22; 8+ cards with the new suits). */
     val canSaveFavorite: Boolean
-        get() = filledCards.size == SANDBOX_SLOT_COUNT
+        get() = filledCards.size >= HandRules.minHand(newSuits)
+
+    /** Whether the hand holds its required cards (drives the auto-advance out of KartenPick). */
+    val isHandComplete: Boolean
+        get() = filledCards.size >= HandRules.minHand(newSuits)
 
     /** Whether the current hand is currently persisted as a favorite (drives the star toggle). */
     val isFavorite: Boolean get() = favoriteId != null
@@ -91,10 +104,14 @@ data class SandboxUiState(
      * (with a full card picker), so it is excluded here.
      */
     val jokerCardsInHand: List<CardDefinition>
-        get() = filledCards.filter { it.jokerType != null && it.key != NECROMANCER_KEY }
+        get() = filledCards.filter { it.jokerType != null && it.jokerType != JokerType.NECROMANCER }
+
+    /** The Necromancer in hand (base or expansion edition), if any. */
+    val necromancerCard: CardDefinition?
+        get() = filledCards.firstOrNull { it.jokerType == JokerType.NECROMANCER }
 
     val necromancerInHand: Boolean
-        get() = filledCards.any { it.key == NECROMANCER_KEY }
+        get() = necromancerCard != null
 }
 
 class SandboxViewModel(
@@ -109,9 +126,12 @@ class SandboxViewModel(
     private val favoriteRepo: SandboxFavoriteRepository?,
 ) : ViewModel() {
 
-    val allCards: List<CardDefinition> = cardLookup.getAll()
+    /** The sandbox's card pool (base, or with the expansion's new suits). */
+    val allCards: List<CardDefinition>
+        get() = cardLookup.cardsFor(_uiState.value.newSuits)
 
     private val _uiState = MutableStateFlow(SandboxUiState())
+
     val uiState: StateFlow<SandboxUiState> = _uiState.asStateFlow()
 
     /** Emits the favorite number each time the star toggle persists a hand, for the snackbar. */
@@ -151,10 +171,12 @@ class SandboxViewModel(
 
         val orderedEntries = saved.cards.sortedBy { it.position }
         val cards = orderedEntries.mapNotNull { cardLookup.getByKey(it.cardKey) }
-        val slots = MutableList<CardSlot>(SANDBOX_SLOT_COUNT) { CardSlot.Empty }
+        val slotCount = slotCountFor(game.newSuitsEnabled)
+        val slots = MutableList<CardSlot>(slotCount) { CardSlot.Empty }
         cards.forEachIndexed { idx, card ->
-            if (idx < SANDBOX_SLOT_COUNT) slots[idx] = CardSlot.Filled(card)
+            if (idx < slotCount) slots[idx] = CardSlot.Filled(card)
         }
+        val playerCount = gRepo.getParticipants(data.gameId).size
 
         // Every chosen target — substitution jokers, Island/Fountain and the Necromancer pull — is
         // persisted on its own HandCard's jokerTargetCardKey column, so they all rebuild uniformly
@@ -185,6 +207,8 @@ class SandboxViewModel(
                 discardCards = discardCards,
                 discardScanned = round.discardScanned,
                 originBanner = banner,
+                newSuits = game.newSuitsEnabled,
+                playerCount = playerCount,
                 isLoadingLaunchData = false,
             ).recomputeScore()
         }
@@ -276,10 +300,11 @@ class SandboxViewModel(
         }
 
     private fun SandboxFavorite.toSnapshot(): HandSnapshot {
-        val slotKeys = MutableList<String?>(SANDBOX_SLOT_COUNT) { null }
+        val slotCount = slotCountFor(handCards.any { JokerTargets.isExpansion(it.cardKey) })
+        val slotKeys = MutableList<String?>(slotCount) { null }
         val assignments = mutableMapOf<String, JokerAssignment>()
         handCards.forEach { fav ->
-            if (fav.position in 0 until SANDBOX_SLOT_COUNT) slotKeys[fav.position] = fav.cardKey
+            if (fav.position in 0 until slotCount) slotKeys[fav.position] = fav.cardKey
             if (fav.jokerTargetCardKey != null || fav.jokerTargetSuit != null) {
                 assignments[fav.cardKey] = JokerAssignment(
                     jokerKey = fav.cardKey,
@@ -292,12 +317,16 @@ class SandboxViewModel(
     }
 
     private fun SandboxUiState.applySnapshot(snapshot: HandSnapshot): SandboxUiState {
-        val slots = snapshot.slotKeys.take(SANDBOX_SLOT_COUNT).map { key ->
+        // A hand holding expansion cards switches the sandbox to the new suits (Phase 30).
+        val snapshotNewSuits = newSuits || snapshot.slotKeys.any { it != null && JokerTargets.isExpansion(it) }
+        val slotCount = slotCountFor(snapshotNewSuits)
+        val slots = snapshot.slotKeys.take(slotCount).map { key ->
             val card = key?.let { cardLookup.getByKey(it) }
             if (card != null) CardSlot.Filled(card) else CardSlot.Empty
         }
-        val padded = (slots + List(SANDBOX_SLOT_COUNT) { CardSlot.Empty }).take(SANDBOX_SLOT_COUNT)
+        val padded = (slots + List(slotCount) { CardSlot.Empty }).take(slotCount)
         return copy(
+            newSuits = snapshotNewSuits,
             slots = padded,
             jokerAssignments = snapshot.jokerAssignments,
             originBanner = null,
@@ -312,16 +341,16 @@ class SandboxViewModel(
         if (favoriteId == null) this else copy(favoriteId = null, favoriteNumber = null)
 
     fun setCardInSlot(slotIndex: Int, card: CardDefinition) {
-        if (slotIndex !in 0 until SANDBOX_SLOT_COUNT) return
         _uiState.update { state ->
+            if (slotIndex !in state.slots.indices) return@update state
             val newSlots = state.slots.toMutableList().also { it[slotIndex] = CardSlot.Filled(card) }
             state.copy(slots = newSlots).unlinkFavorite().pruneStaleSelections().recomputeScore()
         }
     }
 
     fun clearSlot(slotIndex: Int) {
-        if (slotIndex !in 0 until SANDBOX_SLOT_COUNT) return
         _uiState.update { state ->
+            if (slotIndex !in state.slots.indices) return@update state
             val newSlots = state.slots.toMutableList().also { it[slotIndex] = CardSlot.Empty }
             state.copy(slots = newSlots).unlinkFavorite().pruneStaleSelections().recomputeScore()
         }
@@ -335,10 +364,43 @@ class SandboxViewModel(
         }
     }
 
-    fun setNecromancerPick(cardKey: String) =
-        setJokerAssignment(NECROMANCER_KEY, JokerAssignment(NECROMANCER_KEY, cardKey))
+    fun setNecromancerPick(cardKey: String) {
+        val necromancer = _uiState.value.necromancerCard ?: return
+        setJokerAssignment(necromancer.key, JokerAssignment(necromancer.key, cardKey))
+    }
 
-    fun clearNecromancerPick() = setJokerAssignment(NECROMANCER_KEY, null)
+    fun clearNecromancerPick() {
+        val necromancer = _uiState.value.necromancerCard ?: return
+        setJokerAssignment(necromancer.key, null)
+    }
+
+    /**
+     * Phase 30: switch the sandbox between the base game and the expansion's new suits. Cards that
+     * are not part of the new pool (expansion cards when switching off, replaced base cards when
+     * switching on) are removed and the slot count follows the hand size.
+     */
+    fun setNewSuits(enabled: Boolean) {
+        _uiState.update { state ->
+            if (state.newSuits == enabled) return@update state
+            val poolKeys = cardLookup.cardsFor(enabled).map { it.key }.toSet()
+            val kept = state.slots.map { slot ->
+                val card = (slot as? CardSlot.Filled)?.card
+                if (card != null && card.key in poolKeys) slot else CardSlot.Empty
+            }
+            val slotCount = slotCountFor(enabled)
+            val filled = kept.filterIsInstance<CardSlot.Filled>()
+            val resized = (filled + List(slotCount) { CardSlot.Empty }).take(slotCount)
+            state.copy(newSuits = enabled, slots = resized)
+                .unlinkFavorite().pruneStaleSelections().recomputeScore()
+        }
+    }
+
+    /** Phase 30: player count assumed for the Dschinn. */
+    fun setPlayerCount(count: Int) {
+        _uiState.update { it.copy(playerCount = count.coerceIn(2, 6)).recomputeScore() }
+    }
+
+    private fun slotCountFor(newSuits: Boolean): Int = HandRules.slotCount(newSuits, cursedItems = false)
 
     fun applyOptimal() {
         val current = _uiState.value
@@ -357,7 +419,7 @@ class SandboxViewModel(
     }
 
     fun reset() {
-        _uiState.update { SandboxUiState() }
+        _uiState.update { SandboxUiState(newSuits = it.newSuits, playerCount = it.playerCount, slots = List(slotCountFor(it.newSuits)) { CardSlot.Empty }) }
     }
 
     private fun SandboxUiState.toScoringInput(): ScoringInput = ScoringInput(
@@ -365,6 +427,8 @@ class SandboxViewModel(
         jokerAssignments = jokerAssignments,
         discardPile = discardCards,
         discardScanned = discardScanned,
+        newSuits = newSuits,
+        playerCount = playerCount,
     )
 
     private fun SandboxUiState.recomputeScore(): SandboxUiState {

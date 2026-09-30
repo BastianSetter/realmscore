@@ -174,6 +174,9 @@
     <string name="suit_weather">Weather</string>
     <string name="suit_wizard">Wizard</string>
     <string name="suit_wild">Wild</string>
+    <string name="suit_building">Building</string>
+    <string name="suit_outsider">Outsider</string>
+    <string name="suit_undead">Undead</string>
     <string name="suit_all">All</string>
 
     <!-- Sandbox: Engine/Joker/Choice/Breakdown -->
@@ -300,6 +303,29 @@
     <string name="effect_blizzard_per_target">−5 per Army/Leader/Beast/Flame (× %1$s) <!-- NEEDS REVIEW --></string>
 
     <string name="effect_collector">Collection: %1$s cards of %2$s <!-- NEEDS REVIEW --></string>
+    <!-- Phase 30: Der verfluchte Schatz -->
+    <string name="effect_death_knight">+7 per Weapon/Army in the discard area (× %1$s)</string>
+    <string name="effect_lich">+10 per Necromancer/other Undead (× %1$s)</string>
+    <string name="effect_ghost">+6 per Wizard/Artifact/Outsider in the discard area (× %1$s)</string>
+    <string name="effect_ghoul">+4 per Wizard/Leader/Army/Beast/Undead in the discard area (× %1$s)</string>
+    <string name="effect_dark_queen">+5 per Land/Flood/Flame/Weather/Unicorn in the discard area (× %1$s)</string>
+    <string name="effect_judge">+10 per card with an uncleared penalty (× %1$s)</string>
+    <string name="effect_genie">+10 per opponent (× %1$s)</string>
+    <string name="effect_garden">+11 per Leader/Beast (× %1$s)</string>
+    <string name="effect_chapel">Exactly two Leaders/Wizards/Outsiders/Undead</string>
+    <string name="effect_crypt">Base strength of the Undead (× %1$s)</string>
+    <string name="effect_castle_first_leader">+10 for the first Leader</string>
+    <string name="effect_castle_first_army">+10 for the first Army</string>
+    <string name="effect_castle_first_land">+10 for the first Land</string>
+    <string name="effect_castle_first_building">+10 for the first other Building</string>
+    <string name="effect_castle_more_buildings">+5 per additional Building (× %1$s)</string>
+    <string name="effect_dungeon_first_undead">+10 for the first Undead</string>
+    <string name="effect_dungeon_first_beast">+10 for the first Beast</string>
+    <string name="effect_dungeon_first_artifact">+10 for the first Artifact</string>
+    <string name="effect_dungeon_more">+5 per additional card (× %1$s)</string>
+    <string name="effect_expansion_bell_tower">+15 with a Wizard or Undead</string>
+    <string name="effect_expansion_rangers">+10 per Land/Building (× %1$s)</string>
+    <string name="joker_action_angel">protects</string>
     <string name="effect_enchantress_per_target">+5 per Land/Weather/Flood/Flame (× %1$s) <!-- NEEDS REVIEW --></string>
     <string name="effect_beastmaster_per_beast">+9 per Beast (× %1$s) <!-- NEEDS REVIEW --></string>
     <string name="effect_warlock_per_target">−10 per Leader/other Wizard (× %1$s) <!-- NEEDS REVIEW --></string>
@@ -620,4 +646,20 @@
         effect_warlock_per_target
         ============================================================================
     -->
+    <!-- Phase 30: Der verfluchte Schatz -->
+    <string name="settings_expansion_title">Expansion “The Cursed Hoard”</string>
+    <string name="settings_expansion_cursed_items">Cursed items (default for new games)</string>
+    <string name="settings_expansion_new_suits">New suits (default for new games)</string>
+    <string name="new_game_expansion_title">Expansion “The Cursed Hoard”</string>
+    <string name="new_game_expansion_cursed_items">Cursed items</string>
+    <string name="new_game_expansion_new_suits">New suits (Building, Outsider, Undead)</string>
+    <string name="new_game_expansion_new_suits_hint">8-card hands, the discard area is captured</string>
+    <string name="card_badge_expansion">Expansion</string>
+    <string name="cursed_items_title">Cursed items</string>
+    <string name="cursed_items_hint">Select the used (flipped) items</string>
+    <string name="cursed_items_total">Items: %1$s</string>
+    <string name="cursed_items_none">None</string>
+    <string name="hand_optional_slot">optional</string>
+    <string name="sandbox_new_suits_toggle">New suits</string>
+    <string name="sandbox_player_count">Players: %1$d</string>
 </resources>

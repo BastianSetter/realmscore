@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
  * than this (a backup from a newer app version), but accepts equal or lower versions so old backups
  * stay importable after an app update.
  */
-const val CURRENT_BACKUP_SCHEMA_VERSION = 2
+const val CURRENT_BACKUP_SCHEMA_VERSION = 3 // 3: Phase 30 expansion flags + cursed items
 
 /**
  * Versioned, self-contained snapshot of all app data (Phase 23). The DTOs intentionally carry
@@ -59,6 +59,9 @@ data class BackupGame(
     val originDeviceId: String,
     val participants: List<BackupParticipant>,
     val rounds: List<BackupRound>,
+    // Phase 30 (schema 3): expansion flags, fixed per game.
+    val cursedItemsEnabled: Boolean = false,
+    val newSuitsEnabled: Boolean = false,
 )
 
 @Serializable
@@ -101,6 +104,9 @@ data class BackupResult(
     val updatedAt: Long,
     val originDeviceId: String,
     val handCards: List<BackupHandCard>,
+    // Phase 30 (schema 3): cursed items used this round; their points are part of totalScore.
+    val cursedPoints: Int = 0,
+    val cursedItemKeys: List<String> = emptyList(),
 )
 
 @Serializable

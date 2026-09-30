@@ -34,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -76,6 +77,7 @@ fun NewGameScreen(
             profileRepo = container.profileRepository,
             gameRepo = container.gameRepository,
             p2p = container.p2pSessionRepository,
+            settings = container.settingsRepository,
             seedGameId = seedGameId,
             continueSession = continueSession,
         ),
@@ -108,6 +110,13 @@ fun NewGameScreen(
             ModeSection(state.mode, onModeChange = vm::setMode)
             Spacer(Modifier.height(16.dp))
             TargetSection(state.mode, state.targetValue, onChange = vm::setTarget)
+            Spacer(Modifier.height(16.dp))
+            ExpansionSection(
+                cursedItemsEnabled = state.cursedItemsEnabled,
+                newSuitsEnabled = state.newSuitsEnabled,
+                onCursedItemsChange = vm::setCursedItemsEnabled,
+                onNewSuitsChange = vm::setNewSuitsEnabled,
+            )
             Spacer(Modifier.height(24.dp))
             HorizontalDivider()
             Spacer(Modifier.height(16.dp))
@@ -155,6 +164,63 @@ fun NewGameScreen(
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+/** Phase 30: the two independent parts of the expansion "Der verfluchte Schatz", fixed per game. */
+@Composable
+private fun ExpansionSection(
+    cursedItemsEnabled: Boolean,
+    newSuitsEnabled: Boolean,
+    onCursedItemsChange: (Boolean) -> Unit,
+    onNewSuitsChange: (Boolean) -> Unit,
+) {
+    Column {
+        Text(
+            text = stringResource(R.string.new_game_expansion_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Spacer(Modifier.height(4.dp))
+        ExpansionSwitchRow(
+            label = stringResource(R.string.new_game_expansion_cursed_items),
+            hint = null,
+            checked = cursedItemsEnabled,
+            onCheckedChange = onCursedItemsChange,
+        )
+        ExpansionSwitchRow(
+            label = stringResource(R.string.new_game_expansion_new_suits),
+            hint = stringResource(R.string.new_game_expansion_new_suits_hint),
+            checked = newSuitsEnabled,
+            onCheckedChange = onNewSuitsChange,
+        )
+    }
+}
+
+@Composable
+private fun ExpansionSwitchRow(
+    label: String,
+    hint: String?,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label)
+            if (hint != null) {
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

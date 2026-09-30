@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "note": "Der verfluchte Schatz - Teil 2 (neue Farben + Ersatzkarten). 'replaces' = Grundspiel-Karte, die im Spiel mit neuen Farben ersetzt wird.",
+  "cards": [
+    {
+      "key": "expansion_death_knight",
+      "nameDe": "Todesritter",
+      "suit": "UNDEAD",
+      "baseStrength": 14,
+      "ruleTextDe": "Bonus: +7 für jede Waffe und/oder Armee im Ablagebereich",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_lich",
+      "nameDe": "Lich",
+      "suit": "UNDEAD",
+      "baseStrength": 13,
+      "ruleTextDe": "Untote können nicht BLOCKIERT werden. Bonus: +10 für Totenbeschwörer und/oder jeden anderen Untoten",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_ghost",
+      "nameDe": "Gespenst",
+      "suit": "UNDEAD",
+      "baseStrength": 12,
+      "ruleTextDe": "Bonus: +6 für jeden Zauberer, Artefakt und/oder Outsider im Ablagebereich",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_ghoul",
+      "nameDe": "Ghul",
+      "suit": "UNDEAD",
+      "baseStrength": 8,
+      "ruleTextDe": "Bonus: +4 für jeden Zauberer, Anführer, Armee, Bestie und/oder Untoten im Ablagebereich",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_dark_queen",
+      "nameDe": "Dunkle Königin",
+      "suit": "UNDEAD",
+      "baseStrength": 10,
+      "ruleTextDe": "Bonus: +5 für jedes Land, Flut, Flamme, Wetter und/oder Einhorn im Ablagebereich",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_demon",
+      "nameDe": "Dämon",
+      "suit": "OUTSIDER",
+      "baseStrength": 45,
+      "ruleTextDe": "Strafe: Für jede Nicht-Outsider-Karte: Ist sie die einzige Karte ihrer Farbe auf Deiner Hand, ist sie BLOCKIERT. Dies geschieht vor allen anderen BLOCKIERUNGEN",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_leprechaun",
+      "nameDe": "Kobold",
+      "suit": "OUTSIDER",
+      "baseStrength": 20,
+      "ruleTextDe": "Bonus: Ziehe am Spielende die oberste Karte des Nachziehstapels und nimm sie auf die Hand (vor dem Dschinn)",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_angel",
+      "nameDe": "Engel",
+      "suit": "OUTSIDER",
+      "baseStrength": 16,
+      "ruleTextDe": "Bonus: Diese Karte kann niemals BLOCKIERT werden. Bewahrt eine beliebige andere Karte davor, BLOCKIERT zu werden",
+      "isJoker": false,
+      "jokerType": "ANGEL"
+    },
+    {
+      "key": "expansion_judge",
+      "nameDe": "Richter",
+      "suit": "OUTSIDER",
+      "baseStrength": 11,
+      "ruleTextDe": "Bonus: +10 für jede Karte, die eine Strafe enthält, die nicht AUFGEHOBEN ist",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_genie",
+      "nameDe": "Dschinn",
+      "suit": "OUTSIDER",
+      "baseStrength": -50,
+      "ruleTextDe": "Bonus: +10 pro Mitspieler. Du darfst am Spielende den Nachziehstapel durchsuchen und eine Karte davon auf die Hand nehmen (nach dem Kobold)",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_garden",
+      "nameDe": "Garten",
+      "suit": "LAND",
+      "baseStrength": 11,
+      "ruleTextDe": "Bonus: +11 für jeden Anführer und/oder Bestie. Strafe: Ist BLOCKIERT, wenn zusammen mit Untoten, Totenbeschwörer und/oder Dämon",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_chapel",
+      "nameDe": "Kapelle",
+      "suit": "BUILDING",
+      "baseStrength": 2,
+      "ruleTextDe": "Bonus: +40, wenn Du insgesamt genau zwei Karten der folgenden Farben hast: Anführer, Zauberer, Outsider und Untote",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_crypt",
+      "nameDe": "Gruft",
+      "suit": "BUILDING",
+      "baseStrength": 21,
+      "ruleTextDe": "Bonus: Die Summe der Basisstärke aller Untoten auf der Hand. Strafe: BLOCKIERT alle Anführer",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_castle",
+      "nameDe": "Burg",
+      "suit": "BUILDING",
+      "baseStrength": 10,
+      "ruleTextDe": "Bonus: +10 für jeweils den ersten Anführer, Armee, Land und anderes Gebäude. +5 für jedes weitere Gebäude",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_dungeon",
+      "nameDe": "Verlies",
+      "suit": "BUILDING",
+      "baseStrength": 7,
+      "ruleTextDe": "Bonus: +10 für jeweils den ersten Untoten, Bestie und Artefakt. +5 für jede weitere Karte dieser Farben sowie Totenbeschwörer, Hexenmeister, Dämon",
+      "isJoker": false,
+      "jokerType": null
+    },
+    {
+      "key": "expansion_mirage",
+      "nameDe": "Spiegelung",
+      "suit": "WILD",
+      "baseStrength": 0,
+      "ruleTextDe": "Kann Name und Farbe einer beliebigen Armee, Gebäude, Land, Wetter, Flut oder Flamme des Spiels kopieren. Übernimmt nicht Bonus, Strafen oder Basisstärke der entsprechenden Karte",
+      "isJoker": true,
+      "jokerType": "MIRAGE",
+      "replaces": "mirage"
+    },
+    {
+      "key": "expansion_shapeshifter",
+      "nameDe": "Gestaltwandler",
+      "suit": "WILD",
+      "baseStrength": 0,
+      "ruleTextDe": "Kann Name und Farbe eines beliebigen Artefakts, Anführers, Zauberers, Waffe, Bestie oder Untoten des Spiels kopieren. Übernimmt nicht Bonus, Strafen oder Basisstärke der entsprechenden Karte",
+      "isJoker": true,
+      "jokerType": "SHAPESHIFTER",
+      "replaces": "shapeshifter"
+    },
+    {
+      "key": "expansion_world_tree",
+      "nameDe": "Weltenbaum",
+      "suit": "ARTIFACT",
+      "baseStrength": 2,
+      "ruleTextDe": "Bonus: +70, wenn jede nicht BLOCKIERTE Karte eine unterschiedliche Farbe hat",
+      "isJoker": false,
+      "jokerType": null,
+      "replaces": "world_tree"
+    },
+    {
+      "key": "expansion_necromancer",
+      "nameDe": "Totenbeschwörer",
+      "suit": "WIZARD",
+      "baseStrength": 3,
+      "ruleTextDe": "Bonus: Du darfst am Spielende eine Armee, Anführer, Zauberer, Bestie oder Untoten aus dem Ablagebereich auf Deine Hand nehmen. Untote können nicht BLOCKIERT werden",
+      "isJoker": false,
+      "jokerType": "NECROMANCER",
+      "replaces": "necromancer"
+    },
+    {
+      "key": "expansion_rangers",
+      "nameDe": "Waldläufer",
+      "suit": "ARMY",
+      "baseStrength": 5,
+      "ruleTextDe": "Bonus: +10 für jedes Land und Gebäude; hebt das Wort Armee von allen Strafen AUF",
+      "isJoker": false,
+      "jokerType": null,
+      "replaces": "rangers"
+    },
+    {
+      "key": "expansion_great_flood",
+      "nameDe": "Große Flut",
+      "suit": "FLOOD",
+      "baseStrength": 32,
+      "ruleTextDe": "Strafe: BLOCKIERT alle Armeen, alle Gebäude, alle Länder außer Gebirge und alle Flammen außer Blitz",
+      "isJoker": false,
+      "jokerType": null,
+      "replaces": "great_flood"
+    },
+    {
+      "key": "expansion_fountain_of_life",
+      "nameDe": "Quelle des Lebens",
+      "suit": "FLOOD",
+      "baseStrength": 1,
+      "ruleTextDe": "Bonus: Addiere die Basisstärke einer beliebigen Waffe, Gebäude, Flut, Flamme, Land oder Wetter in Deiner Hand",
+      "isJoker": false,
+      "jokerType": "FOUNTAIN_OF_LIFE",
+      "replaces": "fountain_of_life"
+    },
+    {
+      "key": "expansion_bell_tower",
+      "nameDe": "Glockenturm",
+      "suit": "BUILDING",
+      "baseStrength": 8,
+      "ruleTextDe": "Bonus: +15 mit mindestens einem Zauberer oder Untoten",
+      "isJoker": false,
+      "jokerType": null,
+      "replaces": "bell_tower"
+    }
+  ]
+}
