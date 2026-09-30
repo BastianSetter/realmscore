@@ -27,8 +27,14 @@ class HandRulesTest {
     }
 
     @Test
-    fun portalAddsOneCardAlsoInTheBaseGame() {
-        assertEquals(8, HandRules.maxHand(false, eight.take(7), listOf(HandRules.PORTAL_KEY)))
+    fun portalMakesOneMoreCardMandatory() {
+        val portal = listOf(HandRules.PORTAL_KEY)
+        assertEquals(8, HandRules.maxHand(false, eight.take(7), portal))
+        assertEquals(8, HandRules.minHand(false, portal))
+        assertEquals(9, HandRules.minHand(true, portal))
+        assertFalse(HandRules.isValidHandSize(true, eight, portal, hasNecromancerPull = false))
+        assertTrue(HandRules.isValidHandSize(true, eight + "card9", portal, hasNecromancerPull = false))
+        assertFalse(HandRules.isValidHandSize(false, eight.take(7), portal, hasNecromancerPull = false))
     }
 
     @Test
