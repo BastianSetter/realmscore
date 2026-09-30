@@ -34,6 +34,7 @@ object WildfireRule : CardScoringRule {
                 allowedKeys = setOf(
                     "mountain",
                     "great_flood",
+                    "expansion_great_flood",
                     "island",
                     "unicorn",
                     "dragon",

@@ -4,27 +4,27 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
+import de.morzo.realmscore.data.cards.CursedItemLookup
+import de.morzo.realmscore.data.repository.HandScoringService
 import de.morzo.realmscore.data.datastore.DeviceUuidProvider
 import de.morzo.realmscore.domain.game.CaptureOrdering
 import de.morzo.realmscore.domain.game.DistributedAssignOrder
+import de.morzo.realmscore.domain.game.HandRules
 import de.morzo.realmscore.domain.model.CardDefinition
 import de.morzo.realmscore.domain.p2p.P2PSessionRepository
 import de.morzo.realmscore.domain.p2p.model.HandCardSyncData
 import de.morzo.realmscore.domain.p2p.model.SessionState
 import de.morzo.realmscore.domain.p2p.model.SyncMessage
 import de.morzo.realmscore.domain.repository.GameRepository
-import de.morzo.realmscore.domain.repository.HandCardEntry
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.repository.RoundRepository
 import de.morzo.realmscore.domain.repository.SettingsRepository
 import de.morzo.realmscore.domain.scoring.JokerAssignment
-import de.morzo.realmscore.domain.scoring.ScoringEngine
-import de.morzo.realmscore.domain.scoring.ScoringInput
 import de.morzo.realmscore.domain.scoring.solver.OptimalSolver
 import de.morzo.realmscore.domain.scoring.toScoringChoices
-import de.morzo.realmscore.ui.handentry.PLAYER_HAND_SLOT_COUNT
 import de.morzo.realmscore.ui.handentry.PlayerHandEntryUiState
+import de.morzo.realmscore.ui.handentry.handEntriesOf
 import de.morzo.realmscore.ui.sandbox.CardSlot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,17 +36,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val NECROMANCER_KEY = "necromancer"
-
 /** Sentinel id for the synthetic Mittelfeld (discard) entry in the capture rotation. */
 private const val DISCARD_ID = "__discard__"
 
 /** Neutral blue-grey dot for the Mittelfeld entry in the dropdown. */
 private const val DISCARD_COLOR = 0xFF607D8B.toInt()
-
-/** Mittelfeld card counts: 10 for a two-player game, 12 with more players. */
-private const val DISCARD_SLOTS_TWO_PLAYERS = 10
-private const val DISCARD_SLOTS_MULTI_PLAYER = 12
 
 /** One player chip in the capture dropdown, with its "(x/y)" capture progress. */
 data class CapturePlayer(
@@ -100,6 +94,11 @@ data class RoundCaptureUiState(
  * extra entry (10 cards for two players, 12 otherwise) that is captured exactly like a player and
  * is mandatory before the reveal. It records card identities only — no jokers, Necromancer or
  * scoring — and its saved cards then scope the Necromancer pick for the player hands.
+ *
+ * Phase 30 (expansion): with the game's new suits the Mittelfeld is always captured (14 cards for two
+ * players, 12 otherwise, plus overflow), hands hold 8 cards (+1 with Kobold/Dschinn/Portal) and, since
+ * the Undead score the Mittelfeld, saving it re-scores the round's hands. With cursed items each hand
+ * also records the items the player used.
  */
 class RoundCaptureViewModel(
     private val cardLookup: CardLookup,
@@ -108,19 +107,34 @@ class RoundCaptureViewModel(
     private val gameRepo: GameRepository,
     private val roundRepo: RoundRepository,
     private val settingsRepo: SettingsRepository,
-    private val engine: ScoringEngine,
+    private val handScoring: HandScoringService,
+    private val cursedItemLookup: CursedItemLookup,
     private val optimalSolver: OptimalSolver,
     private val p2p: P2PSessionRepository,
     private val deviceUuidProvider: DeviceUuidProvider,
     private val roundId: String,
 ) : ViewModel() {
 
-    val allCards: List<CardDefinition> = cardLookup.getAll()
+    // Phase 30: expansion flags of this round's game (fixed per game).
+    private var newSuits = false
+    private var cursedItemsEnabled = false
+    private var playerCount = 0
+
+    /** The game's card pool (base, or with the expansion's new suits). */
+    val allCards: List<CardDefinition>
+        get() = cardLookup.cardsFor(newSuits)
 
     private data class Draft(
-        val slots: List<CardSlot> = List(PLAYER_HAND_SLOT_COUNT) { CardSlot.Empty },
+        val slots: List<CardSlot> = List(HandRules.BASE_HAND) { CardSlot.Empty },
         val jokerAssignments: Map<String, JokerAssignment> = emptyMap(),
-    )
+        /** Phase 30: cursed items the player used this round. */
+        val cursedItemKeys: Set<String> = emptySet(),
+    ) {
+        val necromancer: CardDefinition?
+            get() = slots.firstNotNullOfOrNull {
+                (it as? CardSlot.Filled)?.card?.takeIf { c -> c.jokerType == de.morzo.realmscore.domain.model.JokerType.NECROMANCER }
+            }
+    }
 
     private var gameId: String = ""
     private val drafts = mutableMapOf<String, Draft>()
@@ -135,7 +149,9 @@ class RoundCaptureViewModel(
     private var isOptimalRunning = false
 
     private var discardEnabled = false
-    private var discardSlotCount = DISCARD_SLOTS_MULTI_PLAYER
+    /** Mittelfeld target (required) and slot count (target + overflow with the new suits). */
+    private var discardTarget = 12
+    private var discardSlotCount = 12
 
     // --- P2P distributed capture (Stage B). Inert when no session is active. ---
     private var isDistributed = false
@@ -165,6 +181,9 @@ class RoundCaptureViewModel(
     // VM's in-memory drafts, so they must be excluded from the picker separately. profileId -> cardKeys.
     private var syncedCardsByProfile: Map<String, Set<String>> = emptyMap()
 
+    // Phase 30: cursed items already saved for each player this round (own device and synced mirror).
+    private var savedCursedByProfile: Map<String, Set<String>> = emptyMap()
+
     // P2P (Stage B+): live, uncommitted selections of units being captured on OTHER devices, from the
     // transient draft channel — folded into the picker so a card can't be picked on two phones at once
     // before either hand is submitted (the mirror only catches up on submit). unitId -> cardKeys.
@@ -178,6 +197,10 @@ class RoundCaptureViewModel(
             val round = roundRepo.getRoundById(roundId) ?: error("Round not found: $roundId")
             gameId = round.gameId
             val participants = gameRepo.getParticipants(round.gameId)
+            val game = gameRepo.getById(round.gameId)
+            newSuits = game?.newSuitsEnabled ?: false
+            cursedItemsEnabled = game?.cursedItemsEnabled ?: false
+            playerCount = participants.size
 
             // Default order: previous round's scan order (lastScanOrder asc), brand-new players
             // (null) last by seatOrder.
@@ -191,11 +214,12 @@ class RoundCaptureViewModel(
             }
             val playerIds = ordered.map { it.profileId }.filter { drafts.containsKey(it) }
 
-            discardEnabled = settingsRepo.discardCaptureEnabled.first()
+            // With the expansion's new suits the Mittelfeld is always captured: the Undead score it.
+            discardEnabled = newSuits || settingsRepo.discardCaptureEnabled.first()
             val pickerSearchEnabled = settingsRepo.pickerSearchEnabled.first()
             val cameraScanEnabled = settingsRepo.cameraScanEnabled.first()
-            discardSlotCount =
-                if (playerIds.size <= 2) DISCARD_SLOTS_TWO_PLAYERS else DISCARD_SLOTS_MULTI_PLAYER
+            discardTarget = HandRules.discardTarget(newSuits, playerIds.size)
+            discardSlotCount = HandRules.discardMax(newSuits, playerIds.size)
 
             orderedIds = if (discardEnabled) {
                 nameById[DISCARD_ID] = "Mittelfeld"
@@ -259,6 +283,15 @@ class RoundCaptureViewModel(
                 launch {
                     p2p.liveDrafts.collect { drafts ->
                         liveDraftsByUnit = drafts
+                        rebuild()
+                    }
+                }
+            }
+
+            if (cursedItemsEnabled) {
+                launch {
+                    roundRepo.observeResults(roundId).collect { results ->
+                        savedCursedByProfile = results.associate { it.profileId to it.cursedItemKeys.toSet() }
                         rebuild()
                     }
                 }
@@ -410,15 +443,21 @@ class RoundCaptureViewModel(
         viewModelScope.launch { p2p.forceUnlock(roundId, unitId) }
     }
 
+    /** Cards required to complete an entry (hand minimum / Mittelfeld target). */
     private fun requiredCountFor(id: String): Int =
-        if (id == DISCARD_ID) discardSlotCount else PLAYER_HAND_SLOT_COUNT
+        if (id == DISCARD_ID) discardTarget
+        else HandRules.minHand(newSuits, drafts[id]?.cursedItemKeys.orEmpty())
+
+    private fun handSlotCount(): Int = HandRules.slotCount(newSuits, cursedItemsEnabled)
 
     private suspend fun loadDraft(profileId: String): Draft {
-        val existing = handCardRepo.getHand(roundId, profileId) ?: return Draft()
-        val slots = MutableList<CardSlot>(PLAYER_HAND_SLOT_COUNT) { CardSlot.Empty }
+        val slotCount = handSlotCount()
+        val existing = handCardRepo.getHand(roundId, profileId)
+            ?: return Draft(slots = List(slotCount) { CardSlot.Empty })
+        val slots = MutableList<CardSlot>(slotCount) { CardSlot.Empty }
         existing.cards.forEach { entry ->
             val card = cardLookup.getByKey(entry.cardKey) ?: return@forEach
-            if (entry.position in 0 until PLAYER_HAND_SLOT_COUNT) {
+            if (entry.position in 0 until slotCount) {
                 slots[entry.position] = CardSlot.Filled(card)
             }
         }
@@ -428,6 +467,7 @@ class RoundCaptureViewModel(
         return Draft(
             slots = slots,
             jokerAssignments = reconstructed.jokerAssignments,
+            cursedItemKeys = existing.cursedItemKeys.toSet(),
         )
     }
 
@@ -513,6 +553,15 @@ class RoundCaptureViewModel(
                 discardCards.forEach { add(it.key) }
             }
         }
+        // Phase 30: a cursed item exists once, so the ones recorded for other players are unavailable.
+        val cursedUsedByOthers = if (!cursedItemsEnabled || isDiscard) emptySet() else buildSet {
+            drafts.asSequence().filter { it.key != profileId }.forEach { addAll(it.value.cursedItemKeys) }
+            savedCursedByProfile.asSequence()
+                .filter { it.key != profileId && it.key !in drafts && it.key !in liveDraftsByUnit }
+                .forEach { addAll(it.value) }
+            liveDraftsByUnit.asSequence().filter { it.key != profileId }
+                .forEach { (_, keys) -> keys.filter { it.startsWith(CURSED_PREFIX) }.forEach(::add) }
+        }
         return PlayerHandEntryUiState(
             isLoading = false,
             playerName = nameById[profileId] ?: "",
@@ -524,6 +573,13 @@ class RoundCaptureViewModel(
             isSaving = isSaving,
             isDiscard = isDiscard,
             requiredSlotCount = requiredCountFor(profileId),
+            maxCardCount = if (isDiscard) discardSlotCount else handSlotCount(),
+            newSuits = newSuits,
+            cursedItemsEnabled = cursedItemsEnabled && !isDiscard,
+            cursedItems = if (cursedItemsEnabled && !isDiscard) cursedItemLookup.getAll() else emptyList(),
+            cursedItemKeys = draft.cursedItemKeys,
+            cursedItemsUsedByOthers = cursedUsedByOthers,
+            playerCount = playerCount,
         )
     }
 
@@ -537,7 +593,9 @@ class RoundCaptureViewModel(
         // grey these cards out live. The current key set (empty after clearing the last card) is the
         // truth; lifecycle clears (commit / release / disconnect) are host-driven.
         if (isDistributed) {
-            val keys = updated.slots.mapNotNull { (it as? CardSlot.Filled)?.card?.key }
+            // Cursed items ride along (their `cursed_` keys never collide with card keys) so they are
+            // exclusive across devices while being picked, too.
+            val keys = updated.slots.mapNotNull { (it as? CardSlot.Filled)?.card?.key } + updated.cursedItemKeys
             viewModelScope.launch { p2p.pushHandDraft(roundId, id, keys) }
         }
     }
@@ -609,10 +667,25 @@ class RoundCaptureViewModel(
         }
     }
 
-    fun setNecromancerPick(cardKey: String) =
-        setJokerAssignment(NECROMANCER_KEY, JokerAssignment(NECROMANCER_KEY, cardKey))
+    private fun currentDraft(): Draft? = _uiState.value.currentProfileId?.let { drafts[it] }
 
-    fun clearNecromancerPick() = setJokerAssignment(NECROMANCER_KEY, null)
+    fun setNecromancerPick(cardKey: String) {
+        val necromancer = currentDraft()?.necromancer ?: return
+        setJokerAssignment(necromancer.key, JokerAssignment(necromancer.key, cardKey))
+    }
+
+    fun clearNecromancerPick() {
+        val necromancer = currentDraft()?.necromancer ?: return
+        setJokerAssignment(necromancer.key, null)
+    }
+
+    /** Phase 30: select / deselect a cursed item the current player used. */
+    fun toggleCursedItem(key: String) {
+        updateCurrentDraft { draft ->
+            val keys = if (key in draft.cursedItemKeys) draft.cursedItemKeys - key else draft.cursedItemKeys + key
+            draft.copy(cursedItemKeys = keys)
+        }
+    }
 
     fun applyOptimal() {
         val id = _uiState.value.currentProfileId ?: return
@@ -620,15 +693,15 @@ class RoundCaptureViewModel(
         val draft = drafts[id] ?: return
         val filled = draft.slots.mapNotNull { (it as? CardSlot.Filled)?.card }
         if (filled.isEmpty()) return
-        val seed = ScoringInput(
-            hand = filled,
-            jokerAssignments = draft.jokerAssignments,
-            discardPile = discardCards,
-            discardScanned = discardScanned,
-        )
         isOptimalRunning = true
         rebuild()
         viewModelScope.launch {
+            val seed = handScoring.input(handEntriesOf(draft.slots, draft.jokerAssignments), handScoring.context(roundId))
+            if (seed == null) {
+                isOptimalRunning = false
+                rebuild()
+                return@launch
+            }
             val best = withContext(Dispatchers.Default) { optimalSolver.findOptimal(seed) }
             drafts[id] = (drafts[id] ?: draft).copy(
                 jokerAssignments = best.bestInput.jokerAssignments,
@@ -653,6 +726,8 @@ class RoundCaptureViewModel(
             if (id == DISCARD_ID) {
                 val keys = draft.slots.mapNotNull { (it as? CardSlot.Filled)?.card?.key }
                 roundRepo.saveDiscardCards(roundId, keys)
+                // Phase 30: the Undead score the Mittelfeld — re-score hands saved before it.
+                handScoring.rescoreRound(roundId)
             } else {
                 saveHand(id, draft)
                 if (id !in scanOrder) scanOrder[id] = scanOrder.size
@@ -668,7 +743,7 @@ class RoundCaptureViewModel(
                 if (id == DISCARD_ID) {
                     p2p.pushDiscard(roundId, draft.slots.mapNotNull { (it as? CardSlot.Filled)?.card?.key })
                 } else {
-                    p2p.pushHandCards(roundId, id, draft.toSyncData())
+                    p2p.pushHandCards(roundId, id, draft.toSyncData(), draft.cursedItemKeys.toList())
                 }
                 // Hand off to the host: mark this unit done (it drops the lock + re-broadcasts status).
                 // onRoundStatus then auto-grabs the next free unit, or shows the waiting screen. The
@@ -697,43 +772,21 @@ class RoundCaptureViewModel(
     }
 
     private suspend fun saveHand(profileId: String, draft: Draft) {
-        val filled = draft.slots.mapNotNull { (it as? CardSlot.Filled)?.card }
-        // discardPile/discardScanned are intentionally omitted: the ScoringEngine resolves the
-        // Necromancer pick via cardLookup and never reads ctx.discardPile (only the OptimalSolver
-        // does). The reveal and stats re-scoring paths omit it the same way, so the persisted score
-        // here matches what those recompute. Keep all three canonical paths identical (L2).
-        val input = ScoringInput(
-            hand = filled,
-            jokerAssignments = draft.jokerAssignments,
-        )
-        val totalScore = withContext(Dispatchers.Default) { engine.score(input).totalScore }
-        val entries = draft.slots.mapIndexedNotNull { idx, slot ->
-            val card = (slot as? CardSlot.Filled)?.card ?: return@mapIndexedNotNull null
-            // Every target — jokers, Island, Fountain and the Necromancer pull — is a jokerAssignment
-            // keyed by the card and persists to its own entry's jokerTargetCardKey column.
-            val assignment = draft.jokerAssignments[card.key]
-            HandCardEntry(
-                cardKey = card.key,
-                position = idx,
-                jokerTargetCardKey = assignment?.targetCardKey,
-                jokerTargetSuit = assignment?.targetSuit?.name,
-            )
-        }
-        handCardRepo.saveHand(
+        // Single canonical scoring path (HandScoringService): cards + targets + this round's Mittelfeld
+        // + the game's player count + the cursed items — identical to the reveal, summary, mirror and
+        // stats paths (L2).
+        handScoring.saveHand(
             roundId = roundId,
             profileId = profileId,
-            cards = entries,
-            totalScore = totalScore,
+            entries = handEntriesOf(draft.slots, draft.jokerAssignments),
+            cursedItemKeys = draft.cursedItemKeys.toList(),
         )
     }
 
     private fun canSubmit(id: String): Boolean {
-        val draft = drafts[id] ?: return false
-        val filled = draft.slots.mapNotNull { (it as? CardSlot.Filled)?.card }
-        if (filled.size != requiredCountFor(id)) return false
-        if (id == DISCARD_ID) return true
-        val jokers = filled.filter { it.isJoker }
-        return jokers.all { joker -> draft.jokerAssignments[joker.key]?.targetCardKey != null }
+        if (id !in drafts) return false
+        val entry = buildCurrent(id)
+        return entry.hasValidCardCount && (entry.isDiscard || entry.allJokersResolved)
     }
 
     /** Maps the current draft to the wire shape for live card sync (Stage B), mirroring [saveHand]. */
@@ -781,6 +834,7 @@ class RoundCaptureViewModel(
             handKeys = cardsInHands(),
             discardScanned = discardScanned,
             discardKeys = discardCards.map { it.key }.toSet(),
+            necromancerKey = currentDraft()?.necromancer?.key ?: "necromancer",
         )
 
     class Factory(
@@ -790,7 +844,8 @@ class RoundCaptureViewModel(
         private val gameRepo: GameRepository,
         private val roundRepo: RoundRepository,
         private val settingsRepo: SettingsRepository,
-        private val engine: ScoringEngine,
+        private val handScoring: HandScoringService,
+        private val cursedItemLookup: CursedItemLookup,
         private val optimalSolver: OptimalSolver,
         private val p2p: P2PSessionRepository,
         private val deviceUuidProvider: DeviceUuidProvider,
@@ -805,7 +860,8 @@ class RoundCaptureViewModel(
                 gameRepo = gameRepo,
                 roundRepo = roundRepo,
                 settingsRepo = settingsRepo,
-                engine = engine,
+                handScoring = handScoring,
+                cursedItemLookup = cursedItemLookup,
                 optimalSolver = optimalSolver,
                 p2p = p2p,
                 deviceUuidProvider = deviceUuidProvider,
@@ -814,3 +870,6 @@ class RoundCaptureViewModel(
         }
     }
 }
+
+/** Key prefix of the expansion's cursed items (see `assets/cards/cursed_items.json`). */
+private const val CURSED_PREFIX = "cursed_"

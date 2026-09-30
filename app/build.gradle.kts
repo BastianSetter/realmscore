@@ -17,8 +17,8 @@ android {
         applicationId = "de.morzo.realmscore"
         minSdk = 29   // war 26 – für automatische Silbentrennung (Hyphens.Auto, API 29+)
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

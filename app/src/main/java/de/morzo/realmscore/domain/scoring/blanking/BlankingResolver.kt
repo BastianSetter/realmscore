@@ -28,6 +28,12 @@ import de.morzo.realmscore.domain.scoring.penalty.PenaltyContext
  * means clearing can never re-enable a blanker mid-loop, so the loop still converges quickly.
  *
  * Base-game cycles are impossible, so the loop converges within a few rounds; we cap at 10.
+ *
+ * Phase 30 (expansion): [resolve] can be seeded with cards the Dämon blanked *before* all other
+ * blanking — they stay blanked and their own blank-others effects are inert from the first round —
+ * and takes a `protectedFor` function naming cards that can not be blanked at all (Engel + its
+ * target, Undead with Lich / expansion Necromancer). Protection is re-derived from the currently
+ * active hand each round, so a protector that gets blanked stops protecting.
  */
 /**
  * Result of a blanking fixpoint: the set of blanked originalKeys plus, per blanked card, the
@@ -52,17 +58,19 @@ class BlankingResolver(
     fun resolve(
         initialContext: ScoringContext,
         rawCancellations: List<PenaltyCancellation> = emptyList(),
+        initialBlanked: Map<String, List<String>> = emptyMap(),
+        protectedFor: (activeHand: List<ResolvedCard>) -> Set<String> = { emptySet() },
     ): BlankingOutcome {
         val hand = initialContext.hand
         val penaltyCtx = PenaltyContext(rawCancellations)
-        var blanked: Set<String> = emptySet()
-        var lastMap: Map<String, List<String>> = emptyMap()
+        var blanked: Set<String> = LinkedHashSet(initialBlanked.keys)
+        var lastMap: Map<String, List<String>> = initialBlanked
         repeat(MAX_ROUNDS) {
             val ctxThisRound = initialContext.copy(
                 blankedKeys = blanked,
                 penaltyContext = penaltyCtx,
             )
-            val newMap = computeBlanked(hand, ctxThisRound, penaltyCtx)
+            val newMap = computeBlanked(hand, ctxThisRound, penaltyCtx, initialBlanked, protectedFor)
             lastMap = newMap.mapValues { it.value.toList() }
             val newBlanked = newMap.keys
             // The blanked set is the fixpoint variable; once it stabilizes the (deterministic)
@@ -77,12 +85,18 @@ class BlankingResolver(
         hand: List<ResolvedCard>,
         ctx: ScoringContext,
         penaltyCtx: PenaltyContext,
+        initialBlanked: Map<String, List<String>>,
+        protectedFor: (List<ResolvedCard>) -> Set<String>,
     ): Map<String, MutableSet<String>> {
         // Pass conditions a hand that doesn't include already-blanked cards.
         val activeHand = hand.filter { it.originalKey !in ctx.blankedKeys }
+        val protectedKeys = protectedFor(activeHand)
         // target originalKey -> originalKeys of the foreign cards blanking it (self excluded).
+        // Seeded with the Dämon's early blanks, which are permanent.
         val result = LinkedHashMap<String, MutableSet<String>>()
+        initialBlanked.forEach { (key, sources) -> result[key] = LinkedHashSet(sources) }
         for (target in hand) {
+            if (target.originalKey in protectedKeys || target.originalKey in initialBlanked) continue
             for (source in hand) {
                 if (!source.penaltyEnabled) continue
                 // Blanking is the source's penalty; a fully-cleared penalty blanks nothing.

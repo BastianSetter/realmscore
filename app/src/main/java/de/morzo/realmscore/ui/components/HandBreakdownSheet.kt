@@ -97,6 +97,9 @@ fun HandBreakdownSheet(
     result: ScoringResult,
     cardLookup: (String) -> CardDefinition?,
     onDismiss: () -> Unit,
+    /** Phase 30: localized names of the cursed items used this round, and their summed points. */
+    cursedItemNames: List<String> = emptyList(),
+    cursedPoints: Int = 0,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var mode by rememberSaveable { mutableStateOf(BreakdownMode.RING) }
@@ -107,9 +110,19 @@ fun HandBreakdownSheet(
     ) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
             Text(
-                text = stringResource(R.string.sandbox_breakdown_title, result.totalScore),
+                text = stringResource(R.string.sandbox_breakdown_title, result.totalScore + cursedPoints),
                 style = MaterialTheme.typography.titleLarge,
             )
+            if (cursedItemNames.isNotEmpty()) {
+                Text(
+                    text = stringResource(
+                        R.string.cursed_items_total,
+                        "${cursedItemNames.joinToString(", ")} (${formatSignedPoints(cursedPoints)})",
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             BreakdownModeChips(
                 mode = mode,
                 onModeChange = { mode = it },
@@ -124,3 +137,5 @@ fun HandBreakdownSheet(
         }
     }
 }
+
+private fun formatSignedPoints(value: Int): String = if (value > 0) "+$value" else value.toString()

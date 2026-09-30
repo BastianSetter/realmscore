@@ -1,5 +1,6 @@
 package de.morzo.realmscore.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -31,6 +32,10 @@ data class RoundResultEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val originDeviceId: String,
+    // Phase 30 (DB v10): cursed items used this round. totalScore already includes cursedPoints.
+    @ColumnInfo(defaultValue = "0") val cursedPoints: Int = 0,
+    /** Comma-separated cursed item keys (see [encodeCursedItemKeys]). */
+    @ColumnInfo(defaultValue = "") val cursedItemKeys: String = "",
 ) {
     fun toDomain(): RoundResult = RoundResult(
         id = id,
@@ -40,6 +45,8 @@ data class RoundResultEntity(
         createdAt = createdAt,
         updatedAt = updatedAt,
         originDeviceId = originDeviceId,
+        cursedPoints = cursedPoints,
+        cursedItemKeys = decodeCursedItemKeys(cursedItemKeys),
     )
 
     companion object {
@@ -51,6 +58,12 @@ data class RoundResultEntity(
             createdAt = result.createdAt,
             updatedAt = result.updatedAt,
             originDeviceId = result.originDeviceId,
+            cursedPoints = result.cursedPoints,
+            cursedItemKeys = encodeCursedItemKeys(result.cursedItemKeys),
         )
+
+        fun encodeCursedItemKeys(keys: List<String>): String = keys.joinToString(",")
+
+        fun decodeCursedItemKeys(raw: String): List<String> = raw.split(',').filter { it.isNotBlank() }
     }
 }

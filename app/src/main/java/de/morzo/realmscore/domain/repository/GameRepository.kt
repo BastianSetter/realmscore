@@ -18,6 +18,8 @@ interface GameRepository {
         target: Int,
         participantProfileIds: List<String>,
         displayName: String? = null,
+        cursedItemsEnabled: Boolean = false,
+        newSuitsEnabled: Boolean = false,
     ): Game
 
     suspend fun closeGame(gameId: String, reason: ClosedReason)

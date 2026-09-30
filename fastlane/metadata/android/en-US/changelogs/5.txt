@@ -1,0 +1,6 @@
+Version 1.4.0
+- "Cursed Hoard" expansion: can be switched on per game
+- New suits Building, Outsider and Undead incl. replacement cards
+- 8-card hands (9 with Leprechaun, Genie or Portal), discard pile is recorded
+- Cursed items: select the items used, their points are counted
+- Sandbox with its own switch for the new suits

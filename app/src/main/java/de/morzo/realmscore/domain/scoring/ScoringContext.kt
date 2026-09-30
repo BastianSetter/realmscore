@@ -14,6 +14,7 @@ import de.morzo.realmscore.domain.scoring.penalty.PenaltyContext
  * - jokerAssignments carries the player's joker target picks (substitution jokers, Island, Fountain
  *   and Necromancer) so target-driven rules (Island cancel, Fountain of Life) can read their chosen
  *   card key.
+ * - discardPile is the captured Mittelfeld (Phase 30: the Undead score cards in it).
  */
 data class ScoringContext(
     val hand: List<ResolvedCard>,
@@ -22,6 +23,8 @@ data class ScoringContext(
     val cardLookup: (String) -> CardDefinition?,
     val jokerAssignments: Map<String, JokerAssignment> = emptyMap(),
     val penaltyContext: PenaltyContext? = null,
+    /** Phase 30: number of players in the game (Dschinn), null when unknown. */
+    val playerCount: Int? = null,
 ) {
     fun isBlanked(card: ResolvedCard): Boolean = card.originalKey in blankedKeys
 

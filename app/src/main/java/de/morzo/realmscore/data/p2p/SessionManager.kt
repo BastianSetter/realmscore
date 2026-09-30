@@ -347,8 +347,14 @@ class SessionManager(
         roundId: String,
         unitId: String,
         cards: List<HandCardSyncData>,
+        cursedItemKeys: List<String>,
     ) {
-        val message = SyncMessage.HandCardUpdate(roundId = roundId, profileId = unitId, cards = cards)
+        val message = SyncMessage.HandCardUpdate(
+            roundId = roundId,
+            profileId = unitId,
+            cards = cards,
+            cursedItemKeys = cursedItemKeys,
+        )
         if (isHost()) broadcast(message) else sendToHost(message)
     }
 

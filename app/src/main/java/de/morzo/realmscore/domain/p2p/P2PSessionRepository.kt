@@ -131,7 +131,12 @@ interface P2PSessionRepository {
     suspend fun markUnitDone(roundId: String, unitId: String)
 
     /** Propagate a freshly captured player hand to the other devices' mirrors (Stage B live sync). */
-    suspend fun pushHandCards(roundId: String, unitId: String, cards: List<HandCardSyncData>)
+    suspend fun pushHandCards(
+        roundId: String,
+        unitId: String,
+        cards: List<HandCardSyncData>,
+        cursedItemKeys: List<String> = emptyList(),
+    )
 
     /** Propagate the freshly captured Mittelfeld (discard pile) to the other devices' mirrors. */
     suspend fun pushDiscard(roundId: String, cards: List<String>)

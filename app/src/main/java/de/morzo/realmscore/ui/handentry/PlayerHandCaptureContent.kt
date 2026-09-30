@@ -68,6 +68,7 @@ fun PlayerHandCaptureContent(
     onSubmit: () -> Unit,
     submitLabel: String,
     modifier: Modifier = Modifier,
+    onToggleCursedItem: (String) -> Unit = {},
     autoOpenKey: Any? = Unit,
     searchEnabled: Boolean = true,
 ) {
@@ -117,6 +118,7 @@ fun PlayerHandCaptureContent(
             onApplyOptimal = onApplyOptimal,
             onOpenNecromancerPicker = { necromancerPickerOpen = true },
             onClearNecromancerPick = onClearNecromancerPick,
+            onToggleCursedItem = onToggleCursedItem,
             onSubmit = onSubmit,
             submitLabel = submitLabel,
             modifier = modifier,
@@ -226,10 +228,12 @@ private fun PlayerStageContent(
     onApplyOptimal: () -> Unit,
     onOpenNecromancerPicker: () -> Unit,
     onClearNecromancerPick: () -> Unit,
+    onToggleCursedItem: (String) -> Unit,
     onSubmit: () -> Unit,
     submitLabel: String,
     modifier: Modifier = Modifier,
 ) {
+    val pickedCardLookup: (String) -> CardDefinition? = { key -> allCards.firstOrNull { it.key == key } }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -257,15 +261,27 @@ private fun PlayerStageContent(
                 onOptimal = onApplyOptimal,
                 optimalRunning = state.isOptimalRunning,
                 mittelfeldScanned = state.mittelfeldScanned,
-                necromancer = if (state.necromancerInHand) {
+                necromancer = state.necromancerCard?.let { necromancer ->
                     NecromancerRowData(
-                        card = allCards.first { it.key == "necromancer" },
-                        pickedCard = state.jokerAssignments["necromancer"]?.targetCardKey
-                            ?.let { key -> allCards.firstOrNull { it.key == key } },
+                        card = necromancer,
+                        pickedCard = state.jokerAssignments[necromancer.key]?.targetCardKey
+                            ?.let(pickedCardLookup),
                         onPick = onOpenNecromancerPicker,
                         onClear = onClearNecromancerPick,
                     )
-                } else null,
+                },
+            )
+        }
+
+        // Phase 30: the cursed items this player used (expansion part 1) — points only.
+        if (!state.isDiscard && state.cursedItemsEnabled) {
+            Spacer(Modifier.height(24.dp))
+            CursedItemsSection(
+                items = state.cursedItems,
+                selectedKeys = state.cursedItemKeys,
+                usedByOthers = state.cursedItemsUsedByOthers,
+                playerCount = state.playerCount,
+                onToggle = onToggleCursedItem,
             )
         }
 

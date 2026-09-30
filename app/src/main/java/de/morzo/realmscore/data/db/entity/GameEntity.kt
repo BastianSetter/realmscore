@@ -1,5 +1,6 @@
 package de.morzo.realmscore.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import de.morzo.realmscore.domain.model.ClosedReason
@@ -19,6 +20,9 @@ data class GameEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val originDeviceId: String,
+    // Phase 30 (DB v10): expansion flags, fixed per game at creation.
+    @ColumnInfo(defaultValue = "0") val cursedItemsEnabled: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val newSuitsEnabled: Boolean = false,
 ) {
     fun toDomain(): Game = Game(
         id = id,
@@ -32,6 +36,8 @@ data class GameEntity(
         createdAt = createdAt,
         updatedAt = updatedAt,
         originDeviceId = originDeviceId,
+        cursedItemsEnabled = cursedItemsEnabled,
+        newSuitsEnabled = newSuitsEnabled,
     )
 
     companion object {
@@ -47,6 +53,8 @@ data class GameEntity(
             createdAt = game.createdAt,
             updatedAt = game.updatedAt,
             originDeviceId = game.originDeviceId,
+            cursedItemsEnabled = game.cursedItemsEnabled,
+            newSuitsEnabled = game.newSuitsEnabled,
         )
     }
 }

@@ -7,6 +7,7 @@ import de.morzo.realmscore.domain.scoring.ScoringContext
 
 /**
  * Sammler: +10/+40/+100 for 3/4/5 distinct cards of the same suit. Includes the Collector itself.
+ * With the expansion's bigger hands (8–9 cards) a set of 6+ is possible; it scores like 5 (top tier).
  *
  * "Distinct" → distinct effectiveCardKey (so two jokers copying the same suit don't compound).
  * Counts each suit independently; the bonus uses the BEST tier across all suits.
@@ -18,12 +19,13 @@ object CollectorRule : CardScoringRule {
         4 to 40,
         5 to 100,
     )
+    private const val MAX_TIER = 5
 
     override fun bonuses(self: ResolvedCard, ctx: ScoringContext): List<EffectApplication> {
         val pool = ctx.nonBlankedHand()
         val bySuit = pool.groupBy { it.effectiveSuit }
         val bestEntry = bySuit
-            .mapValues { (_, cards) -> cards.distinctBy { it.effectiveCardKey }.size }
+            .mapValues { (_, cards) -> cards.distinctBy { it.effectiveCardKey }.size.coerceAtMost(MAX_TIER) }
             .filterValues { it in tiers.keys }
             .maxByOrNull { tiers[it.value]!! }
             ?: return emptyList()

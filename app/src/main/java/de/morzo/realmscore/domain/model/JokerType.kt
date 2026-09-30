@@ -24,17 +24,15 @@ enum class JokerType {
     BOOK_OF_CHANGES,
     ISLAND,
     FOUNTAIN_OF_LIFE,
-    NECROMANCER;
+    NECROMANCER,
+
+    /**
+     * Engel (Phase 30, expansion): an ordinary card that can never be blanked and protects one
+     * chosen other card of the resolved hand from being blanked. Target-only, like [ISLAND].
+     */
+    ANGEL;
 
     /** True for the four wild substitution jokers handled by the JokerResolver / OptimalSolver combos. */
     val isSubstitution: Boolean
         get() = this == DOPPELGANGER || this == MIRAGE || this == SHAPESHIFTER || this == BOOK_OF_CHANGES
-
-    companion object {
-        /** Suits a Spiegelung (Mirage) may copy a card from — official rule (the other five suits). */
-        val MIRAGE_SUITS = setOf(Suit.ARMY, Suit.LAND, Suit.WEATHER, Suit.FLOOD, Suit.FLAME)
-
-        /** Suits a Gestaltenwandler (Shapeshifter) may copy a card from — official rule. */
-        val SHAPESHIFTER_SUITS = setOf(Suit.ARTIFACT, Suit.LEADER, Suit.WIZARD, Suit.WEAPON, Suit.BEAST)
-    }
 }

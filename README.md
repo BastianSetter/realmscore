@@ -28,6 +28,12 @@ In *Fantasy Realms*, each player forms a hand of seven cards that influence one 
 - Entries can be corrected as long as the round has not been completed.
 - The discard pile can be recorded as well, which is relevant for certain card effects.
 
+### "Cursed Hoard" expansion
+
+- Both parts of the expansion can be switched on per game: the cursed items and the new suits (Building, Outsider, Undead) with their replacement cards.
+- With the new suits, hands hold eight cards (nine with Leprechaun, Genie or the Portal), the discard pile is always recorded, and the Undead score the cards lying in it.
+- Cursed items only count with their points: each player selects the items they used, and their value is added to the round score.
+
 ### Calculating the score
 
 - The game's full rule logic is built in: bonuses, penalties, blanking effects and jokers are evaluated in the correct order.
@@ -73,7 +79,6 @@ In *Fantasy Realms*, each player forms a hand of seven cards that influence one 
 These features are intended but not yet included:
 
 - Capturing the hand cards via camera.
-- Support for the "Cursed Hoard" expansion.
 - Shared entry, where each player enters their cards on their own device and the devices sync with one another.
 
 ---

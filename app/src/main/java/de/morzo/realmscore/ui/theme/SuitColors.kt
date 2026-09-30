@@ -12,7 +12,7 @@ import de.morzo.realmscore.domain.model.Suit
  *
  * The internal [Suit] enum maps 1:1 onto these colours:
  *   LAND→Land, FLOOD→Flut, WEATHER→Wetter, FLAME→Flamme, ARMY→Armee, WIZARD→Zauberer,
- *   LEADER→Anführer, BEAST→Bestie, WEAPON→Waffe, ARTIFACT→Artefakt, WILD→Joker.
+ *   LEADER→Anführer, BEAST→Bestie, WEAPON→Waffe, ARTIFACT→Artefakt, WILD→Joker, BUILDING→Gebäude, OUTSIDER→Outsider, UNDEAD→Untote.
  */
 object SuitColors {
     // Light Mode — base values from the official suit bar.
@@ -27,6 +27,10 @@ object SuitColors {
     val weaponLight = Color(0xFF7A7B7A)
     val artifactLight = Color(0xFFF16033)
     val wildLight = Color(0xFFC7BDB9)
+    // Phase 30 expansion suits.
+    val buildingLight = Color(0xFF463C78)
+    val outsiderLight = Color(0xFFF2B01E)
+    val undeadLight = Color(0xFF1B5E5B)
 
     // Dark Mode — each light colour lightened ~30 % toward white (out = c + (255-c)*0.30).
     val landDark = Color(0xFF817066)
@@ -40,6 +44,9 @@ object SuitColors {
     val weaponDark = Color(0xFFA2A3A2)
     val artifactDark = Color(0xFFF59070)
     val wildDark = Color(0xFFD8D1CE)
+    val buildingDark = Color(0xFF7E77A0)
+    val outsiderDark = Color(0xFFF6C861)
+    val undeadDark = Color(0xFF5F8E8C)
 
     fun forSuit(suit: Suit, darkTheme: Boolean): Color = if (darkTheme) {
         when (suit) {
@@ -54,6 +61,9 @@ object SuitColors {
             Suit.WEAPON -> weaponDark
             Suit.ARTIFACT -> artifactDark
             Suit.WILD -> wildDark
+            Suit.BUILDING -> buildingDark
+            Suit.OUTSIDER -> outsiderDark
+            Suit.UNDEAD -> undeadDark
         }
     } else {
         when (suit) {
@@ -68,6 +78,9 @@ object SuitColors {
             Suit.WEAPON -> weaponLight
             Suit.ARTIFACT -> artifactLight
             Suit.WILD -> wildLight
+            Suit.BUILDING -> buildingLight
+            Suit.OUTSIDER -> outsiderLight
+            Suit.UNDEAD -> undeadLight
         }
     }
 }

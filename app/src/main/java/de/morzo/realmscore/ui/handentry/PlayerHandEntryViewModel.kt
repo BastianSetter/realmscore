@@ -4,15 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.morzo.realmscore.data.cards.CardLookup
+import de.morzo.realmscore.data.cards.CursedItemLookup
+import de.morzo.realmscore.data.repository.HandScoringService
+import de.morzo.realmscore.data.repository.RoundScoringContext
+import de.morzo.realmscore.domain.game.HandRules
 import de.morzo.realmscore.domain.model.CardDefinition
-import de.morzo.realmscore.domain.model.Suit
+import de.morzo.realmscore.domain.model.CursedItem
+import de.morzo.realmscore.domain.model.JokerType
 import de.morzo.realmscore.domain.repository.HandCardEntry
 import de.morzo.realmscore.domain.repository.HandCardRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
 import de.morzo.realmscore.domain.scoring.JokerAssignment
-import de.morzo.realmscore.domain.scoring.ScoringEngine
-import de.morzo.realmscore.domain.scoring.ScoringInput
 import de.morzo.realmscore.domain.scoring.solver.OptimalSolver
+import de.morzo.realmscore.domain.scoring.toScoringChoices
 import de.morzo.realmscore.ui.sandbox.CardSlot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,9 +26,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-const val PLAYER_HAND_SLOT_COUNT = 7
-
-private const val NECROMANCER_KEY = "necromancer"
+/** Base-game hand size; games with the expansion's new suits use [HandRules]. */
+const val PLAYER_HAND_SLOT_COUNT = HandRules.BASE_HAND
 
 data class PlayerHandEntryUiState(
     val isLoading: Boolean = true,
@@ -43,8 +46,21 @@ data class PlayerHandEntryUiState(
      * the Necromancer field and per-card scoring are suppressed. Used by RoundCaptureViewModel.
      */
     val isDiscard: Boolean = false,
-    /** Cards required to mark the entry complete (7 for a hand, 10/12 for the Mittelfeld). */
+    /**
+     * Cards required to mark the entry complete (7 / 8 for a hand, the Mittelfeld target for the
+     * discard). Up to [maxCardCount] may be entered (Phase 30: Kobold/Dschinn/Portal, discard overflow).
+     */
     val requiredSlotCount: Int = PLAYER_HAND_SLOT_COUNT,
+    val maxCardCount: Int = PLAYER_HAND_SLOT_COUNT,
+    /** Phase 30: the game is played with the expansion's new suits (hand rules, Undead). */
+    val newSuits: Boolean = false,
+    /** Phase 30: the game records cursed items; [cursedItems] is the selectable list. */
+    val cursedItemsEnabled: Boolean = false,
+    val cursedItems: List<CursedItem> = emptyList(),
+    val cursedItemKeys: Set<String> = emptySet(),
+    /** Cursed items already recorded for another player this round (each exists once). */
+    val cursedItemsUsedByOthers: Set<String> = emptySet(),
+    val playerCount: Int = 0,
 ) {
     val filledCards: List<CardDefinition>
         get() = slots.mapNotNull { (it as? CardSlot.Filled)?.card }
@@ -55,16 +71,20 @@ data class PlayerHandEntryUiState(
     val jokersInHand: List<CardDefinition>
         get() = filledCards.filter { it.isJoker }
 
+    /** The Necromancer in hand (base or expansion edition), if any. */
+    val necromancerCard: CardDefinition?
+        get() = filledCards.firstOrNull { it.jokerType == JokerType.NECROMANCER }
+
     /**
-     * Every card needing a generic joker choice row (substitution jokers + Island/Fountain). The
+     * Every card needing a generic joker choice row (substitution jokers + Island/Fountain/Angel). The
      * Necromancer is a JokerType too, but renders as its own dedicated row in the joker section
      * (with a full card picker), so it is excluded here.
      */
     val jokerCardsInHand: List<CardDefinition>
-        get() = filledCards.filter { it.jokerType != null && it.key != NECROMANCER_KEY }
+        get() = filledCards.filter { it.jokerType != null && it.jokerType != JokerType.NECROMANCER }
 
     val necromancerInHand: Boolean
-        get() = filledCards.any { it.key == NECROMANCER_KEY }
+        get() = necromancerCard != null
 
     val allJokersResolved: Boolean
         get() = jokersInHand.all { joker ->
@@ -72,54 +92,82 @@ data class PlayerHandEntryUiState(
             assignment.targetCardKey != null
         }
 
+    /** Summed points of the selected cursed items. */
+    val cursedPoints: Int
+        get() = cursedItems.filter { it.key in cursedItemKeys }.sumOf { it.pointsFor(playerCount) }
+
+    /** Whether the entered card count is legal (hand: incl. Kobold/Dschinn/Portal and the Necromancer pull). */
+    val hasValidCardCount: Boolean
+        get() = if (isDiscard) {
+            cardsCount in requiredSlotCount..maxCardCount
+        } else {
+            val necromancer = necromancerCard
+            HandRules.isValidHandSize(
+                newSuits = newSuits,
+                handKeys = filledCards.map { it.key },
+                cursedItemKeys = cursedItemKeys,
+                hasNecromancerPull = necromancer != null &&
+                    jokerAssignments[necromancer.key]?.targetCardKey != null,
+            )
+        }
+
     val canSubmit: Boolean
-        get() = cardsCount == requiredSlotCount && (isDiscard || allJokersResolved) && !isSaving
+        get() = hasValidCardCount && (isDiscard || allJokersResolved) && !isSaving
 }
+
+/** Builds the persisted entries of a hand draft: every target lives on its own card's entry. */
+fun handEntriesOf(slots: List<CardSlot>, jokerAssignments: Map<String, JokerAssignment>): List<HandCardEntry> =
+    slots.mapIndexedNotNull { idx, slot ->
+        val card = (slot as? CardSlot.Filled)?.card ?: return@mapIndexedNotNull null
+        val assignment = jokerAssignments[card.key]
+        HandCardEntry(
+            cardKey = card.key,
+            position = idx,
+            jokerTargetCardKey = assignment?.targetCardKey,
+            jokerTargetSuit = assignment?.targetSuit?.name,
+        )
+    }
 
 class PlayerHandEntryViewModel(
     private val cardLookup: CardLookup,
+    private val cursedItemLookup: CursedItemLookup,
     private val handCardRepo: HandCardRepository,
     private val profileRepo: ProfileRepository,
-    private val engine: ScoringEngine,
+    private val handScoring: HandScoringService,
     private val optimalSolver: OptimalSolver,
     private val roundId: String,
     private val profileId: String,
 ) : ViewModel() {
 
-    val allCards: List<CardDefinition> = cardLookup.getAll()
-
     private val _uiState = MutableStateFlow(PlayerHandEntryUiState())
     val uiState: StateFlow<PlayerHandEntryUiState> = _uiState.asStateFlow()
+
+    private var scoringContext: RoundScoringContext? = null
+
+    /** The game's card pool (base, or with the expansion's new suits). */
+    val allCards: List<CardDefinition>
+        get() = cardLookup.cardsFor(_uiState.value.newSuits)
 
     init {
         viewModelScope.launch {
             val profile = profileRepo.getById(profileId)
                 ?: error("Profile not found: $profileId")
+            val ctx = handScoring.context(roundId).also { scoringContext = it }
             val existing = handCardRepo.getHand(roundId, profileId)
+            val slotCount = HandRules.slotCount(ctx.newSuits, ctx.cursedItems)
 
-            val slots: List<CardSlot> = MutableList<CardSlot>(PLAYER_HAND_SLOT_COUNT) { CardSlot.Empty }
+            val slots: List<CardSlot> = MutableList<CardSlot>(slotCount) { CardSlot.Empty }
                 .also { mut ->
                     existing?.cards?.forEach { entry ->
                         val card = cardLookup.getByKey(entry.cardKey) ?: return@forEach
-                        if (entry.position in 0 until PLAYER_HAND_SLOT_COUNT) {
+                        if (entry.position in 0 until slotCount) {
                             mut[entry.position] = CardSlot.Filled(card)
                         }
                     }
                 }
-            // Every chosen target — substitution jokers, Island/Fountain and the Necromancer pull —
-            // is persisted on its own card entry's jokerTargetCardKey column, so they all rebuild
-            // uniformly into joker assignments keyed by their card.
-            val jokerAssignments = existing?.cards
-                ?.mapNotNull { entry ->
-                    val target = entry.jokerTargetCardKey ?: return@mapNotNull null
-                    val suit = entry.jokerTargetSuit?.let { runCatching { Suit.valueOf(it) }.getOrNull() }
-                    entry.cardKey to JokerAssignment(
-                        jokerKey = entry.cardKey,
-                        targetCardKey = target,
-                        targetSuit = suit,
-                    )
-                }?.toMap()
-                ?: emptyMap()
+            // Every chosen target — substitution jokers, Island/Fountain/Angel and the Necromancer
+            // pull — is persisted on its own card entry, so they all rebuild uniformly.
+            val jokerAssignments = existing?.cards?.toScoringChoices()?.jokerAssignments ?: emptyMap()
 
             _uiState.update {
                 it.copy(
@@ -127,6 +175,14 @@ class PlayerHandEntryViewModel(
                     playerName = profile.name,
                     slots = slots,
                     jokerAssignments = jokerAssignments,
+                    requiredSlotCount = HandRules.minHand(ctx.newSuits, existing?.cursedItemKeys.orEmpty()),
+                    maxCardCount = slotCount,
+                    newSuits = ctx.newSuits,
+                    cursedItemsEnabled = ctx.cursedItems,
+                    cursedItems = if (ctx.cursedItems) cursedItemLookup.getAll() else emptyList(),
+                    cursedItemKeys = existing?.cursedItemKeys?.toSet() ?: emptySet(),
+                    playerCount = ctx.playerCount,
+                    mittelfeldScanned = ctx.discardScanned || !ctx.newSuits,
                 )
             }
 
@@ -140,16 +196,16 @@ class PlayerHandEntryViewModel(
     }
 
     fun setCardInSlot(slotIndex: Int, card: CardDefinition) {
-        if (slotIndex !in 0 until PLAYER_HAND_SLOT_COUNT) return
         _uiState.update { state ->
+            if (slotIndex !in state.slots.indices) return@update state
             val newSlots = state.slots.toMutableList().also { it[slotIndex] = CardSlot.Filled(card) }
             state.copy(slots = newSlots).pruneStaleSelections()
         }
     }
 
     fun clearSlot(slotIndex: Int) {
-        if (slotIndex !in 0 until PLAYER_HAND_SLOT_COUNT) return
         _uiState.update { state ->
+            if (slotIndex !in state.slots.indices) return@update state
             val newSlots = state.slots.toMutableList().also { it[slotIndex] = CardSlot.Empty }
             state.copy(slots = newSlots).pruneStaleSelections()
         }
@@ -163,18 +219,28 @@ class PlayerHandEntryViewModel(
         }
     }
 
-    fun setNecromancerPick(cardKey: String) =
-        setJokerAssignment(NECROMANCER_KEY, JokerAssignment(NECROMANCER_KEY, cardKey))
+    fun setNecromancerPick(cardKey: String) {
+        val necromancer = _uiState.value.necromancerCard ?: return
+        setJokerAssignment(necromancer.key, JokerAssignment(necromancer.key, cardKey))
+    }
 
-    fun clearNecromancerPick() = setJokerAssignment(NECROMANCER_KEY, null)
+    fun clearNecromancerPick() {
+        val necromancer = _uiState.value.necromancerCard ?: return
+        setJokerAssignment(necromancer.key, null)
+    }
+
+    fun toggleCursedItem(key: String) {
+        _uiState.update { state ->
+            val keys = if (key in state.cursedItemKeys) state.cursedItemKeys - key else state.cursedItemKeys + key
+            state.copy(cursedItemKeys = keys, requiredSlotCount = HandRules.minHand(state.newSuits, keys))
+        }
+    }
 
     fun applyOptimal() {
         val current = _uiState.value
+        val ctx = scoringContext ?: return
         if (current.filledCards.isEmpty()) return
-        val seed = ScoringInput(
-            hand = current.filledCards,
-            jokerAssignments = current.jokerAssignments,
-        )
+        val seed = handScoring.input(handEntriesOf(current.slots, current.jokerAssignments), ctx) ?: return
         _uiState.update { it.copy(isOptimalRunning = true) }
         viewModelScope.launch {
             val best = withContext(Dispatchers.Default) { optimalSolver.findOptimal(seed) }
@@ -192,28 +258,12 @@ class PlayerHandEntryViewModel(
         if (!current.canSubmit) return
         _uiState.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            val input = ScoringInput(
-                hand = current.filledCards,
-                jokerAssignments = current.jokerAssignments,
-            )
-            val totalScore = withContext(Dispatchers.Default) { engine.score(input).totalScore }
-            val entries = current.slots.mapIndexedNotNull { idx, slot ->
-                val card = (slot as? CardSlot.Filled)?.card ?: return@mapIndexedNotNull null
-                // Every target — jokers, Island, Fountain and the Necromancer pull — lives in
-                // jokerAssignments keyed by the card and persists to its own jokerTargetCardKey.
-                val assignment = current.jokerAssignments[card.key]
-                HandCardEntry(
-                    cardKey = card.key,
-                    position = idx,
-                    jokerTargetCardKey = assignment?.targetCardKey,
-                    jokerTargetSuit = assignment?.targetSuit?.name,
-                )
-            }
-            handCardRepo.saveHand(
+            handScoring.saveHand(
                 roundId = roundId,
                 profileId = profileId,
-                cards = entries,
-                totalScore = totalScore,
+                entries = handEntriesOf(current.slots, current.jokerAssignments),
+                cursedItemKeys = current.cursedItemKeys.toList(),
+                context = scoringContext,
             )
             _uiState.update { it.copy(isSaving = false) }
             onSuccess()
@@ -222,16 +272,17 @@ class PlayerHandEntryViewModel(
 
     private fun PlayerHandEntryUiState.pruneStaleSelections(): PlayerHandEntryUiState {
         val handKeys = filledCards.map { it.key }.toSet()
-        // Every assignment (jokers, Island, Fountain, Necromancer) is keyed by its hand card, so
-        // dropping cards no longer in the hand prunes them all uniformly.
+        // Every assignment (jokers, Island, Fountain, Angel, Necromancer) is keyed by its hand card,
+        // so dropping cards no longer in the hand prunes them all uniformly.
         return copy(jokerAssignments = jokerAssignments.filterKeys { it in handKeys })
     }
 
     class Factory(
         private val cardLookup: CardLookup,
+        private val cursedItemLookup: CursedItemLookup,
         private val handCardRepo: HandCardRepository,
         private val profileRepo: ProfileRepository,
-        private val engine: ScoringEngine,
+        private val handScoring: HandScoringService,
         private val optimalSolver: OptimalSolver,
         private val roundId: String,
         private val profileId: String,
@@ -240,9 +291,10 @@ class PlayerHandEntryViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return PlayerHandEntryViewModel(
                 cardLookup = cardLookup,
+                cursedItemLookup = cursedItemLookup,
                 handCardRepo = handCardRepo,
                 profileRepo = profileRepo,
-                engine = engine,
+                handScoring = handScoring,
                 optimalSolver = optimalSolver,
                 roundId = roundId,
                 profileId = profileId,
