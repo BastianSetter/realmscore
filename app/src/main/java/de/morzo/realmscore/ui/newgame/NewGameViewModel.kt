@@ -11,6 +11,7 @@ import de.morzo.realmscore.domain.p2p.model.ParticipantInfo
 import de.morzo.realmscore.domain.p2p.model.SessionState
 import de.morzo.realmscore.domain.repository.GameRepository
 import de.morzo.realmscore.domain.repository.ProfileRepository
+import de.morzo.realmscore.domain.repository.SettingsRepository
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -46,6 +48,9 @@ data class NewGameUiState(
     val suggestions: List<Profile> = emptyList(),
     val addError: AddError? = null,
     val isStarting: Boolean = false,
+    /** Phase 30: expansion switches for this game (defaults from Settings). */
+    val cursedItemsEnabled: Boolean = false,
+    val newSuitsEnabled: Boolean = false,
 ) {
     val targetValue: Int
         get() = when (mode) {
@@ -69,6 +74,7 @@ class NewGameViewModel(
     private val profileRepo: ProfileRepository,
     private val gameRepo: GameRepository,
     private val p2p: P2PSessionRepository,
+    private val settings: SettingsRepository,
     /** When set, pre-fill players + settings from this previous game ("Neues Spiel starten"). */
     private val seedGameId: String = "",
     /** When true, keep the live host session alive and bring the joined phones into the next game. */
@@ -137,8 +143,12 @@ class NewGameViewModel(
             val owner = profileRepo.getLocalOwner()
                 ?: error("Local owner not found – onboarding must run first.")
             hostDeviceId = owner.originDeviceId
+            val cursedItemsDefault = settings.defaultCursedItemsEnabled.first()
+            val newSuitsDefault = settings.defaultNewSuitsEnabled.first()
             _uiState.update { state ->
                 state.copy(
+                    cursedItemsEnabled = cursedItemsDefault,
+                    newSuitsEnabled = newSuitsDefault,
                     ownerProfileId = owner.id,
                     participants = listOf(
                         ParticipantRow(
@@ -181,6 +191,9 @@ class NewGameViewModel(
     private suspend fun seedFromPreviousGame(gameId: String, ownerId: String) {
         val game = gameRepo.getById(gameId) ?: return
         setMode(game.mode)
+        _uiState.update {
+            it.copy(cursedItemsEnabled = game.cursedItemsEnabled, newSuitsEnabled = game.newSuitsEnabled)
+        }
         when (game.mode) {
             GameMode.FIXED_ROUNDS -> game.targetRounds?.let { setTarget(it) }
             GameMode.POINT_LIMIT -> game.targetPoints?.let { setTarget(it) }
@@ -364,6 +377,8 @@ class NewGameViewModel(
                     mode = current.mode,
                     target = current.targetValue,
                     participantProfileIds = current.participants.map { it.profileId },
+                    cursedItemsEnabled = current.cursedItemsEnabled,
+                    newSuitsEnabled = current.newSuitsEnabled,
                 )
                 if (p2p.sessionState.value is SessionState.Hosting) {
                     p2p.startSharedSession(game.id)
@@ -401,6 +416,14 @@ class NewGameViewModel(
         viewModelScope.launch { refreshSuggestions(_uiState.value.addQuery.trim()) }
     }
 
+    fun setCursedItemsEnabled(value: Boolean) {
+        _uiState.update { it.copy(cursedItemsEnabled = value) }
+    }
+
+    fun setNewSuitsEnabled(value: Boolean) {
+        _uiState.update { it.copy(newSuitsEnabled = value) }
+    }
+
     companion object {
         const val MAX_PLAYERS = 6
     }
@@ -409,13 +432,14 @@ class NewGameViewModel(
         private val profileRepo: ProfileRepository,
         private val gameRepo: GameRepository,
         private val p2p: P2PSessionRepository,
+        private val settings: SettingsRepository,
         private val seedGameId: String = "",
         private val continueSession: Boolean = false,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return NewGameViewModel(
-                profileRepo, gameRepo, p2p, seedGameId, continueSession,
+                profileRepo, gameRepo, p2p, settings, seedGameId, continueSession,
             ) as T
         }
     }

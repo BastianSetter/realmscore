@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "note": "English overrides for expansion_cursed_hoard.json.",
+  "cards": [
+    {
+      "key": "expansion_death_knight",
+      "nameEn": "Death Knight",
+      "ruleTextEn": "Bonus: +7 for each Weapon and/or Army in the discard area"
+    },
+    {
+      "key": "expansion_lich",
+      "nameEn": "Lich",
+      "ruleTextEn": "Undead may not be BLANKED. Bonus: +10 for Necromancer and/or each other Undead"
+    },
+    {
+      "key": "expansion_ghost",
+      "nameEn": "Specter",
+      "ruleTextEn": "Bonus: +6 for each Wizard, Artifact and/or Outsider in the discard area"
+    },
+    {
+      "key": "expansion_ghoul",
+      "nameEn": "Ghoul",
+      "ruleTextEn": "Bonus: +4 for each Wizard, Leader, Army, Beast and/or Undead in the discard area"
+    },
+    {
+      "key": "expansion_dark_queen",
+      "nameEn": "Dark Queen",
+      "ruleTextEn": "Bonus: +5 for each Land, Flood, Flame, Weather and/or Unicorn in the discard area"
+    },
+    {
+      "key": "expansion_demon",
+      "nameEn": "Demon",
+      "ruleTextEn": "Penalty: For each non-Outsider card: if it is the only card of its suit in your hand, it is BLANKED. This happens before any other blanking"
+    },
+    {
+      "key": "expansion_leprechaun",
+      "nameEn": "Leprechaun",
+      "ruleTextEn": "Bonus: At the end of the game, draw the top card of the deck and add it to your hand (before the Genie)"
+    },
+    {
+      "key": "expansion_angel",
+      "nameEn": "Angel",
+      "ruleTextEn": "Bonus: This card can never be BLANKED. Protects any one other card from being BLANKED"
+    },
+    {
+      "key": "expansion_judge",
+      "nameEn": "Judge",
+      "ruleTextEn": "Bonus: +10 for each card with a Penalty that is not CLEARED"
+    },
+    {
+      "key": "expansion_genie",
+      "nameEn": "Genie",
+      "ruleTextEn": "Bonus: +10 for each opponent. At the end of the game you may search the deck and add one card to your hand (after the Leprechaun)"
+    },
+    {
+      "key": "expansion_garden",
+      "nameEn": "Garden",
+      "ruleTextEn": "Bonus: +11 for each Leader and/or Beast. Penalty: BLANKED with any Undead, Necromancer and/or Demon"
+    },
+    {
+      "key": "expansion_chapel",
+      "nameEn": "Chapel",
+      "ruleTextEn": "Bonus: +40 if you have exactly two cards among the following suits: Leader, Wizard, Outsider and Undead"
+    },
+    {
+      "key": "expansion_crypt",
+      "nameEn": "Crypt",
+      "ruleTextEn": "Bonus: The sum of the base strength of all Undead in hand. Penalty: BLANKS all Leaders"
+    },
+    {
+      "key": "expansion_castle",
+      "nameEn": "Castle",
+      "ruleTextEn": "Bonus: +10 for the first Leader, Army, Land and other Building each. +5 for each additional Building"
+    },
+    {
+      "key": "expansion_dungeon",
+      "nameEn": "Dungeon",
+      "ruleTextEn": "Bonus: +10 for the first Undead, Beast and Artifact each. +5 for each additional card of these suits and for Necromancer, Warlock, Demon"
+    },
+    {
+      "key": "expansion_mirage",
+      "nameEn": "Mirage",
+      "ruleTextEn": "May duplicate the name and suit of any Army, Building, Land, Weather, Flood or Flame in the game. Does not take the bonus, penalty or base strength of the card duplicated"
+    },
+    {
+      "key": "expansion_shapeshifter",
+      "nameEn": "Shapeshifter",
+      "ruleTextEn": "May duplicate the name and suit of any Artifact, Leader, Wizard, Weapon, Beast or Undead in the game. Does not take the bonus, penalty or base strength of the card duplicated"
+    },
+    {
+      "key": "expansion_world_tree",
+      "nameEn": "World Tree",
+      "ruleTextEn": "Bonus: +70 if every non-BLANKED card is a different suit"
+    },
+    {
+      "key": "expansion_necromancer",
+      "nameEn": "Necromancer",
+      "ruleTextEn": "Bonus: At the end of the game, you may take one Army, Leader, Wizard, Beast or Undead from the discard area and add it to your hand. Undead may not be BLANKED"
+    },
+    {
+      "key": "expansion_rangers",
+      "nameEn": "Rangers",
+      "ruleTextEn": "Bonus: +10 for each Land and Building; Clears the word Army from the Penalty section of all cards in hand"
+    },
+    {
+      "key": "expansion_great_flood",
+      "nameEn": "Great Flood",
+      "ruleTextEn": "Penalty: BLANKS all Armies, all Buildings, all Lands except Mountain, and all Flames except Lightning"
+    },
+    {
+      "key": "expansion_fountain_of_life",
+      "nameEn": "Fountain of Life",
+      "ruleTextEn": "Bonus: Add the base strength of any one Weapon, Building, Flood, Flame, Land or Weather in your hand"
+    },
+    {
+      "key": "expansion_bell_tower",
+      "nameEn": "Bell Tower",
+      "ruleTextEn": "Bonus: +15 with any one Wizard or Undead"
+    }
+  ]
+}

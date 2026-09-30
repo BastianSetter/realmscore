@@ -3,6 +3,8 @@ package de.morzo.realmscore.di
 import android.content.Context
 import androidx.room.Room
 import de.morzo.realmscore.data.cards.CardLookup
+import de.morzo.realmscore.data.cards.CursedItemLookup
+import de.morzo.realmscore.data.repository.HandScoringService
 import de.morzo.realmscore.data.datastore.DeviceUuidProvider
 import de.morzo.realmscore.data.ocr.BannerTemplateStore
 import de.morzo.realmscore.data.ocr.CardScanner
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import de.morzo.realmscore.data.db.AppDatabase
 import de.morzo.realmscore.data.db.migration.MIGRATION_6_7
 import de.morzo.realmscore.data.db.migration.MIGRATION_7_8
+import de.morzo.realmscore.data.db.migration.MIGRATION_9_10
 import de.morzo.realmscore.data.p2p.BluetoothRfcommManager
 import de.morzo.realmscore.data.p2p.CompanionDeviceHelper
 import de.morzo.realmscore.data.p2p.GameMirrorSync
@@ -71,7 +74,7 @@ class AppContainer(private val applicationContext: Context) {
             // at minimum gate it behind a debug check. Decision deferred: documenting only for now.
             // Real migrations registered here take precedence over the destructive fallback for the
             // version steps they cover (spec 25.6: 6 → 7 adds the favorite `name` column).
-            .addMigrations(MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_9_10)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -83,6 +86,9 @@ class AppContainer(private val applicationContext: Context) {
     val clock: Clock by lazy { SystemClock() }
 
     val cardLookup: CardLookup by lazy { CardLookup(applicationContext) }
+
+    /** Phase 30: the expansion's cursed items (fixed points only). */
+    val cursedItemLookup: CursedItemLookup by lazy { CursedItemLookup(applicationContext) }
 
     // Phase 26 camera scan: the OCR engine is flavour-specific (Tesseract for fdroid, ML Kit for
     // play), built by the active flavour's ScannerFactory and warmed up at app start.
@@ -173,7 +179,7 @@ class AppContainer(private val applicationContext: Context) {
     }
 
     val optimalSolver: OptimalSolver by lazy {
-        OptimalSolver(scoringEngine, jokerResolver, cardLookup.getAll())
+        OptimalSolver(scoringEngine, jokerResolver) { newSuits -> cardLookup.cardsFor(newSuits) }
     }
 
     val statsRepository: StatsRepository by lazy {
@@ -185,6 +191,7 @@ class AppContainer(private val applicationContext: Context) {
             profileDao = database.profileDao(),
             cardLookup = cardLookup,
             scoringEngine = scoringEngine,
+            discardCardDao = database.discardCardDao(),
         )
     }
 
@@ -236,8 +243,19 @@ class AppContainer(private val applicationContext: Context) {
             backupRepository = backupRepository,
             handCardRepo = handCardRepository,
             roundRepo = roundRepository,
-            cardLookup = cardLookup,
+            handScoring = handScoringService,
+        )
+    }
+
+    /** Phase 30: the single canonical hand scoring + persistence path. */
+    val handScoringService: HandScoringService by lazy {
+        HandScoringService(
             engine = scoringEngine,
+            cardLookup = cardLookup,
+            cursedItemLookup = cursedItemLookup,
+            roundRepo = roundRepository,
+            gameRepo = gameRepository,
+            handCardRepo = handCardRepository,
         )
     }
 

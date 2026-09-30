@@ -174,6 +174,9 @@
     <string name="suit_weather">Wetter</string>
     <string name="suit_wizard">Zauberer</string>
     <string name="suit_wild">Joker</string>
+    <string name="suit_building">Gebäude</string>
+    <string name="suit_outsider">Outsider</string>
+    <string name="suit_undead">Untote</string>
     <string name="suit_all">Alle</string>
 
     <!-- Sandbox: Engine/Joker/Choice/Breakdown -->
@@ -303,6 +306,29 @@
     <string name="effect_blizzard_per_target">−5 pro Armee/Anführer/Bestie/Flamme (× %1$s)</string>
 
     <string name="effect_collector">Sammlung: %1$s Karten von %2$s</string>
+    <!-- Phase 30: Der verfluchte Schatz -->
+    <string name="effect_death_knight">+7 pro Waffe/Armee im Ablagebereich (× %1$s)</string>
+    <string name="effect_lich">+10 pro Totenbeschwörer/anderem Untoten (× %1$s)</string>
+    <string name="effect_ghost">+6 pro Zauberer/Artefakt/Outsider im Ablagebereich (× %1$s)</string>
+    <string name="effect_ghoul">+4 pro Zauberer/Anführer/Armee/Bestie/Untotem im Ablagebereich (× %1$s)</string>
+    <string name="effect_dark_queen">+5 pro Land/Flut/Flamme/Wetter/Einhorn im Ablagebereich (× %1$s)</string>
+    <string name="effect_judge">+10 pro Karte mit nicht aufgehobener Strafe (× %1$s)</string>
+    <string name="effect_genie">+10 pro Mitspieler (× %1$s)</string>
+    <string name="effect_garden">+11 pro Anführer/Bestie (× %1$s)</string>
+    <string name="effect_chapel">Genau zwei Anführer/Zauberer/Outsider/Untote</string>
+    <string name="effect_crypt">Basisstärke der Untoten (× %1$s)</string>
+    <string name="effect_castle_first_leader">+10 für den ersten Anführer</string>
+    <string name="effect_castle_first_army">+10 für die erste Armee</string>
+    <string name="effect_castle_first_land">+10 für das erste Land</string>
+    <string name="effect_castle_first_building">+10 für das erste andere Gebäude</string>
+    <string name="effect_castle_more_buildings">+5 pro weiterem Gebäude (× %1$s)</string>
+    <string name="effect_dungeon_first_undead">+10 für den ersten Untoten</string>
+    <string name="effect_dungeon_first_beast">+10 für die erste Bestie</string>
+    <string name="effect_dungeon_first_artifact">+10 für das erste Artefakt</string>
+    <string name="effect_dungeon_more">+5 pro weiterer Karte (× %1$s)</string>
+    <string name="effect_expansion_bell_tower">+15 mit Zauberer oder Untotem</string>
+    <string name="effect_expansion_rangers">+10 pro Land/Gebäude (× %1$s)</string>
+    <string name="joker_action_angel">schützt</string>
     <string name="effect_enchantress_per_target">+5 pro Land/Wetter/Flut/Flamme (× %1$s)</string>
     <string name="effect_beastmaster_per_beast">+9 pro Bestie (× %1$s)</string>
     <string name="effect_warlock_per_target">−10 pro Anführer/anderen Zauberer (× %1$s)</string>
@@ -570,4 +596,20 @@
     <string name="p2p_camera_rationale">Kamerazugriff wird benötigt, um den QR-Code zu scannen.</string>
     <string name="p2p_discoverable_denied">Sichtbarkeit abgelehnt. Ohne sie können andere Geräte dieses Gerät nicht finden.</string>
     <string name="home_join_session_body">Tritt einer Session am selben Tisch bei und erfasst gemeinsam.</string>
+    <!-- Phase 30: Der verfluchte Schatz -->
+    <string name="settings_expansion_title">Erweiterung „Der verfluchte Schatz“</string>
+    <string name="settings_expansion_cursed_items">Verfluchte Gegenstände (Standard für neue Spiele)</string>
+    <string name="settings_expansion_new_suits">Neue Kartenfarben (Standard für neue Spiele)</string>
+    <string name="new_game_expansion_title">Erweiterung „Der verfluchte Schatz“</string>
+    <string name="new_game_expansion_cursed_items">Verfluchte Gegenstände</string>
+    <string name="new_game_expansion_new_suits">Neue Kartenfarben (Gebäude, Outsider, Untote)</string>
+    <string name="new_game_expansion_new_suits_hint">8 Handkarten, Mittelfeld wird erfasst</string>
+    <string name="card_badge_expansion">Erweiterung</string>
+    <string name="cursed_items_title">Verfluchte Gegenstände</string>
+    <string name="cursed_items_hint">Benutzte (umgedrehte) Gegenstände auswählen</string>
+    <string name="cursed_items_total">Gegenstände: %1$s</string>
+    <string name="cursed_items_none">Keine</string>
+    <string name="hand_optional_slot">optional</string>
+    <string name="sandbox_new_suits_toggle">Neue Kartenfarben</string>
+    <string name="sandbox_player_count">Spieler: %1$d</string>
 </resources>

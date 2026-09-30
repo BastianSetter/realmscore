@@ -32,15 +32,15 @@ import de.morzo.realmscore.domain.model.displayName
 import de.morzo.realmscore.domain.scoring.JokerAssignment
 import de.morzo.realmscore.domain.scoring.ResolvedCard
 import de.morzo.realmscore.domain.scoring.joker.JokerResolver
+import de.morzo.realmscore.domain.scoring.joker.JokerTargets
 import de.morzo.realmscore.ui.components.suitLabelRes
 import de.morzo.realmscore.ui.util.currentLocale
 import de.morzo.realmscore.ui.util.sortedByLocalizedLabel
 import java.util.Locale
 
-private val BOOK_OF_CHANGES_SUITS = Suit.entries.filter { it != Suit.WILD }
-
-private val ISLAND_SUITS = setOf(Suit.FLOOD, Suit.FLAME)
-private val FOUNTAIN_SUITS = setOf(Suit.WEAPON, Suit.FLOOD, Suit.FLAME, Suit.LAND, Suit.WEATHER)
+/** Suits Book of Changes may assign: every real suit of the game's card pool (new suits only with the expansion). */
+private fun bookOfChangesSuits(allCards: List<CardDefinition>): List<Suit> =
+    allCards.map { it.suit }.distinct().filter { it != Suit.WILD }
 
 /** A pickable target: [key] is the physical hand card chosen, [label] the text shown to the user. */
 private data class TargetOption(val key: String, val label: String)
@@ -56,6 +56,7 @@ private fun jokerActionLabel(jokerType: JokerType?): String = stringResource(
         JokerType.ISLAND -> R.string.joker_action_island
         JokerType.FOUNTAIN_OF_LIFE -> R.string.joker_action_fountain
         JokerType.NECROMANCER -> R.string.joker_action_necromancer
+        JokerType.ANGEL -> R.string.joker_action_angel
         null -> R.string.joker_action_mirage
     }
 )
@@ -207,12 +208,11 @@ private fun JokerRow(
             JokerType.DOPPELGANGER ->
                 handCards.filter { it.key != joker.key && !it.isJoker }
                     .map { TargetOption(it.key, it.displayName(locale)) }
-            JokerType.MIRAGE ->
-                allCards.filter { it.suit in JokerType.MIRAGE_SUITS && !it.isJoker && it.key !in handKeys }
+            JokerType.MIRAGE, JokerType.SHAPESHIFTER -> {
+                val suits = JokerTargets.substitutionSuits(joker)
+                allCards.filter { it.suit in suits && !it.isJoker && it.key !in handKeys }
                     .map { TargetOption(it.key, it.displayName(locale)) }
-            JokerType.SHAPESHIFTER ->
-                allCards.filter { it.suit in JokerType.SHAPESHIFTER_SUITS && !it.isJoker && it.key !in handKeys }
-                    .map { TargetOption(it.key, it.displayName(locale)) }
+            }
             // Book of Changes targets the RESOLVED hand so it can also re-suit the Necromancer's
             // pulled 8th card (and is labelled by the effective identity).
             JokerType.BOOK_OF_CHANGES ->
@@ -223,14 +223,18 @@ private fun JokerRow(
             // shown, correctly). The label resolves the effectiveCardKey against the full card set
             // so it follows the active language (spec 25.7, Ursache B).
             JokerType.ISLAND ->
-                resolved.filter { it.originalKey != joker.key && it.effectiveSuit in ISLAND_SUITS }
+                resolved.filter { it.originalKey != joker.key && it.effectiveSuit in JokerTargets.ISLAND_SUITS }
                     .map { TargetOption(it.originalKey, it.effectiveLabel(allCards, locale)) }
             JokerType.FOUNTAIN_OF_LIFE ->
                 resolved.filter {
                     it.originalKey != joker.key &&
-                        it.effectiveSuit in FOUNTAIN_SUITS &&
+                        it.effectiveSuit in JokerTargets.fountainSuits(joker.key) &&
                         it.effectiveStrength > 0
                 }.map { TargetOption(it.originalKey, it.effectiveLabel(allCards, locale)) }
+            // Engel (Phase 30): protects any one other card of the resolved hand from blanking.
+            JokerType.ANGEL ->
+                resolved.filter { it.originalKey != joker.key }
+                    .map { TargetOption(it.originalKey, it.effectiveLabel(allCards, locale)) }
             // Necromancer keeps its own dedicated section and is filtered out before reaching here.
             JokerType.NECROMANCER -> emptyList()
             null -> emptyList()
@@ -244,7 +248,8 @@ private fun JokerRow(
     val isBook = joker.jokerType == JokerType.BOOK_OF_CHANGES
     // Default target colour = first suit in the localized order, so it matches the dropdown's
     // alphabetical ordering for the current language.
-    val defaultBookSuit = BOOK_OF_CHANGES_SUITS.sortedByLocalizedLabel().first()
+    val bookSuits = remember(allCards) { bookOfChangesSuits(allCards) }
+    val defaultBookSuit = bookSuits.sortedByLocalizedLabel().first()
     val onTargetSelected: (TargetOption?) -> Unit = { option ->
         if (option == null) {
             onChange(null)
@@ -266,6 +271,7 @@ private fun JokerRow(
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 SuitPicker(
+                    suits = bookSuits,
                     current = assignment.targetSuit ?: defaultBookSuit,
                     onSelected = { suit ->
                         onChange(JokerAssignment(joker.key, assignment.targetCardKey, suit))
@@ -289,6 +295,7 @@ private fun JokerRow(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     SuitPicker(
+                        suits = bookSuits,
                         current = assignment.targetSuit ?: defaultBookSuit,
                         onSelected = { suit ->
                             onChange(JokerAssignment(joker.key, assignment.targetCardKey, suit))
@@ -379,6 +386,7 @@ private fun TargetPicker(
 
 @Composable
 private fun SuitPicker(
+    suits: List<Suit>,
     current: Suit,
     onSelected: (Suit) -> Unit,
 ) {
@@ -388,9 +396,8 @@ private fun SuitPicker(
         label = { Text(stringResource(suitLabelRes(current))) },
     )
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        // Display order follows the in-app language; the BOOK_OF_CHANGES_SUITS default
-        // (used elsewhere for the initial target) stays on the fixed enum order.
-        BOOK_OF_CHANGES_SUITS.sortedByLocalizedLabel().forEach { suit ->
+        // Display order follows the in-app language.
+        suits.sortedByLocalizedLabel().forEach { suit ->
             DropdownMenuItem(
                 text = { Text(stringResource(suitLabelRes(suit))) },
                 onClick = { onSelected(suit); expanded = false },

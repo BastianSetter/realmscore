@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "note": "Der verfluchte Schatz - Teil 1 (verfluchte Gegenstaende). Nur Punktwerte; pointsTwoPlayer ueberschreibt points im Zweierspiel.",
+  "items": [
+    {
+      "key": "cursed_wishing_ring",
+      "nameDe": "Wunschring",
+      "nameEn": "Wishing Ring",
+      "points": -30
+    },
+    {
+      "key": "cursed_backpack",
+      "nameDe": "Rucksack",
+      "nameEn": "Backpack",
+      "points": -2
+    },
+    {
+      "key": "cursed_fishhook",
+      "nameDe": "Angelhaken",
+      "nameEn": "Fishhook",
+      "points": -6
+    },
+    {
+      "key": "cursed_cauldron",
+      "nameDe": "Hexenkessel",
+      "nameEn": "Cauldron",
+      "points": -9
+    },
+    {
+      "key": "cursed_hourglass",
+      "nameDe": "Sanduhr",
+      "nameEn": "Hourglass",
+      "points": -7
+    },
+    {
+      "key": "cursed_blindfold",
+      "nameDe": "Augenbinde",
+      "nameEn": "Blindfold",
+      "points": 5
+    },
+    {
+      "key": "cursed_shovel",
+      "nameDe": "Schaufel",
+      "nameEn": "Shovel",
+      "points": -2
+    },
+    {
+      "key": "cursed_rake",
+      "nameDe": "Harke",
+      "nameEn": "Rake",
+      "points": -4
+    },
+    {
+      "key": "cursed_larcenous_gloves",
+      "nameDe": "Diebische Handschuhe",
+      "nameEn": "Larcenous Gloves",
+      "points": -3
+    },
+    {
+      "key": "cursed_winged_boots",
+      "nameDe": "Geflügelte Stiefel",
+      "nameEn": "Winged Boots",
+      "points": -4
+    },
+    {
+      "key": "cursed_sarcophagus",
+      "nameDe": "Sarkophag",
+      "nameEn": "Sarcophagus",
+      "points": 5
+    },
+    {
+      "key": "cursed_spyglass",
+      "nameDe": "Fernglas",
+      "nameEn": "Spyglass",
+      "points": -1,
+      "pointsTwoPlayer": -10
+    },
+    {
+      "key": "cursed_market_wagon",
+      "nameDe": "Marktwagen",
+      "nameEn": "Market Wagon",
+      "points": -2
+    },
+    {
+      "key": "cursed_junkyard_map",
+      "nameDe": "Schrottplatz-Karte",
+      "nameEn": "Junkyard Map",
+      "points": -3
+    },
+    {
+      "key": "cursed_staff_of_transmutation",
+      "nameDe": "Stab der Transmutation",
+      "nameEn": "Staff of Transmutation",
+      "points": -4
+    },
+    {
+      "key": "cursed_lockbox",
+      "nameDe": "Verschlossener Tresor",
+      "nameEn": "Lockbox",
+      "points": -4
+    },
+    {
+      "key": "cursed_treasure_chest",
+      "nameDe": "Schatztruhe",
+      "nameEn": "Treasure Chest",
+      "points": -5
+    },
+    {
+      "key": "cursed_repair_kit",
+      "nameDe": "Reparaturset",
+      "nameEn": "Repair Kit",
+      "points": -6
+    },
+    {
+      "key": "cursed_book_of_prophecy",
+      "nameDe": "Buch der Prophezeiungen",
+      "nameEn": "Book of Prophecy",
+      "points": -1
+    },
+    {
+      "key": "cursed_gold_mirror",
+      "nameDe": "Goldener Spiegel",
+      "nameEn": "Gold Mirror",
+      "points": -8
+    },
+    {
+      "key": "cursed_portal",
+      "nameDe": "Portal",
+      "nameEn": "Portal",
+      "points": -20
+    },
+    {
+      "key": "cursed_crystal_lens",
+      "nameDe": "Kristalllinse",
+      "nameEn": "Crystal Lens",
+      "points": -2
+    },
+    {
+      "key": "cursed_lantern",
+      "nameDe": "Laterne",
+      "nameEn": "Lantern",
+      "points": -10
+    },
+    {
+      "key": "cursed_crystal_ball",
+      "nameDe": "Kristallkugel",
+      "nameEn": "Crystal Ball",
+      "points": -1
+    }
+  ]
+}

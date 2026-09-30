@@ -121,7 +121,7 @@ fun SandboxScreen(
     }
     // Auto-advance to the main screen once the hand is full (mirrors the capture flow, spec 25.5).
     LaunchedEffect(state.filledCards.size, stage) {
-        if (stage == SandboxStage.CardPick && state.filledCards.size == SANDBOX_SLOT_COUNT) {
+        if (stage == SandboxStage.CardPick && state.isHandComplete) {
             stage = SandboxStage.Main
         }
     }
@@ -188,6 +188,13 @@ fun SandboxScreen(
                     .imePadding()
                     .padding(16.dp),
             ) {
+                SandboxExpansionRow(
+                    newSuits = state.newSuits,
+                    playerCount = state.playerCount,
+                    showPlayerCount = false,
+                    onNewSuitsChange = viewModel::setNewSuits,
+                    onPlayerCountChange = viewModel::setPlayerCount,
+                )
                 val targetSlot = pickTarget ?: state.slots.indexOfFirst { it is CardSlot.Empty }
                 val targetCard = (state.slots.getOrNull(targetSlot) as? CardSlot.Filled)?.card
                 val pickerExcluded =
@@ -225,6 +232,14 @@ fun SandboxScreen(
                     OriginBannerCard(banner = banner, onDismiss = viewModel::reset)
                 }
 
+                SandboxExpansionRow(
+                    newSuits = state.newSuits,
+                    playerCount = state.playerCount,
+                    showPlayerCount = state.newSuits,
+                    onNewSuitsChange = viewModel::setNewSuits,
+                    onPlayerCountChange = viewModel::setPlayerCount,
+                )
+
                 HandSlotsRow(
                     slots = state.slots,
                     onSlotTap = { idx -> pickerForSlot = idx },
@@ -238,15 +253,15 @@ fun SandboxScreen(
                     onAssignmentChange = viewModel::setJokerAssignment,
                     onOptimal = viewModel::applyOptimal,
                     optimalRunning = state.optimalRunning,
-                    necromancer = if (state.necromancerInHand) {
+                    necromancer = state.necromancerCard?.let { necromancer ->
                         NecromancerRowData(
-                            card = viewModel.allCards.first { it.key == "necromancer" },
-                            pickedCard = state.jokerAssignments["necromancer"]?.targetCardKey
-                                ?.let { key -> viewModel.allCards.firstOrNull { it.key == key } },
+                            card = necromancer,
+                            pickedCard = state.jokerAssignments[necromancer.key]?.targetCardKey
+                                ?.let { key -> container.cardLookup.getByKey(key) },
                             onPick = { necromancerPickerOpen = true },
                             onClear = viewModel::clearNecromancerPick,
                         )
-                    } else null,
+                    },
                 )
 
                 val result = state.scoringResult
@@ -293,6 +308,7 @@ fun SandboxScreen(
                 handKeys = placedKeys,
                 discardScanned = state.discardScanned,
                 discardKeys = state.discardCards.map { it.key }.toSet(),
+                necromancerKey = state.necromancerCard?.key ?: "necromancer",
             )
         }
         CardPicker(
@@ -526,4 +542,37 @@ private fun sandboxViewModelKey(launchData: SandboxLaunchData): String = when (l
         "sandbox-from-${launchData.gameId}-${launchData.roundId}-${launchData.profileId}"
     is SandboxLaunchData.FromFavorite -> "sandbox-favorite-${launchData.favoriteId}"
     is SandboxLaunchData.Prefilled -> "sandbox-prefilled"
+}
+
+/**
+ * Phase 30: the sandbox's own expansion switch (new suits) and — with the new suits — the player
+ * count the Dschinn scores against. Independent of the Settings defaults.
+ */
+@Composable
+private fun SandboxExpansionRow(
+    newSuits: Boolean,
+    playerCount: Int,
+    showPlayerCount: Boolean,
+    onNewSuitsChange: (Boolean) -> Unit,
+    onPlayerCountChange: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.sandbox_new_suits_toggle),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        if (showPlayerCount) {
+            androidx.compose.material3.TextButton(
+                onClick = { onPlayerCountChange(if (playerCount >= 6) 2 else playerCount + 1) },
+            ) {
+                Text(stringResource(R.string.sandbox_player_count, playerCount))
+            }
+        }
+        androidx.compose.material3.Switch(checked = newSuits, onCheckedChange = onNewSuitsChange)
+    }
 }

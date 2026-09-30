@@ -47,6 +47,8 @@ data class SettingsUiState(
     val pickerSearchEnabled: Boolean = true,
     val cameraScanEnabled: Boolean = false,
     val bitmapMatchingEnabled: Boolean = false,
+    val defaultCursedItemsEnabled: Boolean = false,
+    val defaultNewSuitsEnabled: Boolean = false,
     val dataInfo: DataInfo = DataInfo(),
 )
 
@@ -95,7 +97,11 @@ class SettingsViewModel(
         settings.pickerSearchEnabled,
         settings.cameraScanEnabled,
         settings.bitmapMatchingEnabled,
-    ) { pickerSearch, cameraScan, bitmapMatching -> CaptureFlags(pickerSearch, cameraScan, bitmapMatching) }
+        settings.defaultCursedItemsEnabled,
+        settings.defaultNewSuitsEnabled,
+    ) { pickerSearch, cameraScan, bitmapMatching, cursedItems, newSuits ->
+        CaptureFlags(pickerSearch, cameraScan, bitmapMatching, cursedItems, newSuits)
+    }
 
     val uiState: StateFlow<SettingsUiState> = combine(
         profileRepo.observeLocalOwner(),
@@ -115,6 +121,8 @@ class SettingsViewModel(
             pickerSearchEnabled = captureFlags.pickerSearch,
             cameraScanEnabled = captureFlags.cameraScan,
             bitmapMatchingEnabled = captureFlags.bitmapMatching,
+            defaultCursedItemsEnabled = captureFlags.cursedItems,
+            defaultNewSuitsEnabled = captureFlags.newSuits,
             dataInfo = dataInfo,
         )
     }.stateIn(
@@ -157,6 +165,14 @@ class SettingsViewModel(
 
     fun setBitmapMatchingEnabled(value: Boolean) {
         viewModelScope.launch { settings.setBitmapMatchingEnabled(value) }
+    }
+
+    fun setDefaultCursedItemsEnabled(value: Boolean) {
+        viewModelScope.launch { settings.setDefaultCursedItemsEnabled(value) }
+    }
+
+    fun setDefaultNewSuitsEnabled(value: Boolean) {
+        viewModelScope.launch { settings.setDefaultNewSuitsEnabled(value) }
     }
 
     /**
@@ -235,6 +251,8 @@ class SettingsViewModel(
         val pickerSearch: Boolean,
         val cameraScan: Boolean,
         val bitmapMatching: Boolean,
+        val cursedItems: Boolean,
+        val newSuits: Boolean,
     )
 
     private data class PrefsSnapshot(

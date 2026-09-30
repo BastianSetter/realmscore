@@ -1,6 +1,7 @@
 package de.morzo.realmscore.data.repository
 
 import de.morzo.realmscore.data.cards.CardLookup
+import de.morzo.realmscore.data.db.dao.DiscardCardDao
 import de.morzo.realmscore.data.db.dao.GameDao
 import de.morzo.realmscore.data.db.dao.HandCardDao
 import de.morzo.realmscore.data.db.dao.ProfileDao
@@ -40,6 +41,7 @@ class StatsRepositoryImpl(
     private val profileDao: ProfileDao,
     private val cardLookup: CardLookup,
     private val scoringEngine: ScoringEngine,
+    private val discardCardDao: DiscardCardDao,
 ) : StatsRepository {
 
     // --- Phase 24 M1: snapshot cache ---
@@ -128,9 +130,27 @@ class StatsRepositoryImpl(
             .groupBy { it.roundResultId }
             .mapValues { (_, list) -> list.sortedBy { it.position } }
 
-        val cardsByKey = cardLookup.getAll().associateBy { it.key }
+        // Every card ever known (base + expansion), so hands of expansion games are resolvable too.
+        val cardsByKey = cardLookup.getEveryCard().associateBy { it.key }
 
-        val perCardContribution = computePerCardContributions(handCardsByResultId, cardsByKey)
+        // Phase 30: the scoring context of each hand — its round's Mittelfeld (Undead) and the
+        // game's player count (Dschinn) — so per-card contributions match the stored totals.
+        val gameIdByRound = rounds.associate { it.id to it.gameId }
+        val playerCountByGame = participantsRaw.groupBy { it.gameId }.mapValues { it.value.size }
+        val discardByRound: Map<String, List<de.morzo.realmscore.domain.model.CardDefinition>> =
+            if (roundIds.isEmpty()) emptyMap()
+            else discardCardDao.getAll()
+                .filter { it.roundId in gameIdByRound }
+                .groupBy { it.roundId }
+                .mapValues { (_, list) -> list.sortedBy { it.position }.mapNotNull { cardsByKey[it.cardKey] } }
+        val contextByResultId = results.associate { r ->
+            r.id to HandContext(
+                discardPile = discardByRound[r.roundId].orEmpty(),
+                playerCount = gameIdByRound[r.roundId]?.let { playerCountByGame[it] },
+            )
+        }
+
+        val perCardContribution = computePerCardContributions(handCardsByResultId, cardsByKey, contextByResultId)
 
         StatsSnapshot(
             closedGames = games,
@@ -148,6 +168,7 @@ class StatsRepositoryImpl(
     private fun computePerCardContributions(
         handCardsByResultId: Map<String, List<HandCard>>,
         cardsByKey: Map<String, de.morzo.realmscore.domain.model.CardDefinition>,
+        contextByResultId: Map<String, HandContext>,
     ): Map<String, Map<String, Int>> {
         val result = mutableMapOf<String, Map<String, Int>>()
         for ((rrId, cards) in handCardsByResultId) {
@@ -162,6 +183,8 @@ class StatsRepositoryImpl(
                     ScoringInput(
                         hand = hand,
                         jokerAssignments = choices.jokerAssignments,
+                        discardPile = contextByResultId[rrId]?.discardPile.orEmpty(),
+                        playerCount = contextByResultId[rrId]?.playerCount,
                     ),
                 )
                 result[rrId] = scoring.perCard.associate { it.cardKey to it.contributedScore }
@@ -209,3 +232,9 @@ class StatsRepositoryImpl(
         const val TAG = "StatsRepository"
     }
 }
+
+/** Per-hand scoring context beyond the cards themselves (Phase 30). */
+private data class HandContext(
+    val discardPile: List<de.morzo.realmscore.domain.model.CardDefinition>,
+    val playerCount: Int?,
+)

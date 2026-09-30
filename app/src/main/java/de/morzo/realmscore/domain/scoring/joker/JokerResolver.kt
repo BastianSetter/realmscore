@@ -64,7 +64,8 @@ class JokerResolver(
                 JokerType.BOOK_OF_CHANGES,
                 JokerType.ISLAND,
                 JokerType.FOUNTAIN_OF_LIFE,
-                JokerType.NECROMANCER -> resolved[i]
+                JokerType.NECROMANCER,
+                JokerType.ANGEL -> resolved[i]
             }
         }
 

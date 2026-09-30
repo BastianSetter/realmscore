@@ -46,6 +46,8 @@ sealed class SyncMessage {
         val roundId: String,
         val profileId: String,
         val cards: List<HandCardSyncData>,
+        /** Phase 30: cursed items the player used this round (defaults keep old peers compatible). */
+        val cursedItemKeys: List<String> = emptyList(),
     ) : SyncMessage()
 
     /** Live Mittelfeld (discard pile) entry for one round (list of card keys). */

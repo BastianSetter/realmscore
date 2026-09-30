@@ -12,6 +12,9 @@ data class HandCardEntry(
 data class SavedHand(
     val cards: List<HandCardEntry>,
     val totalScore: Int,
+    /** Phase 30: cursed items the player used this round (their points are part of [totalScore]). */
+    val cursedItemKeys: List<String> = emptyList(),
+    val cursedPoints: Int = 0,
 )
 
 interface HandCardRepository {
@@ -20,6 +23,8 @@ interface HandCardRepository {
         profileId: String,
         cards: List<HandCardEntry>,
         totalScore: Int,
+        cursedItemKeys: List<String> = emptyList(),
+        cursedPoints: Int = 0,
     )
 
     suspend fun getHand(roundId: String, profileId: String): SavedHand?

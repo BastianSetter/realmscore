@@ -1,5 +1,6 @@
 package de.morzo.realmscore.domain.stats
 
+import de.morzo.realmscore.domain.model.handScore
 import de.morzo.realmscore.domain.model.Game
 
 /**
@@ -62,7 +63,7 @@ object StatsCalculator {
                     .filter { it.profileId == profileId }
             }
         }
-        val handScores = allResults.map { it.totalScore }
+        val handScores = allResults.map { it.handScore }
         val avgScorePerHand = if (handScores.isNotEmpty()) handScores.average() else 0.0
         val bestSingleHandScore = handScores.maxOrNull() ?: 0
 
@@ -185,10 +186,10 @@ object StatsCalculator {
                 ?.firstOrNull { it.profileId == profileId }
                 ?: continue
             if (
-                result.totalScore > bestScore ||
-                (result.totalScore == bestScore && round.roundNumber > bestRoundNumber)
+                result.handScore > bestScore ||
+                (result.handScore == bestScore && round.roundNumber > bestRoundNumber)
             ) {
-                bestScore = result.totalScore
+                bestScore = result.handScore
                 bestRoundNumber = round.roundNumber
                 bestRoundId = round.id
             }
@@ -288,7 +289,7 @@ object StatsCalculator {
             profileId = result.profileId,
             profileName = profileName,
             handCardKeys = handCards,
-            totalHandScore = result.totalScore,
+            totalHandScore = result.handScore,
         )
     }
 

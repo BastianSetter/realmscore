@@ -52,3 +52,25 @@ private fun List<SavedCardChoice>.reconstructScoringChoices(): ReconstructedChoi
         }.toMap()
     return ReconstructedChoices(jokerAssignments)
 }
+
+/**
+ * The single canonical [ScoringInput] for a persisted hand (Phase 30). Capture/save, reveal, round
+ * summary, breakdown, P2P mirror and stats all build their input here so the same hand always scores
+ * the same: the cards, their targets, the round's Mittelfeld (the Undead score it) and the game's
+ * player count (Dschinn). Returns null when a card key is unknown.
+ */
+fun savedHandScoringInput(
+    entries: List<HandCardEntry>,
+    cardLookup: (String) -> de.morzo.realmscore.domain.model.CardDefinition?,
+    discardPile: List<de.morzo.realmscore.domain.model.CardDefinition>,
+    playerCount: Int?,
+): ScoringInput? {
+    val hand = entries.sortedBy { it.position }.mapNotNull { cardLookup(it.cardKey) }
+    if (hand.size != entries.size) return null
+    return ScoringInput(
+        hand = hand,
+        jokerAssignments = entries.toScoringChoices().jokerAssignments,
+        discardPile = discardPile,
+        playerCount = playerCount,
+    )
+}

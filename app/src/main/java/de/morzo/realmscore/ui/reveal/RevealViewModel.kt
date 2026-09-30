@@ -1,5 +1,7 @@
 package de.morzo.realmscore.ui.reveal
 
+import de.morzo.realmscore.data.repository.HandScoringService
+import de.morzo.realmscore.data.repository.RoundScoringContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -42,6 +44,7 @@ class RevealViewModel(
     private val handCardRepo: HandCardRepository,
     private val cardLookup: CardLookup,
     private val engine: ScoringEngine,
+    private val handScoring: HandScoringService,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RevealUiState())
@@ -53,13 +56,14 @@ class RevealViewModel(
                 ?: error("Round not found: $roundId")
             val participants = gameRepo.getParticipants(round.gameId)
                 .sortedBy { it.seatOrder }
+            val scoringContext = handScoring.context(roundId)
 
             val players = participants.mapNotNull { participant ->
                 val profile = profileRepo.getById(participant.profileId) ?: return@mapNotNull null
                 val saved = handCardRepo.getHand(roundId, participant.profileId)
                     ?: return@mapNotNull null
                 val topCardKeys = withContext(Dispatchers.Default) {
-                    computeTopCards(saved.cards)
+                    computeTopCards(saved.cards, scoringContext)
                 }
                 PlayerReveal(
                     profileId = profile.id,
@@ -93,18 +97,12 @@ class RevealViewModel(
     /** Returns the language-neutral keys of the three top-scoring non-blanked cards. */
     private fun computeTopCards(
         cards: List<de.morzo.realmscore.domain.repository.HandCardEntry>,
+        context: RoundScoringContext,
     ): List<String> {
-        val hand = cards.mapNotNull { cardLookup.getByKey(it.cardKey) }
-        if (hand.size != cards.size) return emptyList()
-        // Rebuild all joker assignments (incl. the Necromancer pull, Island, Fountain) so the effects
-        // are reflected here exactly as in the Sandbox (shared toScoringChoices mapper).
-        val reconstructed = cards.toScoringChoices()
-        val result = engine.score(
-            ScoringInput(
-                hand = hand,
-                jokerAssignments = reconstructed.jokerAssignments,
-            ),
-        )
+        // Canonical input (targets, Mittelfeld, player count) so the effects are reflected here
+        // exactly as when the hand was saved.
+        val input = handScoring.input(cards, context) ?: return emptyList()
+        val result = engine.score(input)
         return result.perCard
             .filter { !it.isBlanked }
             .sortedByDescending { it.contributedScore }
@@ -120,6 +118,7 @@ class RevealViewModel(
         private val handCardRepo: HandCardRepository,
         private val cardLookup: CardLookup,
         private val engine: ScoringEngine,
+        private val handScoring: HandScoringService,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -131,6 +130,7 @@ class RevealViewModel(
                 handCardRepo = handCardRepo,
                 cardLookup = cardLookup,
                 engine = engine,
+                handScoring = handScoring,
             ) as T
         }
     }

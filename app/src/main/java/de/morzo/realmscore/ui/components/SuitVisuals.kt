@@ -41,4 +41,7 @@ internal fun suitLabelRes(suit: Suit): Int = when (suit) {
     Suit.WEATHER -> R.string.suit_weather
     Suit.WIZARD -> R.string.suit_wizard
     Suit.WILD -> R.string.suit_wild
+    Suit.BUILDING -> R.string.suit_building
+    Suit.OUTSIDER -> R.string.suit_outsider
+    Suit.UNDEAD -> R.string.suit_undead
 }

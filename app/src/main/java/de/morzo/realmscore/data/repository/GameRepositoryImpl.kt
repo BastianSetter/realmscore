@@ -45,6 +45,8 @@ class GameRepositoryImpl(
         target: Int,
         participantProfileIds: List<String>,
         displayName: String?,
+        cursedItemsEnabled: Boolean,
+        newSuitsEnabled: Boolean,
     ): Game {
         require(participantProfileIds.size in 2..6) {
             "Game must have between 2 and 6 participants."
@@ -68,6 +70,8 @@ class GameRepositoryImpl(
             createdAt = now,
             updatedAt = now,
             originDeviceId = deviceUuid,
+            cursedItemsEnabled = cursedItemsEnabled,
+            newSuitsEnabled = newSuitsEnabled,
         )
         val participants = participantProfileIds.mapIndexed { index, profileId ->
             GameParticipantEntity(

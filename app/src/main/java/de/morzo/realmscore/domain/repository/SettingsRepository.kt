@@ -28,6 +28,16 @@ interface SettingsRepository {
     val discardCaptureEnabled: Flow<Boolean>
     suspend fun setDiscardCaptureEnabled(value: Boolean)
 
+    /**
+     * Phase 30: defaults for a new game's expansion switches ("Der verfluchte Schatz"). The actual
+     * flags are chosen per game on the New-Game screen and stored on the game.
+     */
+    val defaultCursedItemsEnabled: Flow<Boolean>
+    suspend fun setDefaultCursedItemsEnabled(value: Boolean)
+
+    val defaultNewSuitsEnabled: Flow<Boolean>
+    suspend fun setDefaultNewSuitsEnabled(value: Boolean)
+
     /** When true, the embedded KartenPick card picker shows its text-search field (default on). */
     val pickerSearchEnabled: Flow<Boolean>
     suspend fun setPickerSearchEnabled(value: Boolean)

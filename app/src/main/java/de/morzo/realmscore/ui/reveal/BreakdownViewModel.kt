@@ -1,5 +1,6 @@
 package de.morzo.realmscore.ui.reveal
 
+import de.morzo.realmscore.data.repository.HandScoringService
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -21,6 +22,7 @@ class BreakdownViewModel(
     private val handCardRepo: HandCardRepository,
     private val engine: ScoringEngine,
     private val cardLookup: CardLookup,
+    private val handScoring: HandScoringService,
     private val roundId: String,
     private val profileId: String,
 ) : ViewModel() {
@@ -31,23 +33,22 @@ class BreakdownViewModel(
     private val _handCards = MutableStateFlow<List<CardDefinition>>(emptyList())
     val handCards: StateFlow<List<CardDefinition>> = _handCards.asStateFlow()
 
+    /** Phase 30: cursed items the player used this round and their summed points. */
+    private val _cursedItemKeys = MutableStateFlow<List<String>>(emptyList())
+    val cursedItemKeys: StateFlow<List<String>> = _cursedItemKeys.asStateFlow()
+    private val _cursedPoints = MutableStateFlow(0)
+    val cursedPoints: StateFlow<Int> = _cursedPoints.asStateFlow()
+
     init {
         viewModelScope.launch {
             val saved = handCardRepo.getHand(roundId, profileId) ?: return@launch
-            val hand = saved.cards.mapNotNull { cardLookup.getByKey(it.cardKey) }
-            if (hand.size != saved.cards.size) return@launch
-            _handCards.value = hand
-            // Reconstruct all joker assignments (Necromancer pull, Island, Fountain included) so the
-            // breakdown matches the Sandbox for the same hand.
-            val reconstructed = saved.cards.toScoringChoices()
-            val result = withContext(Dispatchers.Default) {
-                engine.score(
-                    ScoringInput(
-                        hand = hand,
-                        jokerAssignments = reconstructed.jokerAssignments,
-                    ),
-                )
-            }
+            // Canonical input (targets, Mittelfeld, player count) so the breakdown matches the stored
+            // score of the same hand.
+            val input = handScoring.input(saved.cards, handScoring.context(roundId)) ?: return@launch
+            _handCards.value = input.hand
+            _cursedItemKeys.value = saved.cursedItemKeys
+            _cursedPoints.value = saved.cursedPoints
+            val result = withContext(Dispatchers.Default) { engine.score(input) }
             _scoringResult.value = result
         }
     }
@@ -56,6 +57,7 @@ class BreakdownViewModel(
         private val handCardRepo: HandCardRepository,
         private val engine: ScoringEngine,
         private val cardLookup: CardLookup,
+        private val handScoring: HandScoringService,
         private val roundId: String,
         private val profileId: String,
     ) : ViewModelProvider.Factory {
@@ -65,6 +67,7 @@ class BreakdownViewModel(
                 handCardRepo = handCardRepo,
                 engine = engine,
                 cardLookup = cardLookup,
+                handScoring = handScoring,
                 roundId = roundId,
                 profileId = profileId,
             ) as T

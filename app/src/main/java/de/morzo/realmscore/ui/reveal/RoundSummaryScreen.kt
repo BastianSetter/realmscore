@@ -80,6 +80,7 @@ fun RoundSummaryScreen(
             cardLookup = container.cardLookup,
             engine = container.scoringEngine,
             p2p = container.p2pSessionRepository,
+            handScoring = container.handScoringService,
         ),
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -182,18 +183,26 @@ fun RoundSummaryScreen(
                 handCardRepo = container.handCardRepository,
                 engine = container.scoringEngine,
                 cardLookup = container.cardLookup,
+                handScoring = container.handScoringService,
                 roundId = roundId,
                 profileId = activeProfileId,
             ),
         )
         val result by breakdownVm.scoringResult.collectAsStateWithLifecycle()
         val handCards by breakdownVm.handCards.collectAsStateWithLifecycle()
+        val cursedItemKeys by breakdownVm.cursedItemKeys.collectAsStateWithLifecycle()
+        val cursedPoints by breakdownVm.cursedPoints.collectAsStateWithLifecycle()
+        val locale = de.morzo.realmscore.ui.util.currentLocale()
         result?.let {
             HandBreakdownSheet(
                 cards = handCards,
                 result = it,
                 cardLookup = container.cardLookup::getByKey,
                 onDismiss = { breakdownProfileId = null },
+                cursedItemNames = cursedItemKeys.mapNotNull { key ->
+                    container.cursedItemLookup.getByKey(key)?.displayName(locale)
+                },
+                cursedPoints = cursedPoints,
             )
         }
     }

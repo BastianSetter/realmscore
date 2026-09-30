@@ -1,14 +1,15 @@
 package de.morzo.realmscore.domain.scoring.rules.specials
 
-import de.morzo.realmscore.domain.model.Suit
 import de.morzo.realmscore.domain.scoring.CardScoringRule
 import de.morzo.realmscore.domain.scoring.EffectApplication
 import de.morzo.realmscore.domain.scoring.ResolvedCard
 import de.morzo.realmscore.domain.scoring.ScoringContext
+import de.morzo.realmscore.domain.scoring.joker.JokerTargets
 
 /**
- * Quelle des Lebens: adds base strength of one chosen Weapon/Flood/Flame/Land/Weather
- * (from non-blanked hand). The player's pick is the Fountain's joker target ([FOUNTAIN_KEY]); the
+ * Quelle des Lebens: adds base strength of one chosen Weapon/Flood/Flame/Land/Weather (the expansion
+ * edition also Building — see [JokerTargets.fountainSuits]) from the non-blanked hand. The player's
+ * pick is the Fountain's joker target, keyed by the Fountain card's own key; the
  * source is matched against the *resolved* hand, so a Doppelganger/Book-of-Changes card that has
  * become an eligible suit/strength is a valid source.
  *
@@ -17,15 +18,11 @@ import de.morzo.realmscore.domain.scoring.ScoringContext
  */
 object FountainOfLifeRule : CardScoringRule {
 
-    const val FOUNTAIN_KEY = "fountain_of_life"
-
-    val eligibleSuits: Set<Suit> = setOf(Suit.WEAPON, Suit.FLOOD, Suit.FLAME, Suit.LAND, Suit.WEATHER)
-
     override fun bonuses(self: ResolvedCard, ctx: ScoringContext): List<EffectApplication> {
-        val pickKey = ctx.jokerAssignments[FOUNTAIN_KEY]?.targetCardKey ?: return emptyList()
+        val pickKey = ctx.jokerAssignments[self.originalKey]?.targetCardKey ?: return emptyList()
         if (pickKey == self.originalKey) return emptyList()
         val source = ctx.nonBlankedHand().firstOrNull { it.originalKey == pickKey } ?: return emptyList()
-        if (source.effectiveSuit !in eligibleSuits) return emptyList()
+        if (source.effectiveSuit !in JokerTargets.fountainSuits(self.originalKey)) return emptyList()
         if (source.effectiveStrength == 0) return emptyList()
         return listOf(
             EffectApplication(

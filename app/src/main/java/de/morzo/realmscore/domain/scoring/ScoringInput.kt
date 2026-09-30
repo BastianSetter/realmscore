@@ -12,4 +12,11 @@ data class ScoringInput(
      * captured [discardPile]. The [ScoringEngine] ignores it — scoring is identical either way.
      */
     val discardScanned: Boolean = false,
+    /**
+     * Phase 30: the game is played with the expansion's new suits. Only the [OptimalSolver] reads
+     * it, to pick the matching card pool for Mirage/Shapeshifter targets and Book-of-Changes suits.
+     */
+    val newSuits: Boolean = false,
+    /** Phase 30: number of players in the game (Dschinn: +10 per opponent). Null = unknown → no bonus. */
+    val playerCount: Int? = null,
 )

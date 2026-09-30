@@ -1,5 +1,6 @@
 package de.morzo.realmscore.ui.components
 
+import de.morzo.realmscore.domain.scoring.joker.JokerTargets
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -375,31 +376,47 @@ private fun CardPickerItem(card: CardDefinition, onClick: () -> Unit, highlighte
     } else {
         Modifier
     }
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(suitColor(card.suit))
-            .then(highlightModifier)
-            .clickable(onClick = onClick)
-            .padding(PaddingValues(horizontal = 12.dp)),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .clip(RoundedCornerShape(12.dp)),
     ) {
-        Text(
-            text = card.displayName(),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = onColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = card.baseStrength.toString(),
-            style = MaterialTheme.typography.labelLarge,
-            color = onColor,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(suitColor(card.suit))
+                .then(highlightModifier)
+                .clickable(onClick = onClick)
+                .padding(PaddingValues(horizontal = 12.dp)),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = card.displayName(),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = onColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = card.baseStrength.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                color = onColor,
+            )
+        }
+        // Phase 30: expansion cards ("Der verfluchte Schatz") carry a small coloured stripe at the
+        // top-right edge (badge variant A) — in the full-screen picker and the embedded KartenPick.
+        if (JokerTargets.isExpansion(card.key)) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .width(6.dp)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.tertiary),
+            )
+        }
     }
 }

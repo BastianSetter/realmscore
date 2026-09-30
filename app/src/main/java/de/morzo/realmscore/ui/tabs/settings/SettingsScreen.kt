@@ -193,6 +193,23 @@ fun SettingsScreen(
             }
         }
 
+        // Phase 30: defaults for the expansion switches of a new game.
+        item { SectionHeader(stringResource(R.string.settings_expansion_title)) }
+        item {
+            ToggleRow(
+                label = stringResource(R.string.settings_expansion_cursed_items),
+                checked = state.defaultCursedItemsEnabled,
+                onCheckedChange = viewModel::setDefaultCursedItemsEnabled,
+            )
+        }
+        item {
+            ToggleRow(
+                label = stringResource(R.string.settings_expansion_new_suits),
+                checked = state.defaultNewSuitsEnabled,
+                onCheckedChange = viewModel::setDefaultNewSuitsEnabled,
+            )
+        }
+
         item { SectionHeader(stringResource(R.string.settings_appearance)) }
         item {
             LanguageRadioGroup(

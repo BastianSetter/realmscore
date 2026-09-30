@@ -78,6 +78,20 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
         dataStore.edit { prefs -> prefs[KEY_DISCARD_CAPTURE_ENABLED] = value }
     }
 
+    override val defaultCursedItemsEnabled: Flow<Boolean> =
+        dataStore.data.map { prefs -> prefs[KEY_DEFAULT_CURSED_ITEMS] ?: false }
+
+    override suspend fun setDefaultCursedItemsEnabled(value: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_DEFAULT_CURSED_ITEMS] = value }
+    }
+
+    override val defaultNewSuitsEnabled: Flow<Boolean> =
+        dataStore.data.map { prefs -> prefs[KEY_DEFAULT_NEW_SUITS] ?: false }
+
+    override suspend fun setDefaultNewSuitsEnabled(value: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_DEFAULT_NEW_SUITS] = value }
+    }
+
     override val pickerSearchEnabled: Flow<Boolean> =
         dataStore.data.map { prefs -> prefs[KEY_PICKER_SEARCH_ENABLED] ?: true }
 
@@ -111,6 +125,8 @@ class SettingsRepositoryImpl(applicationContext: Context) : SettingsRepository {
         private val KEY_DEFAULT_POINT_LIMIT = intPreferencesKey("default_point_limit")
         private val KEY_DEFAULT_ROUND_COUNT = intPreferencesKey("default_round_count")
         private val KEY_DISCARD_CAPTURE_ENABLED = booleanPreferencesKey("discard_capture_enabled")
+        private val KEY_DEFAULT_CURSED_ITEMS = booleanPreferencesKey("default_cursed_items_enabled")
+        private val KEY_DEFAULT_NEW_SUITS = booleanPreferencesKey("default_new_suits_enabled")
         private val KEY_PICKER_SEARCH_ENABLED = booleanPreferencesKey("picker_search_enabled")
         private val KEY_CAMERA_SCAN_ENABLED = booleanPreferencesKey("camera_scan_enabled")
         private val KEY_BITMAP_MATCHING_ENABLED = booleanPreferencesKey("bitmap_matching_enabled")
