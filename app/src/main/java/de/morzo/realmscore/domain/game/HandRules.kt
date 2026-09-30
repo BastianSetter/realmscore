@@ -15,8 +15,15 @@ object HandRules {
     const val GENIE_KEY = "expansion_genie"
     const val PORTAL_KEY = "cursed_portal"
 
-    /** Cards a hand must hold. */
+    /** Cards a hand must hold (base size of the game). */
     fun minHand(newSuits: Boolean): Int = if (newSuits) NEW_SUITS_HAND else BASE_HAND
+
+    /**
+     * Cards a hand must hold for this capture: with the cursed item Portal the player skipped a
+     * discard and therefore keeps one card more for the rest of the game — mandatory, not optional.
+     */
+    fun minHand(newSuits: Boolean, cursedItemKeys: Collection<String>): Int =
+        (minHand(newSuits) + if (PORTAL_KEY in cursedItemKeys) 1 else 0).coerceAtMost(HAND_CAP)
 
     /** Slots shown for a hand: the minimum plus one optional slot when an extra card is possible at all. */
     fun slotCount(newSuits: Boolean, cursedItems: Boolean): Int =
@@ -42,7 +49,9 @@ object HandRules {
         hasNecromancerPull: Boolean,
     ): Boolean {
         val count = handKeys.size
-        if (count < minHand(newSuits) || count > maxHand(newSuits, handKeys, cursedItemKeys)) return false
+        if (count < minHand(newSuits, cursedItemKeys) || count > maxHand(newSuits, handKeys, cursedItemKeys)) {
+            return false
+        }
         return count + (if (hasNecromancerPull) 1 else 0) <= HAND_CAP
     }
 

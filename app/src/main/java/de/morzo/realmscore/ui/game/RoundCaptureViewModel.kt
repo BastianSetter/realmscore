@@ -445,7 +445,8 @@ class RoundCaptureViewModel(
 
     /** Cards required to complete an entry (hand minimum / Mittelfeld target). */
     private fun requiredCountFor(id: String): Int =
-        if (id == DISCARD_ID) discardTarget else HandRules.minHand(newSuits)
+        if (id == DISCARD_ID) discardTarget
+        else HandRules.minHand(newSuits, drafts[id]?.cursedItemKeys.orEmpty())
 
     private fun handSlotCount(): Int = HandRules.slotCount(newSuits, cursedItemsEnabled)
 

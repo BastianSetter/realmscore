@@ -175,7 +175,7 @@ class PlayerHandEntryViewModel(
                     playerName = profile.name,
                     slots = slots,
                     jokerAssignments = jokerAssignments,
-                    requiredSlotCount = HandRules.minHand(ctx.newSuits),
+                    requiredSlotCount = HandRules.minHand(ctx.newSuits, existing?.cursedItemKeys.orEmpty()),
                     maxCardCount = slotCount,
                     newSuits = ctx.newSuits,
                     cursedItemsEnabled = ctx.cursedItems,
@@ -232,7 +232,7 @@ class PlayerHandEntryViewModel(
     fun toggleCursedItem(key: String) {
         _uiState.update { state ->
             val keys = if (key in state.cursedItemKeys) state.cursedItemKeys - key else state.cursedItemKeys + key
-            state.copy(cursedItemKeys = keys)
+            state.copy(cursedItemKeys = keys, requiredSlotCount = HandRules.minHand(state.newSuits, keys))
         }
     }
 
