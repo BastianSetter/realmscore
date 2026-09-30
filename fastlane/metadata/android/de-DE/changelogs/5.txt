@@ -1,0 +1,6 @@
+Version 1.4.0
+- Erweiterung „Der verfluchte Schatz“: pro Spiel zuschaltbar
+- Neue Kartenfarben Gebäude, Outsider und Untote inkl. Ersatzkarten
+- 8 Handkarten (9 mit Kobold, Dschinn oder Portal), Mittelfeld wird erfasst
+- Verfluchte Gegenstände: benutzte Gegenstände auswählen, Punkte zählen mit
+- Sandbox mit eigenem Schalter für die neuen Kartenfarben
